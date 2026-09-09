@@ -28,7 +28,7 @@ export function PeriodFilter({
             aria-pressed={active}
             onClick={() => router.push(`/${propertyId}/uebersicht?zeitraum=${option.value}`)}
             className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
-              active ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
+              active ? "bg-primary-dark text-on-image" : "text-ink-soft hover:text-ink"
             }`}
           >
             {option.label}

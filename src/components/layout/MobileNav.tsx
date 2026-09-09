@@ -72,10 +72,10 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
                       key={item.key}
                       href={navHref(propertyId, item.segment)}
                       className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] ${
-                        active ? "bg-ink text-paper font-medium" : "text-ink-soft"
+                        active ? "bg-primary-dark text-on-image font-medium" : "text-ink-soft"
                       }`}
                     >
-                      <Icon className={`h-5 w-5 ${active ? "text-paper" : "text-ink-soft/70"}`} />
+                      <Icon className={`h-5 w-5 ${active ? "text-on-image" : "text-ink-soft/70"}`} />
                       {item.label}
                     </Link>
                   );
@@ -91,10 +91,10 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
                       key={item.key}
                       href={navHref(propertyId, item.segment)}
                       className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] ${
-                        active ? "bg-ink text-paper font-medium" : "text-ink-soft"
+                        active ? "bg-primary-dark text-on-image font-medium" : "text-ink-soft"
                       }`}
                     >
-                      <Icon className={`h-5 w-5 ${active ? "text-paper" : "text-ink-soft/70"}`} />
+                      <Icon className={`h-5 w-5 ${active ? "text-on-image" : "text-ink-soft/70"}`} />
                       {item.label}
                     </Link>
                   );

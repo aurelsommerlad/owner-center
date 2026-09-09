@@ -24,8 +24,17 @@ interface OccupancyTimelineProps {
 
 const STATUS_BAR_CLASS: Record<ReservationStatus, string> = {
   confirmed: "bg-status-occupied",
-  blocked: "bg-status-blocked",
+  blocked: "bg-status-blocked border border-ink-soft/25",
   "owner-use": "bg-status-owner",
+};
+
+/** Label text needs its own colour per status: blocked bars are a very
+ *  light fill (secondary text reads best), owner-use bars are a dark green
+ *  fill (needs the light on-image tone), confirmed bars never show a label. */
+const STATUS_LABEL_TEXT_CLASS: Record<ReservationStatus, string> = {
+  confirmed: "",
+  blocked: "text-ink-soft",
+  "owner-use": "text-on-image",
 };
 
 function dateIndex(iso: string, days: TimelineDay[]): number {
@@ -52,7 +61,7 @@ export function OccupancyTimeline({
         {/* Header row */}
         <div className="flex">
           <div
-            className="sticky left-0 z-10 shrink-0 bg-paper"
+            className="sticky left-0 z-10 shrink-0 bg-paper-dim"
             style={{ width: unitColumnWidth }}
           />
           <div className="relative flex" style={{ width: gridWidth }}>
@@ -63,18 +72,12 @@ export function OccupancyTimeline({
                 <div
                   key={day.date}
                   className={`flex shrink-0 flex-col items-center justify-center gap-0.5 border-b border-line py-1.5 text-[11px] ${
-                    weekend ? "bg-paper-dim/60" : ""
+                    isToday ? "bg-paper-dim" : weekend ? "bg-paper-dim/50" : "bg-paper"
                   } ${isToday ? "text-ink" : "text-ink-soft"}`}
                   style={{ width: cellWidth }}
                 >
                   <span className="uppercase tracking-wide">{weekdayLabel(day.date)}</span>
-                  <span
-                    className={
-                      isToday
-                        ? "flex h-5 w-5 items-center justify-center rounded-full bg-ink font-semibold text-paper"
-                        : ""
-                    }
-                  >
+                  <span className={isToday ? "font-semibold text-primary-dark" : ""}>
                     {dayOfMonth(day.date)}
                   </span>
                 </div>
@@ -87,7 +90,7 @@ export function OccupancyTimeline({
         {rows.map((row) => (
           <div key={row.unit.id} className="flex">
             <div
-              className="sticky left-0 z-10 flex shrink-0 flex-col justify-center border-b border-line bg-paper pr-3"
+              className="sticky left-0 z-10 flex shrink-0 flex-col justify-center border-b border-line bg-paper-dim pr-3"
               style={{ width: unitColumnWidth, height: rowHeight }}
             >
               <p className="text-sm font-medium text-ink">{row.unit.name}</p>
@@ -106,7 +109,7 @@ export function OccupancyTimeline({
                   return (
                     <div
                       key={day.date}
-                      className={`shrink-0 border-r border-line/70 ${weekend ? "bg-paper-dim/40" : ""}`}
+                      className={`shrink-0 border-r border-line/70 ${weekend ? "bg-paper-dim/50" : "bg-paper"}`}
                       style={{ width: cellWidth }}
                     />
                   );
@@ -114,7 +117,7 @@ export function OccupancyTimeline({
               </div>
               {todayIndex >= 0 && todayIndex < days.length && (
                 <div
-                  className="pointer-events-none absolute top-0 bottom-0 bg-ink/[0.04]"
+                  className="pointer-events-none absolute top-0 bottom-0 bg-paper-dim"
                   style={{ left: todayIndex * cellWidth, width: cellWidth }}
                 />
               )}
@@ -143,7 +146,7 @@ export function OccupancyTimeline({
                   <div
                     key={reservation.id}
                     title={`${statusLabel(reservation.status)} · ${formatShortDate(reservation.checkIn)} – ${formatShortDate(reservation.checkOut)}`}
-                    className={`absolute top-1/2 h-6 -translate-y-1/2 shadow-sm transition-[filter,transform] duration-150 hover:z-10 hover:brightness-110 ${
+                    className={`absolute top-1/2 h-6 -translate-y-1/2 shadow-sm transition-[filter,transform] duration-150 hover:z-10 hover:brightness-105 ${
                       STATUS_BAR_CLASS[reservation.status]
                     } ${continuesBefore ? "rounded-l-none" : "rounded-l-full"} ${
                       continuesAfter ? "rounded-r-none" : "rounded-r-full"
@@ -154,7 +157,9 @@ export function OccupancyTimeline({
                     }}
                   >
                     {labelFits && (
-                      <span className="pointer-events-none absolute inset-0 flex items-center justify-center truncate px-4 text-[11px] font-medium text-ink">
+                      <span
+                        className={`pointer-events-none absolute inset-0 flex items-center justify-center truncate px-4 text-[11px] font-medium ${STATUS_LABEL_TEXT_CLASS[reservation.status]}`}
+                      >
                         {statusLabel(reservation.status)}
                       </span>
                     )}

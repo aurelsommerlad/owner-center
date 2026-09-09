@@ -11,7 +11,7 @@ const STATUS_LABEL: Record<StatementStatus, string> = {
 };
 
 const STATUS_CLASS: Record<StatementStatus, string> = {
-  ready: "bg-ink text-paper",
+  ready: "bg-primary-dark text-on-image",
   processing: "border border-line text-ink-soft",
   paid: "bg-status-owner/15 text-status-owner",
 };
