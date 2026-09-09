@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { ArrowRightIcon } from "@/components/ui/icons";
-import { OccupancyTimeline, TimelineLegend } from "@/components/calendar/OccupancyTimeline";
+import { OccupancyTimeline, TimelineLegend, getPresentStatuses } from "@/components/calendar/OccupancyTimeline";
 import type { OccupancyPreview } from "@/services/overviewService";
 import { MOCK_TODAY } from "@/lib/config";
 
@@ -12,6 +12,8 @@ export function OccupancyPreviewCard({
   preview: OccupancyPreview;
   propertyId: string;
 }) {
+  const presentStatuses = getPresentStatuses(preview.days, preview.rows);
+
   return (
     <Card className="p-5 shadow-none sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -33,12 +35,15 @@ export function OccupancyPreviewCard({
           cellWidth={40}
           rowHeight={42}
           unitColumnWidth={112}
+          tone="subtle"
         />
       </div>
 
-      <div className="mt-4 border-t border-line pt-3.5">
-        <TimelineLegend />
-      </div>
+      {presentStatuses.length > 1 && (
+        <div className="mt-4 border-t border-line pt-3.5">
+          <TimelineLegend statuses={presentStatuses} tone="subtle" />
+        </div>
+      )}
     </Card>
   );
 }

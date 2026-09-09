@@ -29,7 +29,14 @@ export function Sidebar({ propertyId }: { propertyId: string }) {
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line bg-paper px-4 py-6 lg:flex">
-      <nav className="flex flex-1 flex-col gap-1 pt-1">
+      <div className="px-2.5 pb-8">
+        <p className="font-sans text-sm font-semibold tracking-[0.05em] text-[#171817]">UNIQUE PLACES</p>
+        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-[#171817]/55">
+          Owner Center
+        </p>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-1">
         {MAIN_NAV.map((item) => (
           <NavLink key={item.key} item={item} propertyId={propertyId} active={activeSegment === item.segment} />
         ))}
@@ -46,10 +53,6 @@ export function Sidebar({ propertyId }: { propertyId: string }) {
           <LOGOUT_ITEM.icon className="h-[18px] w-[18px] shrink-0 text-ink-soft/70 group-hover:text-ink" />
           {LOGOUT_ITEM.label}
         </button>
-      </div>
-
-      <div className="mt-8 border-t border-line px-2 pt-5">
-        <span className="font-sans text-xs font-medium tracking-[0.14em] text-ink">UNIQUE PLACES</span>
       </div>
     </aside>
   );
