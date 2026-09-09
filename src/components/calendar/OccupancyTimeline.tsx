@@ -124,7 +124,16 @@ export function OccupancyTimeline({
                 if (endIdx <= startIdx) return null;
                 const continuesBefore = reservation.checkIn < days[0].date;
                 const continuesAfter = reservation.checkOut > days[days.length - 1].date;
-                const width = (endIdx - startIdx) * cellWidth - 6;
+
+                // A bar starts at the midpoint of the check-in day column and ends at the
+                // midpoint of the check-out day column, so its length is always
+                // nights * cellWidth and a same-day changeover (one stay's check-out, the
+                // next stay's check-in) meets exactly at that day's midpoint. Only clamp to
+                // the grid edge when the stay actually continues outside the visible range.
+                const left = continuesBefore ? 0 : startIdx * cellWidth + cellWidth / 2;
+                const right = continuesAfter ? days.length * cellWidth : endIdx * cellWidth + cellWidth / 2;
+                const width = right - left;
+
                 // Guest bookings stay unlabeled (colour + hover tooltip only) to keep the
                 // timeline calm; owner-use and blocked stays are always labelled since an
                 // owner needs to recognise them at a glance without hovering.
@@ -140,26 +149,14 @@ export function OccupancyTimeline({
                       continuesAfter ? "rounded-r-none" : "rounded-r-full"
                     }`}
                     style={{
-                      left: startIdx * cellWidth + 3,
-                      width: Math.max(width, 10),
+                      left,
+                      width: Math.max(width, 6),
                     }}
                   >
                     {labelFits && (
                       <span className="pointer-events-none absolute inset-0 flex items-center justify-center truncate px-4 text-[11px] font-medium text-ink">
                         {statusLabel(reservation.status)}
                       </span>
-                    )}
-                    {!continuesBefore && (
-                      <span
-                        aria-hidden="true"
-                        className="absolute left-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-paper/80"
-                      />
-                    )}
-                    {!continuesAfter && (
-                      <span
-                        aria-hidden="true"
-                        className="absolute right-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-paper/80"
-                      />
                     )}
                   </div>
                 );
