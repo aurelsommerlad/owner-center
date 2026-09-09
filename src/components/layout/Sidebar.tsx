@@ -11,12 +11,12 @@ function NavLink({ item, propertyId, active }: { item: NavItem; propertyId: stri
       href={navHref(propertyId, item.segment)}
       className={`group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm transition-colors ${
         active
-          ? "bg-primary-dark text-on-image"
+          ? "bg-ink text-paper"
           : "text-ink-soft hover:bg-paper-dim hover:text-ink"
       }`}
     >
       <Icon
-        className={`h-[18px] w-[18px] shrink-0 ${active ? "text-on-image" : "text-ink-soft/70 group-hover:text-ink"}`}
+        className={`h-[18px] w-[18px] shrink-0 ${active ? "text-paper" : "text-ink-soft/70 group-hover:text-ink"}`}
       />
       <span className={active ? "font-medium" : ""}>{item.label}</span>
     </Link>

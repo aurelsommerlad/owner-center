@@ -1,45 +1,25 @@
 @import "tailwindcss";
 
-/*
- * UNIQUE PLACES design tokens - shared with the guest app.
- * These are the single source of truth for the palette; do not add new
- * colors beyond these (plus opacity variants of the same tokens).
- */
-:root {
-  --background: #f8f6f1;
-  --surface: #f1ede4;
-  --primary: #87977e;
-  --primary-dark: #52664e;
-  --text-primary: #171817;
-  --text-secondary: #74736e;
-  --border: #e4e0d8;
-  --on-image: #fafaf7;
-}
-
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
 
-  /* Tailwind-consumable aliases (bg-*, text-*, border-* utilities) for the
-     tokens above - kept under their existing component-facing names so no
-     className had to be renamed across the app. */
-  --color-ink: var(--text-primary);
-  --color-ink-soft: var(--text-secondary);
-  --color-paper: var(--background);
-  --color-paper-dim: var(--surface);
-  --color-line: var(--border);
+  --color-ink: #17160f;
+  --color-ink-soft: #3a382f;
+  --color-paper: #faf8f4;
+  --color-paper-dim: #f1efe8;
+  --color-sand: #e7e0d2;
+  --color-sand-dark: #cabf9f;
+  --color-line: #e4dfd3;
 
-  --color-primary: var(--primary);
-  --color-primary-dark: var(--primary-dark);
-  --color-on-image: var(--on-image);
+  --color-status-occupied: #17160f;
+  --color-status-free: #f1efe8;
+  --color-status-blocked: #b98b6a;
+  --color-status-owner: #7c8c74;
+  --color-status-transition: #c9a13b;
 
-  --color-status-occupied: var(--primary);
-  --color-status-free: var(--background);
-  --color-status-blocked: var(--border);
-  --color-status-owner: var(--primary-dark);
-
-  --shadow-soft: 0 1px 2px rgba(23, 24, 23, 0.04), 0 8px 24px rgba(23, 24, 23, 0.06);
-  --shadow-soft-lg: 0 4px 12px rgba(23, 24, 23, 0.05), 0 16px 40px rgba(23, 24, 23, 0.08);
+  --shadow-soft: 0 1px 2px rgba(23, 22, 15, 0.04), 0 8px 24px rgba(23, 22, 15, 0.06);
+  --shadow-soft-lg: 0 4px 12px rgba(23, 22, 15, 0.05), 0 16px 40px rgba(23, 22, 15, 0.08);
 }
 
 html {
@@ -52,15 +32,8 @@ body {
 }
 
 ::selection {
-  background-color: var(--color-primary);
-  color: var(--color-on-image);
-}
-
-/* Keyboard-only focus ring, drawn from the brand palette instead of the
-   browser's default blue. */
-:focus-visible {
-  outline: 2px solid var(--color-primary-dark);
-  outline-offset: 2px;
+  background-color: var(--color-sand-dark);
+  color: var(--color-ink);
 }
 
 .no-scrollbar::-webkit-scrollbar {

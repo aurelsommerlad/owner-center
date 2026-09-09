@@ -37,7 +37,7 @@ export function KpiCard({
             {positive ? (
               <TrendUpIcon className="h-3 w-3 text-status-owner" />
             ) : (
-              <TrendDownIcon className="h-3 w-3 text-ink-soft" />
+              <TrendDownIcon className="h-3 w-3 text-status-blocked" />
             )}
             {formatDelta(deltaPoints ?? 0, deltaFractionDigits)}
             {deltaSuffix}
