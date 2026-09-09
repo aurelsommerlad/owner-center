@@ -79,6 +79,50 @@ export interface OwnerStatement {
   fileName: string;
 }
 
+/**
+ * A monthly owner-statement PDF, as it will eventually be synced in from the
+ * "Owner Center / Eigentümer / {Property} / Abrechnungen / {year} / {month}"
+ * Google Drive structure. Deliberately a document-archive record only - no
+ * payout/financial fields - since V1 neither computes nor reads owner
+ * payouts from these PDFs (see OwnerStatement for the separate payout
+ * status shown on the Übersicht page, which this type does not replace).
+ *
+ * The later Drive sync only has to resolve ownerId + propertyId + year +
+ * month to a file and fill in driveFileId; every other field already has
+ * the shape it needs (see services/statementDocumentService.ts).
+ */
+export interface StatementDocument {
+  id: string;
+  ownerId: string;
+  propertyId: string;
+  /** 1-12 */
+  month: number;
+  year: number;
+  /** Document type/title, e.g. "Monatsabrechnung". */
+  title: string;
+  fileName: string;
+  /** Google Drive file id. `null` until the Drive integration is wired up. */
+  driveFileId: string | null;
+  /** Bumped whenever UNIQUE PLACES replaces this month's PDF with a corrected version. */
+  version: number;
+  /** ISO date this version was made available to the owner. */
+  publishedAt: string;
+  /** ISO date of the most recent version replacement, if any. */
+  updatedAt: string | null;
+  /**
+   * ISO date the owner first opened this document since its last
+   * publish/update. Drives the "Neu"/"Gesehen" status; not shown verbatim
+   * in the UI.
+   */
+  firstViewedAt: string | null;
+  /** ISO date of the first download of the current version. Internal-only. */
+  firstDownloadedAt: string | null;
+  /** ISO date of the most recent download - shown to the owner. */
+  lastDownloadedAt: string | null;
+  /** Internal-only download counter. */
+  downloadCount: number;
+}
+
 export type DocumentCategory =
   | "vertraege"
   | "abrechnungen"
