@@ -126,6 +126,25 @@ export interface ComparableMetric {
   previousYear: number;
 }
 
+/**
+ * A sales channel a booking came through. Modeled as an open string union
+ * (plus an `id` field on the breakdown row) rather than hardcoded UI text, so
+ * a later apaleo integration can introduce further channels without any
+ * change to the components that render this list - they only ever map over
+ * `BookingSourceBreakdown[]`.
+ */
+export type BookingSourceId = "direct" | "booking_com" | "airbnb" | "other";
+
+export interface BookingSourceBreakdown {
+  source: BookingSourceId;
+  /** Display label, e.g. "Booking.com" - kept with the data, never hardcoded in UI. */
+  label: string;
+  bookingCount: number;
+  revenue: number;
+  /** 0-100, this source's share of total revenue for the period. */
+  revenueShare: number;
+}
+
 export interface PropertyStatistics {
   propertyId: string;
   /** e.g. "September 2026" or "Jahr 2026". */
@@ -144,6 +163,11 @@ export interface PropertyStatistics {
   monthlyRevenue: MonthlyRevenuePoint[];
   monthlyOccupancy: MonthlyOccupancyPoint[];
   unitStats: UnitStatistics[];
+  /** Sums exactly to `revenue.value` / `bookingsCount.value` for the period. */
+  bookingSources: BookingSourceBreakdown[];
+  /** Illustrative mock figures until real booking-lead-time/cancellation data exists. */
+  avgLeadTimeDays: number;
+  cancellationRatePct: number;
 }
 
 /** KPI summary shown on the Übersicht page for a given property. */

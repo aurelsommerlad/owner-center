@@ -25,11 +25,11 @@ interface TrendChartProps {
 }
 
 const WIDTH = 760;
-const HEIGHT = 260;
+const HEIGHT = 210;
 const PADDING_LEFT = 56;
 const PADDING_RIGHT = 12;
-const PADDING_TOP = 16;
-const PADDING_BOTTOM = 28;
+const PADDING_TOP = 14;
+const PADDING_BOTTOM = 26;
 const PLOT_WIDTH = WIDTH - PADDING_LEFT - PADDING_RIGHT;
 const PLOT_HEIGHT = HEIGHT - PADDING_TOP - PADDING_BOTTOM;
 

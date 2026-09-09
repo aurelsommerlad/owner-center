@@ -8,12 +8,30 @@ import {
   UNIT_COUNT,
   type MonthlyMockPoint,
 } from "@/data/mock/statisticsSeries";
-import { getPropertyOverviewKpis, type OverviewPeriod } from "./overviewService";
+import { computeBookingSourceBreakdown } from "@/data/mock/bookingChannels";
+import { getPropertyOverviewKpis } from "./overviewService";
 import { getUnitsForProperty } from "./unitService";
 import { getReservationsForProperty } from "./reservationService";
 
+/** The Statistiken page's own period filter - a superset of the Übersicht
+ *  page's "month"/"year" that also offers a year-to-date view. Kept separate
+ *  from `OverviewPeriod` so the Übersicht page/filter are untouched. */
+export type StatisticsPeriod = "month" | "ytd" | "year";
+
 /** Illustrative owner payout ratio (revenue share after management commission). */
 const OWNER_PAYOUT_RATE = 0.65;
+
+/** Illustrative mock figures until real lead-time/cancellation data exists. */
+const LEAD_TIME_DAYS_BY_PERIOD: Record<StatisticsPeriod, number> = {
+  month: 32,
+  ytd: 29,
+  year: 27,
+};
+const CANCELLATION_PCT_BY_PERIOD: Record<StatisticsPeriod, number> = {
+  month: 4.8,
+  ytd: 5.2,
+  year: 5.5,
+};
 
 const REPORTING_YEAR = parseIsoDate(MOCK_TODAY).getUTCFullYear();
 const REPORTING_MONTH = parseIsoDate(MOCK_TODAY).getUTCMonth() + 1;
@@ -26,35 +44,34 @@ interface Aggregate {
   stayNightsTotal: number;
 }
 
-function aggregateYear(series: MonthlyMockPoint[], year: number): Aggregate {
-  return series.reduce<Aggregate>(
-    (acc, point) => {
-      const days = daysInMonth(year, point.month);
-      const available = UNIT_COUNT * days;
-      const occupied = (point.occupancyPct / 100) * available;
-      return {
-        revenue: acc.revenue + point.revenue,
-        occupiedNights: acc.occupiedNights + occupied,
-        availableNights: acc.availableNights + available,
-        bookings: acc.bookings + point.bookings,
-        stayNightsTotal: acc.stayNightsTotal + point.bookings * point.avgStayNights,
-      };
-    },
-    { revenue: 0, occupiedNights: 0, availableNights: 0, bookings: 0, stayNightsTotal: 0 }
-  );
+const EMPTY_AGGREGATE: Aggregate = {
+  revenue: 0,
+  occupiedNights: 0,
+  availableNights: 0,
+  bookings: 0,
+  stayNightsTotal: 0,
+};
+
+function monthsForPeriod(period: StatisticsPeriod): number[] {
+  if (period === "month") return [REPORTING_MONTH];
+  if (period === "ytd") return Array.from({ length: REPORTING_MONTH }, (_, i) => i + 1);
+  return Array.from({ length: 12 }, (_, i) => i + 1);
 }
 
-function aggregateMonth(point: MonthlyMockPoint, year: number): Aggregate {
-  const days = daysInMonth(year, point.month);
-  const available = UNIT_COUNT * days;
-  const occupied = (point.occupancyPct / 100) * available;
-  return {
-    revenue: point.revenue,
-    occupiedNights: occupied,
-    availableNights: available,
-    bookings: point.bookings,
-    stayNightsTotal: point.bookings * point.avgStayNights,
-  };
+function aggregateMonths(series: MonthlyMockPoint[], year: number, months: number[]): Aggregate {
+  return months.reduce<Aggregate>((acc, month) => {
+    const point = series[month - 1];
+    const days = daysInMonth(year, month);
+    const available = UNIT_COUNT * days;
+    const occupied = (point.occupancyPct / 100) * available;
+    return {
+      revenue: acc.revenue + point.revenue,
+      occupiedNights: acc.occupiedNights + occupied,
+      availableNights: acc.availableNights + available,
+      bookings: acc.bookings + point.bookings,
+      stayNightsTotal: acc.stayNightsTotal + point.bookings * point.avgStayNights,
+    };
+  }, EMPTY_AGGREGATE);
 }
 
 function metricsFromAggregate(a: Aggregate) {
@@ -70,18 +87,19 @@ function metric(value: number, previousYear: number): ComparableMetric {
   return { value, previousYear };
 }
 
+function periodLabelFor(period: StatisticsPeriod): string {
+  if (period === "year") return `Jahr ${REPORTING_YEAR}`;
+  if (period === "ytd") return `YTD ${REPORTING_YEAR}`;
+  return `${monthLabel(REPORTING_MONTH)} ${REPORTING_YEAR}`;
+}
+
 export async function getPropertyStatistics(
   propertyId: string,
-  period: OverviewPeriod = "month"
+  period: StatisticsPeriod = "month"
 ): Promise<PropertyStatistics> {
-  const currentAgg =
-    period === "year"
-      ? aggregateYear(MONTHLY_SERIES_2026, REPORTING_YEAR)
-      : aggregateMonth(MONTHLY_SERIES_2026[REPORTING_MONTH - 1], REPORTING_YEAR);
-  const previousAgg =
-    period === "year"
-      ? aggregateYear(MONTHLY_SERIES_2025, REPORTING_YEAR - 1)
-      : aggregateMonth(MONTHLY_SERIES_2025[REPORTING_MONTH - 1], REPORTING_YEAR - 1);
+  const months = monthsForPeriod(period);
+  const currentAgg = aggregateMonths(MONTHLY_SERIES_2026, REPORTING_YEAR, months);
+  const previousAgg = aggregateMonths(MONTHLY_SERIES_2025, REPORTING_YEAR - 1, months);
 
   // The current month is also driven by real (mock) reservations elsewhere in
   // the app (Übersicht page) - splice that live figure in so both pages agree
@@ -97,14 +115,12 @@ export async function getPropertyStatistics(
   const current = metricsFromAggregate(currentAgg);
   const previous = metricsFromAggregate(previousAgg);
 
-  const periodLabel =
-    period === "year" ? `Jahr ${REPORTING_YEAR}` : `${monthLabel(REPORTING_MONTH)} ${REPORTING_YEAR}`;
-
   const unitStats = await getUnitPerformance(propertyId);
+  const bookingSources = computeBookingSourceBreakdown(currentAgg.revenue, currentAgg.bookings);
 
   return {
     propertyId,
-    periodLabel,
+    periodLabel: periodLabelFor(period),
     comparisonLabel: "Vorjahr",
     occupancyPct: metric(current.occupancy, previous.occupancy),
     revenue: metric(currentAgg.revenue, previousAgg.revenue),
@@ -137,6 +153,9 @@ export async function getPropertyStatistics(
       }))
     ),
     unitStats,
+    bookingSources,
+    avgLeadTimeDays: LEAD_TIME_DAYS_BY_PERIOD[period],
+    cancellationRatePct: CANCELLATION_PCT_BY_PERIOD[period],
   };
 }
 

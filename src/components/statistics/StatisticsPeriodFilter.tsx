@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { OverviewPeriod } from "@/services/overviewService";
+import type { StatisticsPeriod } from "@/services/statisticsService";
 
-const OPTIONS: Array<{ value: OverviewPeriod; label: string }> = [
+const OPTIONS: Array<{ value: StatisticsPeriod; label: string }> = [
   { value: "month", label: "September 2026" },
+  { value: "ytd", label: "YTD 2026" },
   { value: "year", label: "Jahr 2026" },
 ];
 
@@ -14,7 +15,7 @@ export function StatisticsPeriodFilter({
   comparisonLabel,
 }: {
   propertyId: string;
-  period: OverviewPeriod;
+  period: StatisticsPeriod;
   comparisonLabel: string;
 }) {
   const router = useRouter();

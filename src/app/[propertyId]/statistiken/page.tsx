@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import { getProperty } from "@/services/propertyService";
 import { getUnitsForProperty } from "@/services/unitService";
-import { getPropertyStatistics } from "@/services/statisticsService";
-import type { OverviewPeriod } from "@/services/overviewService";
+import { getPropertyStatistics, type StatisticsPeriod } from "@/services/statisticsService";
 import { Card } from "@/components/ui/Card";
 import { KpiCard } from "@/components/overview/KpiCard";
 import { StatisticsPeriodFilter } from "@/components/statistics/StatisticsPeriodFilter";
 import { TrendChart } from "@/components/statistics/TrendChart";
+import { BookingSourceDonut } from "@/components/statistics/BookingSourceDonut";
+import { BookingSourceTable } from "@/components/statistics/BookingSourceTable";
 import { UnitPerformanceTable, type UnitPerformanceRow } from "@/components/statistics/UnitPerformanceTable";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
 
@@ -23,7 +24,8 @@ export default async function StatistikenPage({
 }) {
   const { propertyId } = await params;
   const query = await searchParams;
-  const period: OverviewPeriod = query.zeitraum === "year" ? "year" : "month";
+  const period: StatisticsPeriod =
+    query.zeitraum === "year" ? "year" : query.zeitraum === "ytd" ? "ytd" : "month";
 
   const property = await getProperty(propertyId);
   if (!property) notFound();
@@ -60,6 +62,8 @@ export default async function StatistikenPage({
   }
   const years = [...revenueByYear.keys()].sort((a, b) => b - a);
   const [currentYear, previousYear] = years;
+
+  const directSharePct = stats.bookingSources.find((source) => source.source === "direct")?.revenueShare ?? 0;
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -163,6 +167,28 @@ export default async function StatistikenPage({
           valueKind="percent"
           fixedMax={100}
         />
+      </Card>
+
+      <Card className="p-5 shadow-none sm:p-6">
+        <div>
+          <h2 className="font-display text-lg italic text-ink">Buchungsquellen</h2>
+          <p className="mt-1 text-sm text-ink-soft">Verteilung des Buchungsumsatzes nach Vertriebskanal</p>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-10">
+          <div className="flex justify-center lg:shrink-0">
+            <BookingSourceDonut sources={stats.bookingSources} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <BookingSourceTable sources={stats.bookingSources} />
+          </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-3 gap-3 border-t border-line pt-5">
+          <KpiCard compact label="Direktbuchungsanteil" value={formatPercent(directSharePct)} />
+          <KpiCard compact label="Ø Buchungsvorlaufzeit" value={`${stats.avgLeadTimeDays} Tage`} />
+          <KpiCard compact label="Stornierungsquote" value={formatPercent(stats.cancellationRatePct, 1)} />
+        </div>
       </Card>
 
       <Card className="p-5 shadow-none sm:p-6">
