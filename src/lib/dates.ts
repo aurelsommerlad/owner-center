@@ -90,6 +90,19 @@ export function daysInMonth(year: number, month: number): number {
   return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
+/** Monday of the ISO week containing `iso`. */
+export function startOfWeek(iso: string): string {
+  const day = parseIsoDate(iso).getUTCDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  return addDays(iso, diffToMonday);
+}
+
+/** First day of the calendar month containing `iso`. */
+export function startOfMonth(iso: string): string {
+  const date = parseIsoDate(iso);
+  return isoDate(date.getUTCFullYear(), date.getUTCMonth() + 1, 1);
+}
+
 export function today(): string {
   return new Date().toISOString().slice(0, 10);
 }

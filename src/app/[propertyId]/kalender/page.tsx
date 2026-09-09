@@ -1,20 +1,22 @@
 import { notFound } from "next/navigation";
 import { getProperty } from "@/services/propertyService";
 import { getUnitsForProperty } from "@/services/unitService";
-import { getCalendarMonth } from "@/services/calendarService";
-import { parseIsoDate } from "@/lib/dates";
+import { getCalendarData } from "@/services/calendarService";
+import type { CalendarViewType } from "@/lib/calendarView";
 import { MOCK_TODAY } from "@/lib/config";
 import { Card } from "@/components/ui/Card";
 import { CalendarControls } from "@/components/calendar/CalendarControls";
 import { CalendarStatsBar } from "@/components/calendar/CalendarStatsBar";
 import { OccupancyTimeline, TimelineLegend } from "@/components/calendar/OccupancyTimeline";
 
+const VALID_VIEWS: CalendarViewType[] = ["month", "twoWeeks", "week"];
+
 export default async function KalenderPage({
   params,
   searchParams,
 }: {
   params: Promise<{ propertyId: string }>;
-  searchParams: Promise<{ year?: string; month?: string; unit?: string }>;
+  searchParams: Promise<{ view?: string; anchor?: string; unit?: string }>;
 }) {
   const { propertyId } = await params;
   const query = await searchParams;
@@ -22,14 +24,15 @@ export default async function KalenderPage({
   const property = await getProperty(propertyId);
   if (!property) notFound();
 
-  const todayDate = parseIsoDate(MOCK_TODAY);
-  const year = query.year ? Number(query.year) : todayDate.getUTCFullYear();
-  const month = query.month ? Number(query.month) : todayDate.getUTCMonth() + 1;
+  const view: CalendarViewType = VALID_VIEWS.includes(query.view as CalendarViewType)
+    ? (query.view as CalendarViewType)
+    : "month";
+  const anchor = query.anchor ?? MOCK_TODAY;
   const selectedUnitId = query.unit;
 
   const [units, calendar] = await Promise.all([
     getUnitsForProperty(propertyId),
-    getCalendarMonth(propertyId, year, month, selectedUnitId),
+    getCalendarData(propertyId, view, anchor, selectedUnitId),
   ]);
 
   return (
@@ -46,8 +49,9 @@ export default async function KalenderPage({
       <Card className="p-6 sm:p-7">
         <CalendarControls
           propertyId={propertyId}
-          year={year}
-          month={month}
+          view={calendar.view}
+          anchor={calendar.anchor}
+          label={calendar.label}
           units={units}
           selectedUnitId={selectedUnitId}
         />

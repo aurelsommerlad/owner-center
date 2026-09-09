@@ -1,6 +1,7 @@
 import type { Reservation, Unit } from "@/types";
-import { addDays, daysInMonth, isoDate } from "@/lib/dates";
+import { addDays } from "@/lib/dates";
 import { MOCK_TODAY } from "@/lib/config";
+import { getCalendarWindow, type CalendarViewType, type CalendarWindow } from "@/lib/calendarView";
 import {
   arrivalsInRange,
   departuresInRange,
@@ -30,35 +31,34 @@ export interface CalendarStats {
   freeNights: number;
 }
 
-export interface CalendarMonth {
-  year: number;
-  month: number;
-  range: DateRange;
+export interface CalendarData extends CalendarWindow {
   days: CalendarDay[];
   rows: CalendarRow[];
   stats: CalendarStats;
 }
 
-export async function getCalendarMonth(
+export async function getCalendarData(
   propertyId: string,
-  year: number,
-  month: number,
+  view: CalendarViewType,
+  anchor: string,
   unitId?: string
-): Promise<CalendarMonth> {
+): Promise<CalendarData> {
+  const calendarWindow = getCalendarWindow(view, anchor);
+  const { range } = calendarWindow;
+
   const allUnits = await getUnitsForProperty(propertyId);
   const units = unitId ? allUnits.filter((unit) => unit.id === unitId) : allUnits;
-
-  const start = isoDate(year, month, 1);
-  const endExclusive = addDays(start, daysInMonth(year, month));
-  const range: DateRange = { start, endExclusive };
 
   const reservations = await getReservationsForProperty(propertyId, range);
   const scopedReservations = unitId
     ? reservations.filter((reservation) => reservation.unitId === unitId)
     : reservations;
 
-  const days: CalendarDay[] = Array.from({ length: daysInMonth(year, month) }, (_, index) => ({
-    date: addDays(start, index),
+  const dayCount = Math.round(
+    (new Date(range.endExclusive).getTime() - new Date(range.start).getTime()) / 86_400_000
+  );
+  const days: CalendarDay[] = Array.from({ length: dayCount }, (_, index) => ({
+    date: addDays(range.start, index),
   }));
 
   const rows: CalendarRow[] = units.map((unit) => ({
@@ -77,5 +77,5 @@ export async function getCalendarMonth(
     freeNights: freeNightsInRange(scopedReservations, units, range),
   };
 
-  return { year, month, range, days, rows, stats };
+  return { ...calendarWindow, days, rows, stats };
 }

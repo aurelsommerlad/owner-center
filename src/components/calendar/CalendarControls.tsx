@@ -2,53 +2,64 @@
 
 import { useRouter } from "next/navigation";
 import type { Unit } from "@/types";
-import { monthLabel, parseIsoDate } from "@/lib/dates";
 import { MOCK_TODAY } from "@/lib/config";
+import { shiftAnchor, type CalendarViewType } from "@/lib/calendarView";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 
 interface CalendarControlsProps {
   propertyId: string;
-  year: number;
-  month: number;
+  view: CalendarViewType;
+  anchor: string;
+  label: string;
   units: Unit[];
   selectedUnitId?: string;
 }
 
-function buildQuery(year: number, month: number, unitId?: string): string {
-  const params = new URLSearchParams({ year: String(year), month: String(month) });
+const VIEW_OPTIONS: Array<{ value: CalendarViewType; label: string }> = [
+  { value: "month", label: "Monat" },
+  { value: "twoWeeks", label: "14 Tage" },
+  { value: "week", label: "Woche" },
+];
+
+function buildQuery(view: CalendarViewType, anchor: string, unitId?: string): string {
+  const params = new URLSearchParams({ view, anchor });
   if (unitId) params.set("unit", unitId);
   return params.toString();
 }
 
 export function CalendarControls({
   propertyId,
-  year,
-  month,
+  view,
+  anchor,
+  label,
   units,
   selectedUnitId,
 }: CalendarControlsProps) {
   const router = useRouter();
 
-  function go(nextYear: number, nextMonth: number) {
-    router.push(`/${propertyId}/kalender?${buildQuery(nextYear, nextMonth, selectedUnitId)}`);
+  function go(nextView: CalendarViewType, nextAnchor: string) {
+    router.push(`/${propertyId}/kalender?${buildQuery(nextView, nextAnchor, selectedUnitId)}`);
   }
 
-  function goToPreviousMonth() {
-    go(month === 1 ? year - 1 : year, month === 1 ? 12 : month - 1);
+  function goToPrevious() {
+    go(view, shiftAnchor(view, anchor, -1));
   }
 
-  function goToNextMonth() {
-    go(month === 12 ? year + 1 : year, month === 12 ? 1 : month + 1);
+  function goToNext() {
+    go(view, shiftAnchor(view, anchor, 1));
   }
 
   function goToToday() {
-    const todayDate = parseIsoDate(MOCK_TODAY);
-    go(todayDate.getUTCFullYear(), todayDate.getUTCMonth() + 1);
+    go(view, MOCK_TODAY);
+  }
+
+  function onViewChange(nextView: CalendarViewType) {
+    go(nextView, anchor);
   }
 
   function onUnitChange(nextUnitId: string) {
     router.push(
-      `/${propertyId}/kalender?${buildQuery(year, month, nextUnitId === "all" ? undefined : nextUnitId)}`
+      `/${propertyId}/kalender?${buildQuery(view, anchor, nextUnitId === "all" ? undefined : nextUnitId)}`
     );
   }
 
@@ -57,19 +68,17 @@ export function CalendarControls({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={goToPreviousMonth}
-          aria-label="Vorheriger Monat"
+          onClick={goToPrevious}
+          aria-label="Vorheriger Zeitraum"
           className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink-soft transition-colors hover:border-ink hover:text-ink"
         >
           <ChevronLeftIcon className="h-4 w-4" />
         </button>
-        <p className="min-w-[150px] text-center font-display text-xl italic text-ink">
-          {monthLabel(month)} {year}
-        </p>
+        <p className="min-w-[150px] text-center font-display text-xl italic text-ink">{label}</p>
         <button
           type="button"
-          onClick={goToNextMonth}
-          aria-label="Nächster Monat"
+          onClick={goToNext}
+          aria-label="Nächster Zeitraum"
           className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink-soft transition-colors hover:border-ink hover:text-ink"
         >
           <ChevronRightIcon className="h-4 w-4" />
@@ -83,18 +92,39 @@ export function CalendarControls({
         </button>
       </div>
 
-      <select
-        value={selectedUnitId ?? "all"}
-        onChange={(event) => onUnitChange(event.target.value)}
-        className="rounded-full border border-line bg-paper px-3.5 py-2 text-xs font-medium text-ink-soft outline-none transition-colors hover:border-ink focus:border-ink"
-      >
-        <option value="all">Alle Einheiten</option>
-        {units.map((unit) => (
-          <option key={unit.id} value={unit.id}>
-            {unit.name}
-          </option>
-        ))}
-      </select>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex items-center gap-0.5 rounded-full border border-line bg-paper p-1">
+          {VIEW_OPTIONS.map((option) => {
+            const active = option.value === view;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={active}
+                onClick={() => onViewChange(option.value)}
+                className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
+                  active ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <select
+          value={selectedUnitId ?? "all"}
+          onChange={(event) => onUnitChange(event.target.value)}
+          className="rounded-full border border-line bg-paper px-3.5 py-2 text-xs font-medium text-ink-soft outline-none transition-colors hover:border-ink focus:border-ink"
+        >
+          <option value="all">Alle Einheiten</option>
+          {units.map((unit) => (
+            <option key={unit.id} value={unit.id}>
+              {unit.name}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }
