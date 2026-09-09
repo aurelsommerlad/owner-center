@@ -6,10 +6,21 @@ interface KpiCardProps {
   label: string;
   value: string;
   deltaPoints?: number;
+  /** Decimal places for the delta number, e.g. 0 for counts, 1 for % or nights. */
+  deltaFractionDigits?: number;
+  /** Appended directly after the delta number, e.g. " %". */
+  deltaSuffix?: string;
   deltaLabel?: string;
 }
 
-export function KpiCard({ label, value, deltaPoints, deltaLabel }: KpiCardProps) {
+export function KpiCard({
+  label,
+  value,
+  deltaPoints,
+  deltaFractionDigits = 1,
+  deltaSuffix = "",
+  deltaLabel,
+}: KpiCardProps) {
   const showDelta = typeof deltaPoints === "number" && Number.isFinite(deltaPoints);
   const positive = (deltaPoints ?? 0) >= 0;
 
@@ -25,7 +36,8 @@ export function KpiCard({ label, value, deltaPoints, deltaLabel }: KpiCardProps)
             ) : (
               <TrendDownIcon className="h-3 w-3 text-status-blocked" />
             )}
-            {formatDelta(deltaPoints ?? 0, 1)}
+            {formatDelta(deltaPoints ?? 0, deltaFractionDigits)}
+            {deltaSuffix}
           </span>
         )}
       </div>

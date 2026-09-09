@@ -55,6 +55,9 @@ export default async function UebersichtPage({
               ? kpis.occupancyPct - kpis.occupancyPctPreviousYear
               : undefined
           }
+          deltaFractionDigits={1}
+          deltaSuffix=" %"
+          deltaLabel="zum Vorjahr"
         />
         <KpiCard
           label="Buchungsumsatz"
@@ -64,6 +67,9 @@ export default async function UebersichtPage({
               ? ((kpis.revenue - kpis.revenuePreviousYear) / kpis.revenuePreviousYear) * 100
               : undefined
           }
+          deltaFractionDigits={1}
+          deltaSuffix=" %"
+          deltaLabel="zum Vorjahr"
         />
         <KpiCard
           label="Buchungen"
@@ -73,6 +79,7 @@ export default async function UebersichtPage({
               ? kpis.bookingsCount - kpis.bookingsCountPreviousYear
               : undefined
           }
+          deltaFractionDigits={0}
           deltaLabel="Buchungen zum Vorjahr"
         />
         <KpiCard
@@ -83,6 +90,7 @@ export default async function UebersichtPage({
               ? kpis.avgStayNights - kpis.avgStayNightsPreviousYear
               : undefined
           }
+          deltaFractionDigits={1}
           deltaLabel="Nächte zum Vorjahr"
         />
       </div>

@@ -125,6 +125,11 @@ export function OccupancyTimeline({
                 const continuesBefore = reservation.checkIn < days[0].date;
                 const continuesAfter = reservation.checkOut > days[days.length - 1].date;
                 const width = (endIdx - startIdx) * cellWidth - 6;
+                // Guest bookings stay unlabeled (colour + hover tooltip only) to keep the
+                // timeline calm; owner-use and blocked stays are always labelled since an
+                // owner needs to recognise them at a glance without hovering.
+                const alwaysLabelled = reservation.status !== "confirmed";
+                const labelFits = alwaysLabelled && width > 56;
                 return (
                   <div
                     key={reservation.id}
@@ -139,6 +144,11 @@ export function OccupancyTimeline({
                       width: Math.max(width, 10),
                     }}
                   >
+                    {labelFits && (
+                      <span className="pointer-events-none absolute inset-0 flex items-center justify-center truncate px-4 text-[11px] font-medium text-ink">
+                        {statusLabel(reservation.status)}
+                      </span>
+                    )}
                     {!continuesBefore && (
                       <span
                         aria-hidden="true"
