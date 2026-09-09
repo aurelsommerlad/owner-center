@@ -4,6 +4,9 @@ import { getProperty } from "@/services/propertyService";
 import {
   getPropertyOverviewKpis,
   getOccupancyPreview,
+  getArrivalsDeparturesSummary,
+  getTodayStatus,
+  getUnitStatusOverview,
   type OverviewPeriod,
 } from "@/services/overviewService";
 import { getLatestStatements } from "@/services/statementService";
@@ -12,6 +15,9 @@ import { HeroSection } from "@/components/overview/HeroSection";
 import { KpiCard } from "@/components/overview/KpiCard";
 import { PeriodFilter } from "@/components/overview/PeriodFilter";
 import { OccupancyPreviewCard } from "@/components/overview/OccupancyPreviewCard";
+import { TodayStatusCard } from "@/components/overview/TodayStatusCard";
+import { ArrivalsDeparturesCard } from "@/components/overview/ArrivalsDeparturesCard";
+import { UnitStatusOverviewCard } from "@/components/overview/UnitStatusOverviewCard";
 import { RecentStatements } from "@/components/overview/RecentStatements";
 import { DocumentsPreview } from "@/components/overview/DocumentsPreview";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
@@ -30,13 +36,17 @@ export default async function UebersichtPage({
   const property = await getProperty(propertyId);
   if (!property) notFound();
 
-  const [owner, kpis, preview, statements, documents] = await Promise.all([
-    getCurrentOwner(),
-    getPropertyOverviewKpis(propertyId, period),
-    getOccupancyPreview(propertyId),
-    getLatestStatements(propertyId, 1),
-    getDocumentsForProperty(propertyId),
-  ]);
+  const [owner, kpis, preview, arrivalsDepartures, todayStatus, unitStatusOverview, statements, documents] =
+    await Promise.all([
+      getCurrentOwner(),
+      getPropertyOverviewKpis(propertyId, period),
+      getOccupancyPreview(propertyId),
+      getArrivalsDeparturesSummary(propertyId),
+      getTodayStatus(propertyId),
+      getUnitStatusOverview(propertyId),
+      getLatestStatements(propertyId, 1),
+      getDocumentsForProperty(propertyId),
+    ]);
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
@@ -95,7 +105,17 @@ export default async function UebersichtPage({
         />
       </div>
 
-      <OccupancyPreviewCard preview={preview} propertyId={propertyId} />
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <OccupancyPreviewCard preview={preview} propertyId={propertyId} />
+        </div>
+        <div className="flex flex-col gap-5">
+          <TodayStatusCard status={todayStatus} />
+          <ArrivalsDeparturesCard summary={arrivalsDepartures} propertyId={propertyId} />
+        </div>
+      </div>
+
+      <UnitStatusOverviewCard overview={unitStatusOverview} propertyId={propertyId} />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <RecentStatements statements={statements} propertyId={propertyId} />

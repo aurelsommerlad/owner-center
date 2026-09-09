@@ -30,3 +30,7 @@ export function StatusBadge({ status, className = "" }: { status: Status; classN
 export function statusLabel(status: Status): string {
   return STATUS_LABEL[status];
 }
+
+export function statusDotClass(status: Status): string {
+  return STATUS_DOT[status];
+}

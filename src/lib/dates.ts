@@ -68,6 +68,19 @@ export function monthLabel(month: number): string {
   return MONTH_LABELS[month - 1];
 }
 
+/** Short "dd.MM." label without year, e.g. for compact arrival/departure lists. */
+export function formatDayMonth(iso: string): string {
+  const date = parseIsoDate(iso);
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  return `${day}.${month}.`;
+}
+
+/** Long "9. September" label, e.g. for "Heute, 9. September". */
+export function formatLongDayMonth(iso: string): string {
+  return `${dayOfMonth(iso)}. ${monthLabel(parseIsoDate(iso).getUTCMonth() + 1)}`;
+}
+
 export function isWeekend(iso: string): boolean {
   const day = parseIsoDate(iso).getUTCDay();
   return day === 0 || day === 6;
