@@ -114,23 +114,35 @@ export interface UnitStatistics {
   unitId: string;
   occupancyPct: number;
   revenue: number;
+  adr: number;
+  revPar: number;
   bookings: number;
   avgStayNights: number;
 }
 
+/** A KPI value paired with the same metric for the comparison period (previous year). */
+export interface ComparableMetric {
+  value: number;
+  previousYear: number;
+}
+
 export interface PropertyStatistics {
   propertyId: string;
-  revenueCurrentMonth: number;
-  revenueYearToDate: number;
-  revenuePreviousYearToDate: number;
+  /** e.g. "September 2026" or "Jahr 2026". */
+  periodLabel: string;
+  /** e.g. "Vorjahr" - currently the only supported comparison basis. */
+  comparisonLabel: string;
+  occupancyPct: ComparableMetric;
+  revenue: ComparableMetric;
+  adr: ComparableMetric;
+  revPar: ComparableMetric;
+  bookingsCount: ComparableMetric;
+  avgStayNights: ComparableMetric;
+  avgBookingValue: ComparableMetric;
+  /** Illustrative mock figure until real owner-statement logic exists. */
+  ownerPayout: ComparableMetric;
   monthlyRevenue: MonthlyRevenuePoint[];
-  occupancyCurrentMonthPct: number;
-  occupancyYearToDatePct: number;
-  occupancyPreviousYearToDatePct: number;
   monthlyOccupancy: MonthlyOccupancyPoint[];
-  bookingsCount: number;
-  avgStayNights: number;
-  avgBookingValue: number;
   unitStats: UnitStatistics[];
 }
 

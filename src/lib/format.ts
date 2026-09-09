@@ -1,9 +1,9 @@
-export function formatCurrency(amount: number, currency = "EUR"): string {
+export function formatCurrency(amount: number, currency = "EUR", fractionDigits = 2): string {
   return new Intl.NumberFormat("de-DE", {
     style: "currency",
     currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   }).format(amount);
 }
 

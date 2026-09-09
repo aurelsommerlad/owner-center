@@ -11,6 +11,8 @@ interface KpiCardProps {
   /** Appended directly after the delta number, e.g. " %". */
   deltaSuffix?: string;
   deltaLabel?: string;
+  /** Slightly smaller type/padding for secondary KPI rows. */
+  compact?: boolean;
 }
 
 export function KpiCard({
@@ -20,15 +22,16 @@ export function KpiCard({
   deltaFractionDigits = 1,
   deltaSuffix = "",
   deltaLabel,
+  compact = false,
 }: KpiCardProps) {
   const showDelta = typeof deltaPoints === "number" && Number.isFinite(deltaPoints);
   const positive = (deltaPoints ?? 0) >= 0;
 
   return (
-    <Card className="px-4 py-3.5 shadow-none sm:px-5 sm:py-4">
+    <Card className={compact ? "px-4 py-3 shadow-none" : "px-4 py-3.5 shadow-none sm:px-5 sm:py-4"}>
       <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">{label}</p>
       <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <p className="font-display text-xl italic text-ink sm:text-2xl">{value}</p>
+        <p className={`font-display italic text-ink ${compact ? "text-lg" : "text-xl sm:text-2xl"}`}>{value}</p>
         {showDelta && (
           <span className="flex items-center gap-0.5 whitespace-nowrap text-xs text-ink-soft">
             {positive ? (
