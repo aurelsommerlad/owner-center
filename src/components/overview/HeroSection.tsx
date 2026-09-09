@@ -1,21 +1,17 @@
-import type { Owner, Property } from "@/types";
-import { Card } from "@/components/ui/Card";
-import { PropertyVisual } from "@/components/ui/PropertyVisual";
+import type { Property } from "@/types";
 
 interface HeroSectionProps {
   property: Property;
-  owner: Owner;
+  periodLabel: string;
 }
 
-export function HeroSection({ property, owner }: HeroSectionProps) {
+export function HeroSection({ property, periodLabel }: HeroSectionProps) {
   return (
-    <Card className="flex items-center gap-4 px-5 py-3.5 shadow-none sm:gap-5 sm:px-7 sm:py-4">
-      <div className="relative hidden h-11 w-11 shrink-0 overflow-hidden rounded-xl sm:block">
-        <PropertyVisual seed={property.imageSeed} tone="dark" className="absolute inset-0" />
-      </div>
-      <p className="font-display text-xl italic text-ink sm:text-2xl">
-        Hallo {owner.greetingName}
-      </p>
-    </Card>
+    <div className="flex flex-col gap-1">
+      <h1 className="font-display text-2xl italic text-ink sm:text-3xl">
+        {property.name} <span className="text-ink-soft/50">·</span> {periodLabel}
+      </h1>
+      <p className="text-sm text-ink-soft">Performance im Überblick</p>
+    </div>
   );
 }

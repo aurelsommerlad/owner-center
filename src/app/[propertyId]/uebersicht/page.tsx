@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { getCurrentOwner } from "@/services/ownerService";
 import { getProperty } from "@/services/propertyService";
 import {
   getPropertyOverviewKpis,
@@ -21,6 +20,8 @@ import { UnitStatusOverviewCard } from "@/components/overview/UnitStatusOverview
 import { RecentStatements } from "@/components/overview/RecentStatements";
 import { DocumentsPreview } from "@/components/overview/DocumentsPreview";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
+import { monthLabel, parseIsoDate } from "@/lib/dates";
+import { MOCK_TODAY } from "@/lib/config";
 
 export default async function UebersichtPage({
   params,
@@ -36,9 +37,14 @@ export default async function UebersichtPage({
   const property = await getProperty(propertyId);
   if (!property) notFound();
 
-  const [owner, kpis, preview, arrivalsDepartures, todayStatus, unitStatusOverview, statements, documents] =
+  const todayDate = parseIsoDate(MOCK_TODAY);
+  const periodLabel =
+    period === "year"
+      ? `Jahr ${todayDate.getUTCFullYear()}`
+      : `${monthLabel(todayDate.getUTCMonth() + 1)} ${todayDate.getUTCFullYear()}`;
+
+  const [kpis, preview, arrivalsDepartures, todayStatus, unitStatusOverview, statements, documents] =
     await Promise.all([
-      getCurrentOwner(),
       getPropertyOverviewKpis(propertyId, period),
       getOccupancyPreview(propertyId),
       getArrivalsDeparturesSummary(propertyId),
@@ -50,7 +56,7 @@ export default async function UebersichtPage({
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
-      <HeroSection property={property} owner={owner} />
+      <HeroSection property={property} periodLabel={periodLabel} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PeriodFilter propertyId={propertyId} period={period} />
