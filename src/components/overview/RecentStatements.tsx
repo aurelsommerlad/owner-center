@@ -24,9 +24,9 @@ export function RecentStatements({
   propertyId: string;
 }) {
   return (
-    <Card className="p-6 sm:p-7">
+    <Card className="p-5 shadow-none sm:p-6">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-xl italic text-ink">Letzte Abrechnungen</h2>
+        <h2 className="font-display text-lg italic text-ink">Letzte Abrechnung</h2>
         <Link
           href={`/${propertyId}/abrechnungen`}
           className="flex items-center gap-1 text-xs font-medium text-ink-soft transition-colors hover:text-ink"
@@ -36,9 +36,9 @@ export function RecentStatements({
         </Link>
       </div>
 
-      <div className="mt-4 divide-y divide-line">
+      <div className="mt-2 divide-y divide-line">
         {statements.map((statement) => (
-          <div key={statement.id} className="flex items-center justify-between gap-3 py-3.5">
+          <div key={statement.id} className="flex items-center justify-between gap-3 py-3">
             <div>
               <p className="text-sm font-medium text-ink">{statement.label}</p>
               <p className="mt-0.5 text-sm text-ink-soft">

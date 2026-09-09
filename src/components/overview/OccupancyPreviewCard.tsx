@@ -13,11 +13,9 @@ export function OccupancyPreviewCard({
   propertyId: string;
 }) {
   return (
-    <Card className="p-6 sm:p-7">
+    <Card className="p-5 shadow-none sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-display text-xl italic text-ink">Belegung nächste 14 Tage</h2>
-        </div>
+        <h2 className="font-display text-lg italic text-ink">Belegung nächste 14 Tage</h2>
         <Link
           href={`/${propertyId}/kalender`}
           className="flex items-center gap-1 text-xs font-medium text-ink-soft transition-colors hover:text-ink"
@@ -27,17 +25,18 @@ export function OccupancyPreviewCard({
         </Link>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-4">
         <OccupancyTimeline
           days={preview.days}
           rows={preview.rows}
           today={MOCK_TODAY}
           cellWidth={40}
-          unitColumnWidth={116}
+          rowHeight={42}
+          unitColumnWidth={112}
         />
       </div>
 
-      <div className="mt-5 border-t border-line pt-4">
+      <div className="mt-4 border-t border-line pt-3.5">
         <TimelineLegend />
       </div>
     </Card>

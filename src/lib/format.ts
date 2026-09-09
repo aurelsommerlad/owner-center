@@ -7,18 +7,25 @@ export function formatCurrency(amount: number, currency = "EUR"): string {
   }).format(amount);
 }
 
+export function formatNumber(value: number, fractionDigits = 1): string {
+  return new Intl.NumberFormat("de-DE", {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+}
+
 export function formatPercent(value: number, fractionDigits = 0): string {
-  return `${value.toFixed(fractionDigits)} %`;
+  return `${formatNumber(value, fractionDigits)} %`;
 }
 
 export function formatDelta(value: number, fractionDigits = 0): string {
   const sign = value > 0 ? "+" : value < 0 ? "−" : "±";
-  return `${sign}${Math.abs(value).toFixed(fractionDigits)}`;
+  return `${sign}${formatNumber(Math.abs(value), fractionDigits)}`;
 }
 
 export function formatFileSize(sizeKb: number): string {
-  if (sizeKb < 1024) return `${sizeKb} KB`;
-  return `${(sizeKb / 1024).toFixed(1)} MB`;
+  if (sizeKb < 1024) return `${sizeKb} KB`;
+  return `${formatNumber(sizeKb / 1024, 1)} MB`;
 }
 
 export function formatShortDate(iso: string): string {

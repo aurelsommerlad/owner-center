@@ -1,5 +1,5 @@
 import type { PropertyOverviewKpis, Reservation, Unit } from "@/types";
-import { addDays } from "@/lib/dates";
+import { addDays, daysInMonth, isoDate, parseIsoDate } from "@/lib/dates";
 import { MOCK_TODAY } from "@/lib/config";
 import {
   arrivalsInRange,
@@ -10,15 +10,29 @@ import {
 import { getUnitsForProperty } from "./unitService";
 import { getReservationsForProperty } from "./reservationService";
 
-const OVERVIEW_WINDOW_DAYS = 30;
 const PREVIEW_WINDOW_DAYS = 14;
 
-export async function getPropertyOverviewKpis(propertyId: string): Promise<PropertyOverviewKpis> {
+export type OverviewPeriod = "month" | "year";
+
+function rangeForPeriod(period: OverviewPeriod): DateRange {
+  const today = parseIsoDate(MOCK_TODAY);
+  const year = today.getUTCFullYear();
+  const month = today.getUTCMonth() + 1;
+
+  if (period === "year") {
+    return { start: isoDate(year, 1, 1), endExclusive: isoDate(year + 1, 1, 1) };
+  }
+
+  const start = isoDate(year, month, 1);
+  return { start, endExclusive: addDays(start, daysInMonth(year, month)) };
+}
+
+export async function getPropertyOverviewKpis(
+  propertyId: string,
+  period: OverviewPeriod = "month"
+): Promise<PropertyOverviewKpis> {
   const units = await getUnitsForProperty(propertyId);
-  const range: DateRange = {
-    start: addDays(MOCK_TODAY, -OVERVIEW_WINDOW_DAYS),
-    endExclusive: MOCK_TODAY,
-  };
+  const range = rangeForPeriod(period);
   const reservations = await getReservationsForProperty(propertyId, range);
   const bookings = arrivalsInRange(reservations, propertyId, range).filter(
     (reservation) => reservation.status === "confirmed"
@@ -28,6 +42,7 @@ export async function getPropertyOverviewKpis(propertyId: string): Promise<Prope
   const revenue = reservations
     .filter((reservation) => reservation.status === "confirmed")
     .reduce((sum, reservation) => sum + reservation.totalAmount, 0);
+  const avgStay = averageStayNights(reservations);
 
   return {
     occupancyPct: occupancy,
@@ -36,8 +51,8 @@ export async function getPropertyOverviewKpis(propertyId: string): Promise<Prope
     revenuePreviousYear: revenue / 1.12,
     bookingsCount: bookings.length,
     bookingsCountPreviousYear: Math.max(bookings.length - 2, 0),
-    avgStayNights: averageStayNights(reservations),
-    avgStayNightsPreviousYear: Math.max(averageStayNights(reservations) - 0.4, 0),
+    avgStayNights: avgStay,
+    avgStayNightsPreviousYear: Math.max(avgStay - 0.4, 0),
   };
 }
 

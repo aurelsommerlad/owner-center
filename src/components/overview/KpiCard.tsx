@@ -14,19 +14,22 @@ export function KpiCard({ label, value, deltaPoints, deltaLabel }: KpiCardProps)
   const positive = (deltaPoints ?? 0) >= 0;
 
   return (
-    <Card className="p-5">
-      <p className="text-xs uppercase tracking-[0.1em] text-ink-soft">{label}</p>
-      <p className="mt-2 font-display text-3xl italic text-ink">{value}</p>
-      {showDelta && (
-        <p
-          className={`mt-2 flex items-center gap-1 text-xs font-medium ${
-            positive ? "text-status-owner" : "text-status-blocked"
-          }`}
-        >
-          {positive ? <TrendUpIcon className="h-3.5 w-3.5" /> : <TrendDownIcon className="h-3.5 w-3.5" />}
-          {formatDelta(deltaPoints ?? 0, 1)} {deltaLabel ?? "zum Vorjahr"}
-        </p>
-      )}
+    <Card className="px-4 py-3.5 shadow-none sm:px-5 sm:py-4">
+      <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">{label}</p>
+      <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <p className="font-display text-xl italic text-ink sm:text-2xl">{value}</p>
+        {showDelta && (
+          <span className="flex items-center gap-0.5 whitespace-nowrap text-xs text-ink-soft">
+            {positive ? (
+              <TrendUpIcon className="h-3 w-3 text-status-owner" />
+            ) : (
+              <TrendDownIcon className="h-3 w-3 text-status-blocked" />
+            )}
+            {formatDelta(deltaPoints ?? 0, 1)}
+          </span>
+        )}
+      </div>
+      {showDelta && <p className="mt-0.5 text-[11px] text-ink-soft/70">{deltaLabel ?? "zum Vorjahr"}</p>}
     </Card>
   );
 }

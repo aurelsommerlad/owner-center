@@ -1,5 +1,6 @@
 import type { Reservation, ReservationStatus, Unit } from "@/types";
 import { dayOfMonth, weekdayLabel } from "@/lib/dates";
+import { formatShortDate } from "@/lib/format";
 import { statusLabel } from "@/components/ui/StatusBadge";
 
 export interface TimelineDay {
@@ -22,9 +23,9 @@ interface OccupancyTimelineProps {
 }
 
 const STATUS_BAR_CLASS: Record<ReservationStatus, string> = {
-  confirmed: "bg-status-occupied text-paper",
-  blocked: "bg-status-blocked text-paper",
-  "owner-use": "bg-status-owner text-paper",
+  confirmed: "bg-status-occupied",
+  blocked: "bg-status-blocked",
+  "owner-use": "bg-status-owner",
 };
 
 function dateIndex(iso: string, days: TimelineDay[]): number {
@@ -61,13 +62,21 @@ export function OccupancyTimeline({
               return (
                 <div
                   key={day.date}
-                  className={`flex shrink-0 flex-col items-center justify-center border-b border-line py-2 text-[11px] ${
+                  className={`flex shrink-0 flex-col items-center justify-center gap-0.5 border-b border-line py-1.5 text-[11px] ${
                     weekend ? "bg-paper-dim/60" : ""
-                  } ${isToday ? "font-semibold text-ink" : "text-ink-soft"}`}
+                  } ${isToday ? "text-ink" : "text-ink-soft"}`}
                   style={{ width: cellWidth }}
                 >
                   <span className="uppercase tracking-wide">{weekdayLabel(day.date)}</span>
-                  <span>{dayOfMonth(day.date)}</span>
+                  <span
+                    className={
+                      isToday
+                        ? "flex h-5 w-5 items-center justify-center rounded-full bg-ink font-semibold text-paper"
+                        : ""
+                    }
+                  >
+                    {dayOfMonth(day.date)}
+                  </span>
                 </div>
               );
             })}
@@ -105,8 +114,8 @@ export function OccupancyTimeline({
               </div>
               {todayIndex >= 0 && todayIndex < days.length && (
                 <div
-                  className="pointer-events-none absolute top-0 bottom-0 w-px bg-ink/30"
-                  style={{ left: todayIndex * cellWidth }}
+                  className="pointer-events-none absolute top-0 bottom-0 bg-ink/[0.04]"
+                  style={{ left: todayIndex * cellWidth, width: cellWidth }}
                 />
               )}
               {row.reservations.map((reservation) => {
@@ -116,12 +125,11 @@ export function OccupancyTimeline({
                 const continuesBefore = reservation.checkIn < days[0].date;
                 const continuesAfter = reservation.checkOut > days[days.length - 1].date;
                 const width = (endIdx - startIdx) * cellWidth - 6;
-                const showLabel = width > 64;
                 return (
                   <div
                     key={reservation.id}
-                    title={`${statusLabel(reservation.status)} · ${reservation.checkIn} bis ${reservation.checkOut}`}
-                    className={`absolute top-1/2 flex h-7 -translate-y-1/2 items-center overflow-hidden px-2.5 text-[11px] font-medium shadow-sm ${
+                    title={`${statusLabel(reservation.status)} · ${formatShortDate(reservation.checkIn)} – ${formatShortDate(reservation.checkOut)}`}
+                    className={`absolute top-1/2 h-6 -translate-y-1/2 shadow-sm transition-[filter,transform] duration-150 hover:z-10 hover:brightness-110 ${
                       STATUS_BAR_CLASS[reservation.status]
                     } ${continuesBefore ? "rounded-l-none" : "rounded-l-full"} ${
                       continuesAfter ? "rounded-r-none" : "rounded-r-full"
@@ -131,7 +139,18 @@ export function OccupancyTimeline({
                       width: Math.max(width, 10),
                     }}
                   >
-                    {showLabel && <span className="truncate">{statusLabel(reservation.status)}</span>}
+                    {!continuesBefore && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute left-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-paper/80"
+                      />
+                    )}
+                    {!continuesAfter && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute right-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-paper/80"
+                      />
+                    )}
                   </div>
                 );
               })}
