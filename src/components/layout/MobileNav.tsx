@@ -48,7 +48,7 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
             <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-paper px-5 py-6 shadow-soft-lg">
               <div className="mb-8 flex items-center justify-between px-1">
                 <div>
-                  <span className="font-display text-lg italic text-ink">UNIQUE PLACES</span>
+                  <span className="font-sans text-sm font-medium tracking-[0.14em] text-ink">UNIQUE PLACES</span>
                   <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-ink-soft/70">
                     Eigentümerportal
                   </p>
