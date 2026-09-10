@@ -3,7 +3,7 @@ import { statementMonthGroupLabel } from "@/lib/statementDocuments";
 import { StatementDocumentRow } from "./StatementDocumentRow";
 
 export function StatementMonthGroup({ group }: { group: StatementMonthGroupData }) {
-  const { mainDocument, otherDocuments, documentCount, newCount } = group;
+  const { ownerReport, standardDocuments, extraDocuments, documentCount, newCount } = group;
 
   return (
     <div className="py-4">
@@ -18,11 +18,22 @@ export function StatementMonthGroup({ group }: { group: StatementMonthGroupData 
       </div>
 
       <div className="mt-1 flex flex-col divide-y divide-line/60">
-        {mainDocument && <StatementDocumentRow document={mainDocument} emphasis="primary" />}
-        {otherDocuments.map((document) => (
-          <StatementDocumentRow key={document.id} document={document} emphasis="secondary" />
+        {ownerReport && <StatementDocumentRow document={ownerReport} emphasis="primary" />}
+        {standardDocuments.map((document) => (
+          <StatementDocumentRow key={document.id} document={document} emphasis="standard" />
         ))}
       </div>
+
+      {extraDocuments.length > 0 && (
+        <div className="mt-1.5 border-t border-line/60 pt-2">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-ink-soft/70">Weitere Dokumente</p>
+          <div className="flex flex-col">
+            {extraDocuments.map((document) => (
+              <StatementDocumentRow key={document.id} document={document} emphasis="muted" />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

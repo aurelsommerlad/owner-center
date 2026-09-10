@@ -80,18 +80,14 @@ export interface OwnerStatement {
 }
 
 /**
- * The kind of statement-archive document. Deliberately an open, flat union
- * (not a boolean "is this the main statement") so further types can be
- * added later without touching the components that render this list - they
- * only ever look up STATEMENT_DOCUMENT_TYPE_LABEL[documentType].
+ * The kind of statement-archive document. Three are fachlich defined every
+ * month may have (Eigentümerreporting, Rechnung, Gutschrift); "other" covers
+ * any further supporting file. Deliberately a flat, open union so more
+ * specific types can be added later without touching the components that
+ * render this list - they only ever look up
+ * STATEMENT_DOCUMENT_TYPE_LABEL[documentType].
  */
-export type StatementDocumentType =
-  | "monthly_statement"
-  | "invoice"
-  | "credit_note"
-  | "corrected_invoice"
-  | "service_charge_statement"
-  | "other";
+export type StatementDocumentType = "owner_report" | "invoice" | "credit_note" | "other";
 
 /**
  * A statement-archive PDF, as it will eventually be synced in from the
@@ -101,17 +97,19 @@ export type StatementDocumentType =
  * payouts from these PDFs (see OwnerStatement for the separate payout
  * status shown on the Übersicht page, which this type does not replace).
  *
- * A month is not limited to one document: the monthly statement is the
- * main one, but invoices, credit notes, corrections or other supporting
- * files can be added to the same month at any time, each tracked (and
- * shown as "Neu"/"Gesehen") independently. A document is uniquely
- * identified by ownerId + propertyId + year + month + documentType (plus
- * `version` for replacements) - never by fileName alone, since the later
- * Drive sync must not rely on file naming.
+ * A month is not limited to the three main documents: Eigentümerreporting,
+ * Rechnung and Gutschrift are the ones fachlich defined, but a month may
+ * have any subset of them plus any number of further ("other") files added
+ * at any time, each tracked (and shown as "Neu"/"Gesehen") independently. A
+ * document is uniquely identified by
+ * ownerId + propertyId + year + month + documentType (plus `version` for
+ * replacements, and an extra discriminator for multiple "other" documents in
+ * the same month) - never by fileName alone, since the later Drive sync must
+ * not rely on file naming.
  *
  * That sync only has to resolve ownerId + propertyId + year + month to the
- * files in that month's Drive folder (which may be any number of files,
- * not exactly one) and fill in driveFileId per document; every other field
+ * files in that month's Drive folder (which may hold any number of files,
+ * not exactly three) and fill in driveFileId per document; every other field
  * already has the shape it needs (see services/statementDocumentService.ts).
  */
 export interface StatementDocument {
@@ -122,7 +120,11 @@ export interface StatementDocument {
   month: number;
   year: number;
   documentType: StatementDocumentType;
-  /** Descriptive title, e.g. "Monatsabrechnung August 2026" or "Rechnung zusätzliche Leistungen". */
+  /**
+   * Descriptive title. Only shown in the UI for "other" documents (e.g.
+   * "Ergänzende Unterlage") - the three main types always display their
+   * fixed STATEMENT_DOCUMENT_TYPE_LABEL instead.
+   */
   title: string;
   fileName: string;
   /** Google Drive file id. `null` until the Drive integration is wired up. */

@@ -17,40 +17,34 @@ export function isDownloadedStatementDocument(document: StatementDocument): bool
 }
 
 export const STATEMENT_DOCUMENT_TYPE_LABEL: Record<StatementDocumentType, string> = {
-  monthly_statement: "Monatsabrechnung",
+  owner_report: "Eigentümerreporting",
   invoice: "Rechnung",
   credit_note: "Gutschrift",
-  corrected_invoice: "Korrekturrechnung",
-  service_charge_statement: "Nebenkostenabrechnung",
-  other: "Sonstiges Dokument",
+  other: "Weiteres Dokument",
 };
 
 /**
- * Types whose generic label is informative enough on its own within an
- * already-grouped-by-month view ("Monatsabrechnung", "Gutschrift", ...).
- * "invoice" and "other" instead show their specific `title` (e.g. "Rechnung
- * zusätzliche Leistungen"), since the generic label alone wouldn't say much.
+ * The three fachlich defined types always display their fixed label. Only
+ * "other" documents show their specific stored `title` (e.g. "Ergänzende
+ * Unterlage"), since the generic "Weiteres Dokument" label alone wouldn't
+ * distinguish several such documents in the same month.
  */
-const GENERIC_LABEL_TYPES = new Set<StatementDocumentType>([
-  "monthly_statement",
-  "credit_note",
-  "corrected_invoice",
-  "service_charge_statement",
-]);
-
 export function statementDocumentDisplayTitle(document: StatementDocument): string {
-  return GENERIC_LABEL_TYPES.has(document.documentType)
-    ? STATEMENT_DOCUMENT_TYPE_LABEL[document.documentType]
-    : document.title;
+  return document.documentType === "other" ? document.title : STATEMENT_DOCUMENT_TYPE_LABEL[document.documentType];
 }
+
+/** Fixed display order for the two "standard" documents alongside the owner report. */
+const STANDARD_DOCUMENT_ORDER: StatementDocumentType[] = ["invoice", "credit_note"];
 
 export interface StatementMonthGroup {
   year: number;
   month: number;
-  /** The main monthly statement, if this month has one. */
-  mainDocument: StatementDocument | undefined;
-  /** Every other document for this month, oldest first. */
-  otherDocuments: StatementDocument[];
+  /** The Eigentümerreporting, if this month has one - the month's main document. */
+  ownerReport: StatementDocument | undefined;
+  /** Rechnung and Gutschrift, in that fixed order, whichever of the two exist. */
+  standardDocuments: StatementDocument[];
+  /** Any further ("other") documents for this month, oldest first. */
+  extraDocuments: StatementDocument[];
   documentCount: number;
   newCount: number;
 }
@@ -67,15 +61,21 @@ export function groupStatementDocumentsByMonth(documents: StatementDocument[]): 
   return Array.from(byMonth.entries())
     .sort(([a], [b]) => b - a)
     .map(([month, monthDocuments]) => {
-      const mainDocument = monthDocuments.find((doc) => doc.documentType === "monthly_statement");
-      const otherDocuments = monthDocuments
-        .filter((doc) => doc !== mainDocument)
+      const ownerReport = monthDocuments.find((doc) => doc.documentType === "owner_report");
+      const standardDocuments = STANDARD_DOCUMENT_ORDER.flatMap((type) => {
+        const doc = monthDocuments.find((candidate) => candidate.documentType === type);
+        return doc ? [doc] : [];
+      });
+      const extraDocuments = monthDocuments
+        .filter((doc) => doc.documentType === "other")
         .sort((a, b) => a.publishedAt.localeCompare(b.publishedAt));
+
       return {
         year: monthDocuments[0].year,
         month,
-        mainDocument,
-        otherDocuments,
+        ownerReport,
+        standardDocuments,
+        extraDocuments,
         documentCount: monthDocuments.length,
         newCount: monthDocuments.filter(isNewStatementDocument).length,
       };
