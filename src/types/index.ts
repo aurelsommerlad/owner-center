@@ -80,16 +80,39 @@ export interface OwnerStatement {
 }
 
 /**
- * A monthly owner-statement PDF, as it will eventually be synced in from the
+ * The kind of statement-archive document. Deliberately an open, flat union
+ * (not a boolean "is this the main statement") so further types can be
+ * added later without touching the components that render this list - they
+ * only ever look up STATEMENT_DOCUMENT_TYPE_LABEL[documentType].
+ */
+export type StatementDocumentType =
+  | "monthly_statement"
+  | "invoice"
+  | "credit_note"
+  | "corrected_invoice"
+  | "service_charge_statement"
+  | "other";
+
+/**
+ * A statement-archive PDF, as it will eventually be synced in from the
  * "Owner Center / Eigentümer / {Property} / Abrechnungen / {year} / {month}"
- * Google Drive structure. Deliberately a document-archive record only - no
+ * Google Drive folder. Deliberately a document-archive record only - no
  * payout/financial fields - since V1 neither computes nor reads owner
  * payouts from these PDFs (see OwnerStatement for the separate payout
  * status shown on the Übersicht page, which this type does not replace).
  *
- * The later Drive sync only has to resolve ownerId + propertyId + year +
- * month to a file and fill in driveFileId; every other field already has
- * the shape it needs (see services/statementDocumentService.ts).
+ * A month is not limited to one document: the monthly statement is the
+ * main one, but invoices, credit notes, corrections or other supporting
+ * files can be added to the same month at any time, each tracked (and
+ * shown as "Neu"/"Gesehen") independently. A document is uniquely
+ * identified by ownerId + propertyId + year + month + documentType (plus
+ * `version` for replacements) - never by fileName alone, since the later
+ * Drive sync must not rely on file naming.
+ *
+ * That sync only has to resolve ownerId + propertyId + year + month to the
+ * files in that month's Drive folder (which may be any number of files,
+ * not exactly one) and fill in driveFileId per document; every other field
+ * already has the shape it needs (see services/statementDocumentService.ts).
  */
 export interface StatementDocument {
   id: string;
@@ -98,12 +121,13 @@ export interface StatementDocument {
   /** 1-12 */
   month: number;
   year: number;
-  /** Document type/title, e.g. "Monatsabrechnung". */
+  documentType: StatementDocumentType;
+  /** Descriptive title, e.g. "Monatsabrechnung August 2026" or "Rechnung zusätzliche Leistungen". */
   title: string;
   fileName: string;
   /** Google Drive file id. `null` until the Drive integration is wired up. */
   driveFileId: string | null;
-  /** Bumped whenever UNIQUE PLACES replaces this month's PDF with a corrected version. */
+  /** Bumped whenever UNIQUE PLACES replaces this document with a corrected version. */
   version: number;
   /** ISO date this version was made available to the owner. */
   publishedAt: string;

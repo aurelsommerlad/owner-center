@@ -2,14 +2,18 @@ import type { StatementDocument } from "@/types";
 import { mockStatementDocuments } from "@/data/mock";
 
 /**
- * Statement PDFs for a property/year, newest month first.
+ * Statement documents for a property/year - a flat list, since a month can
+ * hold any number of documents (the monthly statement plus invoices,
+ * credit notes, corrections, ...). Group by month with
+ * lib/statementDocuments.ts#groupStatementDocumentsByMonth before rendering.
  *
  * This is the seam the later Google Drive sync replaces: instead of
  * filtering the in-memory mock array, it would resolve
  * ownerId + propertyId + year + month against Drive's
  * "Owner Center / Eigentümer / {Property} / Abrechnungen / {year} / {month}"
- * folder structure and return the same StatementDocument[] shape, filling
- * in a real `driveFileId`. The authorization check - that the caller's
+ * folder - which may contain any number of files, not exactly one - and
+ * return the same StatementDocument[] shape, filling in a real
+ * `driveFileId` per file. The authorization check - that the caller's
  * ownerId is actually entitled to this propertyId - belongs here, on the
  * server side, once this stops being mock data; it must not be enforced by
  * the frontend alone, and a signed, time-limited download should be issued
