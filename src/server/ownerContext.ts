@@ -1,4 +1,5 @@
 import "server-only";
+import { redirect } from "next/navigation";
 import { prisma } from "./db";
 import { getSession } from "./session";
 
@@ -41,8 +42,40 @@ export async function getEffectiveOwnerContext(): Promise<EffectiveOwnerContext 
       orderBy: { startedAt: "desc" },
     });
     if (!impersonation) return null;
+
+    // Same activity bar a real Owner login has to clear above - a preview
+    // must see exactly what that owner would see, including "nothing,
+    // because this account is deactivated", never more.
+    const owner = await prisma.owner.findUnique({ where: { id: impersonation.ownerId } });
+    if (!owner || owner.status !== "active") return null;
+
     return { ownerId: impersonation.ownerId, isImpersonation: true };
   }
 
   return null;
+}
+
+/**
+ * `getEffectiveOwnerContext()`, but redirects instead of returning `null` -
+ * the one seam every Owner-Center-facing entry point (a page/layout, or a
+ * data-access function like services/propertyService.ts#getProperty) should
+ * call to resolve "who is this render for". A `null` context here always
+ * means an AUTHENTICATION problem (no session, an inactive owner, a DB
+ * hiccup getSession() failed safe on, or an admin with no active preview) -
+ * never "this property doesn't exist" - so this always sends the caller
+ * back to sign in (or to /admin for an admin with no preview), rather than
+ * letting a caller turn "please sign in again" into a 404. Mirrors
+ * getSession()'s own "no session -> /login" for a caller that has no
+ * session at all, so a transient failure here degrades to a re-auth
+ * prompt, never a misleading "page not found".
+ */
+export async function requireEffectiveOwnerContext(): Promise<EffectiveOwnerContext> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
+  const fallbackRoute = session.role === "admin" ? "/admin" : "/login";
+  const context = await getEffectiveOwnerContext();
+  if (!context) redirect(fallbackRoute);
+
+  return context;
 }

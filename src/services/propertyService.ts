@@ -1,8 +1,7 @@
-import { notFound } from "next/navigation";
 import type { Property } from "@/types";
 import { prisma } from "@/server/db";
 import { canOwnerAccessProperty } from "@/server/permissions";
-import { getEffectiveOwnerContext } from "@/server/ownerContext";
+import { requireEffectiveOwnerContext } from "@/server/ownerContext";
 import type { Property as DbProperty } from "@/generated/prisma/client";
 
 /**
@@ -36,18 +35,23 @@ export async function getPropertiesForOwner(ownerId: string): Promise<Property[]
  * under /[propertyId] calls this (directly or via a service that wraps it),
  * so neither a signed-in owner nor an admin in an "Als Owner ansehen"
  * preview can ever see a property outside their effective owner context by
- * editing the URL - getEffectiveOwnerContext + canOwnerAccessProperty run
- * on every request, independent of what the client sent. Deliberately does
- * NOT use canUserAccessProperty's admin bypass here: during a preview, an
- * admin must see exactly what the previewed owner would see, nothing more
- * (see src/server/ownerContext.ts). Returns `undefined` (callers already do
- * `if (!property) notFound()`) both when the property does not exist and
- * when the caller is not entitled to see it - the two cases are
- * deliberately indistinguishable to the caller.
+ * editing the URL - requireEffectiveOwnerContext + canOwnerAccessProperty
+ * run on every request, independent of what the client sent. Deliberately
+ * does NOT use canUserAccessProperty's admin bypass here: during a preview,
+ * an admin must see exactly what the previewed owner would see, nothing
+ * more (see src/server/ownerContext.ts).
+ *
+ * A failure to resolve WHO is asking (no session, an inactive owner, a
+ * transient DB hiccup getSession() fails safe on, or an admin with no
+ * active preview) is an authentication problem, not "this property doesn't
+ * exist" - requireEffectiveOwnerContext() redirects to /login (or /admin)
+ * for that, it never reaches the code below. Once a context IS resolved,
+ * `undefined` (callers already do `if (!property) notFound()`) covers both
+ * "the property does not exist" and "the caller is not entitled to see
+ * it" - those two remain deliberately indistinguishable to the caller.
  */
 export async function getProperty(propertyId: string): Promise<Property | undefined> {
-  const context = await getEffectiveOwnerContext();
-  if (!context) notFound();
+  const context = await requireEffectiveOwnerContext();
 
   const allowed = await canOwnerAccessProperty(context.ownerId, propertyId);
   if (!allowed) return undefined;

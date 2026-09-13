@@ -40,13 +40,19 @@ export async function canUserAccessProperty(userId: string, propertyId: string):
  * identically to a real Owner login and an admin "Als Owner ansehen"
  * preview. Deliberately has no admin bypass: unlike canUserAccessProperty
  * above (an admin-side convenience for reads that are allowed to see
- * everything), this only ever reflects OwnerPropertyAccess.
+ * everything), this only ever reflects OwnerPropertyAccess - and, since a
+ * deactivated Property must never remain reachable through an otherwise-
+ * still-active access grant, the Property's own status too (matching what
+ * services/propertyService.ts#getPropertiesForOwner already filters on for
+ * the property switcher - this keeps the single-property lookup path
+ * consistent with that list instead of silently disagreeing with it).
  */
 export async function canOwnerAccessProperty(ownerId: string, propertyId: string): Promise<boolean> {
   const access = await prisma.ownerPropertyAccess.findUnique({
     where: { ownerId_propertyId: { ownerId, propertyId } },
+    include: { property: { select: { status: true } } },
   });
-  return access?.status === "active";
+  return access?.status === "active" && access?.property.status === "active";
 }
 
 /** Property ids this user may access - admin gets every property, an owner gets their active grants. */
