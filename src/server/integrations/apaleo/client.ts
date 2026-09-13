@@ -41,5 +41,14 @@ export async function apaleoRequest<T>(path: string): Promise<T> {
     throw new ApaleoError("unknown", `apaleo API returned ${response.status} for ${path}`);
   }
 
-  return (await response.json()) as T;
+  try {
+    return (await response.json()) as T;
+  } catch (error) {
+    // An "ok" HTTP status with a body that isn't valid JSON (a gateway/proxy
+    // error page, a truncated response, an apaleo response shape this app
+    // doesn't expect) must still surface as a recognized ApaleoError, not an
+    // uncaught SyntaxError - every caller only ever catches ApaleoError.
+    console.error(`[apaleo] failed to parse JSON response for ${path}:`, error);
+    throw new ApaleoError("unknown", `apaleo API returned an unparseable response for ${path}`);
+  }
 }

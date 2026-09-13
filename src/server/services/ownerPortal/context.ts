@@ -32,14 +32,23 @@ export const resolveOwnerPortalProperty = cache(async function resolveOwnerPorta
   const context = await getEffectiveOwnerContext();
   if (!context) return null;
 
-  const allowed = await canOwnerAccessProperty(context.ownerId, propertyId);
-  if (!allowed) return null;
+  try {
+    const allowed = await canOwnerAccessProperty(context.ownerId, propertyId);
+    if (!allowed) return null;
 
-  const property = await prisma.property.findUnique({
-    where: { id: propertyId },
-    select: { apaleoPropertyId: true },
-  });
-  if (!property) return null;
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { apaleoPropertyId: true },
+    });
+    if (!property) return null;
 
-  return { propertyId, apaleoPropertyId: property.apaleoPropertyId };
+    return { propertyId, apaleoPropertyId: property.apaleoPropertyId };
+  } catch (error) {
+    // A DB hiccup while resolving property access must never propagate as
+    // an uncaught exception and crash the page (same fail-safe philosophy
+    // as getSession()/getEffectiveOwnerContext()) - it degrades to "cannot
+    // resolve", which every caller already treats as "data unavailable".
+    console.error(`[ownerPortal] failed to resolve property context for ${propertyId}:`, error);
+    return null;
+  }
 });

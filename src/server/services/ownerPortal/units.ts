@@ -1,7 +1,6 @@
 import "server-only";
 import type { Unit } from "@/types";
 import { getUnitsForProperty as listApaleoUnits } from "@/server/integrations/apaleo/unitService";
-import { ApaleoError } from "@/server/integrations/apaleo/errors";
 import { resolveOwnerPortalProperty } from "./context";
 import { markOwnerPortalDataError } from "./errorState";
 
@@ -38,10 +37,12 @@ export async function getOwnerPortalUnits(propertyId: string): Promise<Unit[]> {
         sortOrder: index + 1,
       }));
   } catch (err) {
-    if (err instanceof ApaleoError) {
-      markOwnerPortalDataError();
-      return [];
-    }
-    throw err;
+    // Any failure here - a recognized ApaleoError, a shape/parsing mismatch
+    // in a real apaleo response, or anything else - degrades to "data
+    // unavailable" rather than crashing the page. Logged server-side (shows
+    // up in Vercel's function logs) so a real cause is still diagnosable.
+    console.error(`[ownerPortal] failed to load units for property ${propertyId}:`, err);
+    markOwnerPortalDataError();
+    return [];
   }
 }

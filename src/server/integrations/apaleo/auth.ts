@@ -55,7 +55,13 @@ export async function getApaleoAccessToken(): Promise<string> {
     throw new ApaleoError("unknown", `apaleo identity server returned ${response.status}`);
   }
 
-  const data = (await response.json()) as TokenResponse;
+  let data: TokenResponse;
+  try {
+    data = (await response.json()) as TokenResponse;
+  } catch (error) {
+    console.error("[apaleo] failed to parse identity server token response:", error);
+    throw new ApaleoError("unknown", "apaleo identity server returned an unparseable response");
+  }
   cachedToken = {
     accessToken: data.access_token,
     expiresAt: Date.now() + data.expires_in * 1000 - EXPIRY_SAFETY_MARGIN_MS,

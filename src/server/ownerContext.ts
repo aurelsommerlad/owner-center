@@ -37,19 +37,28 @@ export async function getEffectiveOwnerContext(): Promise<EffectiveOwnerContext 
   }
 
   if (session.role === "admin") {
-    const impersonation = await prisma.adminImpersonation.findFirst({
-      where: { sessionId: session.sessionId, endedAt: null },
-      orderBy: { startedAt: "desc" },
-    });
-    if (!impersonation) return null;
+    try {
+      const impersonation = await prisma.adminImpersonation.findFirst({
+        where: { sessionId: session.sessionId, endedAt: null },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!impersonation) return null;
 
-    // Same activity bar a real Owner login has to clear above - a preview
-    // must see exactly what that owner would see, including "nothing,
-    // because this account is deactivated", never more.
-    const owner = await prisma.owner.findUnique({ where: { id: impersonation.ownerId } });
-    if (!owner || owner.status !== "active") return null;
+      // Same activity bar a real Owner login has to clear above - a preview
+      // must see exactly what that owner would see, including "nothing,
+      // because this account is deactivated", never more.
+      const owner = await prisma.owner.findUnique({ where: { id: impersonation.ownerId } });
+      if (!owner || owner.status !== "active") return null;
 
-    return { ownerId: impersonation.ownerId, isImpersonation: true };
+      return { ownerId: impersonation.ownerId, isImpersonation: true };
+    } catch (error) {
+      // Same fail-safe philosophy as getSession() above: a DB hiccup here
+      // must never propagate as an uncaught exception and crash the page -
+      // it degrades to "no context", which every caller already treats as
+      // "not authenticated" and never grants access on.
+      console.error("[ownerContext] impersonation lookup failed - treating as no context:", error);
+      return null;
+    }
   }
 
   return null;

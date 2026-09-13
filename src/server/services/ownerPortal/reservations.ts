@@ -3,7 +3,6 @@ import type { Reservation, ReservationStatus } from "@/types";
 import type { DateRange } from "@/lib/occupancy";
 import { listApaleoReservationsForProperty } from "@/server/integrations/apaleo/reservationService";
 import { listApaleoMaintenancesForProperty } from "@/server/integrations/apaleo/maintenanceService";
-import { ApaleoError } from "@/server/integrations/apaleo/errors";
 import type { ApaleoReservationSummary } from "@/server/integrations/apaleo/types";
 import { resolveOwnerPortalProperty } from "./context";
 import { markOwnerPortalDataError } from "./errorState";
@@ -104,10 +103,12 @@ export async function getOwnerPortalReservations(
 
     return [...reservations, ...maintenanceBlocks];
   } catch (err) {
-    if (err instanceof ApaleoError) {
-      markOwnerPortalDataError();
-      return [];
-    }
-    throw err;
+    // Any failure here - a recognized ApaleoError, a shape/parsing mismatch
+    // in a real apaleo response, or anything else - degrades to "data
+    // unavailable" rather than crashing the page. Logged server-side (shows
+    // up in Vercel's function logs) so a real cause is still diagnosable.
+    console.error(`[ownerPortal] failed to load reservations for property ${propertyId}:`, err);
+    markOwnerPortalDataError();
+    return [];
   }
 }
