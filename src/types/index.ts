@@ -16,6 +16,50 @@ export interface Owner {
   email: string;
 }
 
+export type OwnerTeamUserStatus = "active" | "invited" | "inactive";
+
+/**
+ * One person with Owner Center access under the signed-in owner - shown on
+ * the Profil page's "Weitere Nutzer" section. Deliberately its own,
+ * Owner-Center-scoped shape rather than the admin area's AdminOwnerUser
+ * (see src/types/admin.ts's own doc comment on why the two type graphs
+ * stay apart): this only ever carries what an owner may see about their
+ * own team.
+ */
+export interface OwnerTeamUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  status: OwnerTeamUserStatus;
+  /** Only set (and only meaningful) while status is "invited". */
+  invitationExpiresAt?: string;
+  lastLoginAt?: string;
+  /** True for the row belonging to the currently signed-in user - always false during an admin "Als Owner ansehen" preview (see OwnerProfile.self). */
+  isSelf: boolean;
+}
+
+/**
+ * The signed-in user's own editable identity. `null` during an admin "Als
+ * Owner ansehen" preview - an impersonating admin has no OwnerUser row of
+ * their own under the previewed Owner to edit, so the Profil page's
+ * "Persönliche Daten"/"Zugang & Sicherheit" forms are hidden rather than
+ * shown against a fake identity.
+ */
+export interface OwnerProfileSelf {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+/** Full data for the Owner Center's "Profil" page. */
+export interface OwnerProfile {
+  ownerName: string;
+  ownerCompanyName?: string;
+  self: OwnerProfileSelf | null;
+  team: OwnerTeamUser[];
+}
+
 export interface GeoLocation {
   city: string;
   region: string;

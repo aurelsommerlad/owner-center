@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes, createHash } from "node:crypto";
 import { prisma } from "@/server/db";
+import { NO_PASSWORD_SET_HASH } from "@/server/password";
 
 /**
  * Owner-user invitation tokens: how they're generated, hashed, looked up,
@@ -61,6 +62,63 @@ export async function createInvitationForUser(userId: string, createdByAdminId: 
   ]);
 
   return { rawToken, expiresAt };
+}
+
+export interface CreateInvitedOwnerUserInput {
+  ownerId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface CreateInvitedOwnerUserResult {
+  ownerUserId: string;
+  userId: string;
+  rawToken: string;
+  expiresAt: Date;
+}
+
+/**
+ * Creates a brand-new owner-role User + OwnerUser (status "invited", no
+ * usable password yet - see NO_PASSWORD_SET_HASH) under `ownerId` and
+ * issues its first invitation. The one place a new owner-user login gets
+ * created, whichever side triggers it: an admin adding a user to any owner
+ * (src/services/admin/ownerUserService.ts#createOwnerUser) or an owner
+ * inviting their own teammate (src/services/profileService.ts). `ownerId`
+ * is always supplied by the caller - what actually enforces "an owner can
+ * only invite into their own Owner" is that profileService.ts only ever
+ * passes the acting owner's own id (resolved server-side from the session),
+ * never anything from the invite form.
+ *
+ * `createdByUserId` is audit-only (like AdminImpersonation.adminUserId) -
+ * despite OwnerInvitation.createdByAdminId's name, it holds whichever
+ * User.id actually triggered the invitation, admin or owner alike.
+ */
+export async function createInvitedOwnerUser(
+  input: CreateInvitedOwnerUserInput,
+  createdByUserId: string
+): Promise<CreateInvitedOwnerUserResult> {
+  const email = input.email.trim().toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    throw new Error(`Diese E-Mail-Adresse (${email}) ist bereits vergeben.`);
+  }
+
+  const loginUser = await prisma.user.create({
+    data: { email, passwordHash: NO_PASSWORD_SET_HASH, role: "owner" },
+  });
+  const ownerUser = await prisma.ownerUser.create({
+    data: {
+      ownerId: input.ownerId,
+      userId: loginUser.id,
+      firstName: input.firstName.trim(),
+      lastName: input.lastName.trim(),
+      status: "invited",
+    },
+  });
+
+  const { rawToken, expiresAt } = await createInvitationForUser(loginUser.id, createdByUserId);
+  return { ownerUserId: ownerUser.id, userId: loginUser.id, rawToken, expiresAt };
 }
 
 export type InvitationLookup =

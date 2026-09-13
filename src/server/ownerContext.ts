@@ -88,3 +88,47 @@ export async function requireEffectiveOwnerContext(): Promise<EffectiveOwnerCont
 
   return context;
 }
+
+export interface OwnerSelfSession {
+  userId: string;
+  sessionId: string;
+  ownerId: string;
+  ownerUserId: string;
+  email: string;
+}
+
+/**
+ * Like requireEffectiveOwnerContext(), but only ever succeeds for a REAL
+ * Owner login (never an admin "Als Owner ansehen" preview) and additionally
+ * resolves the signed-in user's OWN OwnerUser identity - for the Profil
+ * page's self-service actions (change own name/email/password), which need
+ * an actual OwnerUser row to edit. An impersonating admin has none of their
+ * own under the previewed Owner, so this redirects them away rather than
+ * inventing a fake identity - in normal use the Profil page never even
+ * renders these actions' forms during a preview (see
+ * src/services/profileService.ts#getOwnerProfile), so this redirect is
+ * defence-in-depth, not a path real usage takes.
+ */
+export async function requireOwnerSelfSession(): Promise<OwnerSelfSession> {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
+  const fallbackRoute = session.role === "admin" ? "/admin" : "/login";
+  if (
+    session.role !== "owner" ||
+    !session.ownerId ||
+    !session.ownerUserId ||
+    session.ownerStatus !== "active" ||
+    session.ownerUserStatus !== "active"
+  ) {
+    redirect(fallbackRoute);
+  }
+
+  return {
+    userId: session.userId,
+    sessionId: session.sessionId,
+    ownerId: session.ownerId,
+    ownerUserId: session.ownerUserId,
+    email: session.email,
+  };
+}

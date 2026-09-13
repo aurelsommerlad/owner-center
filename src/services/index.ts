@@ -6,3 +6,4 @@ export * from "./statementService";
 export * from "./documentService";
 export * from "./overviewService";
 export * from "./calendarService";
+export * from "./profileService";

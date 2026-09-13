@@ -1,7 +1,7 @@
 import type { AccountStatus, AdminOwnerUser } from "@/types/admin";
 import { prisma } from "@/server/db";
 import { NO_PASSWORD_SET_HASH } from "@/server/password";
-import { createInvitationForUser } from "@/server/invitations";
+import { createInvitationForUser, createInvitedOwnerUser } from "@/server/invitations";
 import { getUsersForOwner, toAdminOwnerUser } from "@/lib/adminPermissions";
 
 /**
@@ -41,30 +41,10 @@ export async function createOwnerUser(
   input: CreateOwnerUserInput,
   createdByAdminId: string
 ): Promise<CreateOwnerUserResult> {
-  const email = input.email.trim().toLowerCase();
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    throw new Error(`Diese E-Mail-Adresse (${email}) ist bereits vergeben.`);
-  }
-
-  const loginUser = await prisma.user.create({
-    data: { email, passwordHash: NO_PASSWORD_SET_HASH, role: "owner" },
-  });
-  const ownerUser = await prisma.ownerUser.create({
-    data: {
-      ownerId: input.ownerId,
-      userId: loginUser.id,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      status: "invited",
-    },
-    include: INVITATION_INCLUDE,
-  });
-
-  const { rawToken, expiresAt } = await createInvitationForUser(loginUser.id, createdByAdminId);
-  // Re-read so the returned AdminOwnerUser carries the invitation we just
-  // created (the earlier `include` ran before it existed).
-  const refreshed = await prisma.ownerUser.findUniqueOrThrow({ where: { id: ownerUser.id }, include: INVITATION_INCLUDE });
+  const { ownerUserId, rawToken, expiresAt } = await createInvitedOwnerUser(input, createdByAdminId);
+  // Re-read (with the invitation include) so the returned AdminOwnerUser
+  // carries the invitation just created.
+  const refreshed = await prisma.ownerUser.findUniqueOrThrow({ where: { id: ownerUserId }, include: INVITATION_INCLUDE });
 
   return { user: toAdminOwnerUser(refreshed), inviteToken: rawToken, inviteExpiresAt: expiresAt.toISOString() };
 }
