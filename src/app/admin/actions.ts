@@ -5,8 +5,12 @@ import type { AccountStatus } from "@/types/admin";
 import { requireAdminRole } from "@/lib/adminAuth";
 import { createOwner, updateOwner } from "@/services/admin/ownerService";
 import { createOwnerUser, updateOwnerUser } from "@/services/admin/ownerUserService";
-import { createProperty, updateProperty } from "@/services/admin/propertyService";
+import { createProperty, getProperty, updateProperty } from "@/services/admin/propertyService";
 import { grantAccess, setOwnerPropertyAccess, setPropertyOwnerAccess } from "@/services/admin/accessService";
+import { testApaleoConnection, type ApaleoConnectionStatus } from "@/server/integrations/apaleo/connectionCheck";
+import { getApaleoProperty } from "@/server/integrations/apaleo/propertyService";
+import { getUnitsForProperty } from "@/server/integrations/apaleo/unitService";
+import { describeApaleoError } from "@/server/integrations/apaleo/errors";
 
 /**
  * Server Actions for the owner/user/property admin flows, backed by the
@@ -203,4 +207,54 @@ export async function updatePropertyAction(propertyId: string, formData: FormDat
   revalidatePath(`/admin/properties/${propertyId}`);
   revalidatePath("/admin/owners");
   return { ok: true, message: `${name} wurde aktualisiert.` };
+}
+
+/**
+ * Performs a real, live "Verbindung testen" call to apaleo (listing
+ * properties) and persists the outcome, so the /admin/integrations card can
+ * show a "letzter erfolgreicher Check" that survives across requests. Never
+ * throws - failures come back as a normal (unsuccessful) result.
+ */
+export async function testApaleoConnectionAction(): Promise<ApaleoConnectionStatus["lastCheck"]> {
+  await requireAdminRole();
+  const result = await testApaleoConnection();
+  revalidatePath("/admin/integrations");
+  return result;
+}
+
+export interface ApaleoMappingCheckResult {
+  ok: boolean;
+  message: string;
+  propertyName?: string;
+  unitsCount?: number;
+}
+
+/**
+ * Checks whether a Property's `apaleoPropertyId` resolves to a real apaleo
+ * property - on success returns its name (and, best-effort, its unit
+ * count); on failure a clear reason (not found / not configured / apaleo
+ * unreachable / ...). Deliberately does NOT change or auto-guess the id -
+ * mapping stays explicit, entered only via the property edit form.
+ */
+export async function checkApaleoMappingAction(propertyId: string): Promise<ApaleoMappingCheckResult> {
+  await requireAdminRole();
+
+  const property = await getProperty(propertyId);
+  if (!property) return { ok: false, message: "Objekt nicht gefunden." };
+  if (!property.apaleoPropertyId) {
+    return { ok: false, message: "Keine apaleo Property-ID hinterlegt." };
+  }
+
+  try {
+    const apaleoProperty = await getApaleoProperty(property.apaleoPropertyId);
+    if (!apaleoProperty) {
+      return { ok: false, message: `Property-ID "${property.apaleoPropertyId}" wurde in apaleo nicht gefunden.` };
+    }
+    const unitsCount = await getUnitsForProperty(property.apaleoPropertyId)
+      .then((units) => units.length)
+      .catch(() => undefined);
+    return { ok: true, message: "Mapping gültig.", propertyName: apaleoProperty.name, unitsCount };
+  } catch (err) {
+    return { ok: false, message: describeApaleoError(err) };
+  }
 }

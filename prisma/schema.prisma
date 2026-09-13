@@ -112,7 +112,10 @@ model Property {
   /// richer location display, set at seed/creation time.
   region                  String?
   status                  String   @default("active")
-  /// Mock configuration value only - no real apaleo connection.
+  /// The leading/authoritative link to apaleo: an admin-entered apaleo
+  /// property id, deliberately never auto-matched by name. This internal
+  /// Property row stays the source of truth for owner access - apaleo data
+  /// is only ever reached by following this id, never the other way round.
   apaleoPropertyId        String?
   /// Mock configuration value only - no real Drive connection.
   statementsDriveFolderId String?
@@ -194,6 +197,20 @@ model StatementDocument {
 
   @@index([propertyId, year])
   @@index([ownerId])
+}
+
+/// Singleton row (fixed id) recording the result of the last "Verbindung
+/// testen" action on /admin/integrations, so the admin UI can show a
+/// "last successful check" timestamp across requests/serverless instances
+/// instead of only ever reflecting the current request's live state.
+/// Written only by src/server/integrations/apaleo - never read/written by
+/// anything owner-facing.
+model ApaleoConnectionCheck {
+  id            String   @id @default("apaleo")
+  checkedAt     DateTime @updatedAt
+  success       Boolean
+  propertyCount Int?
+  errorMessage  String?
 }
 
 /// General documents outside the monthly statement cycle (contracts, tax

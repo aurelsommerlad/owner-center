@@ -1,21 +1,27 @@
 import { getIntegrations } from "@/services/admin/integrationService";
 import { Card } from "@/components/ui/Card";
 import { AdminStatusBadge, integrationStatusBadge } from "@/components/admin/AdminStatusBadge";
+import { ApaleoIntegrationCard } from "@/components/admin/ApaleoIntegrationCard";
+import { getApaleoConnectionStatus } from "@/server/integrations/apaleo/connectionCheck";
 
 export default async function AdminIntegrationsPage() {
-  const integrations = await getIntegrations();
+  const [integrations, apaleoStatus] = await Promise.all([getIntegrations(), getApaleoConnectionStatus()]);
+  // apaleo is real/functional now (see below) - only the still-mock
+  // integrations (Google Drive) go through the generic status-card loop.
+  const otherIntegrations = integrations.filter((integration) => integration.id !== "apaleo");
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold text-ink">Integrationen</h1>
         <p className="mt-1 text-sm text-ink-soft">
-          Vorbereitete Anbindungen. Noch keine Verbindung, kein OAuth, keine Secrets im Frontend.
+          apaleo ist als Connection Layer angebunden. Weitere Anbindungen sind vorbereitet.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {integrations.map((integration) => {
+        <ApaleoIntegrationCard configured={apaleoStatus.configured} lastCheck={apaleoStatus.lastCheck} />
+        {otherIntegrations.map((integration) => {
           const badge = integrationStatusBadge(integration.status);
           return (
             <Card key={integration.id} className="p-5 shadow-soft sm:p-6">

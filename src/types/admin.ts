@@ -67,7 +67,7 @@ export interface AdminProperty {
   /** Display location, e.g. "Lindau". */
   location: string;
   status: AdminPropertyStatus;
-  /** Mock configuration value only - no real apaleo connection. */
+  /** The leading, admin-entered apaleo property id - see src/server/integrations/apaleo. */
   apaleoPropertyId?: string;
   /** Mock configuration value only - no real Drive connection. */
   statementsDriveFolderId?: string;

@@ -5,6 +5,7 @@ import { getOwnersForProperty, getProperty } from "@/services/admin/propertyServ
 import { Card } from "@/components/ui/Card";
 import { AdminStatusBadge, propertyStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { PropertyFormModal } from "@/components/admin/PropertyFormModal";
+import { ApaleoMappingCard } from "@/components/admin/ApaleoMappingCard";
 import { formatShortDate } from "@/lib/format";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -78,15 +79,7 @@ export default async function AdminPropertyDetailPage({ params }: { params: Prom
       </Card>
 
       {/* apaleo */}
-      <Card className="p-5 shadow-soft sm:p-6">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-sm font-semibold text-ink">apaleo</h2>
-          <NotConnectedBadge />
-        </div>
-        <div className="mt-3">
-          <Field label="Property-ID" value={property.apaleoPropertyId ?? "—"} />
-        </div>
-      </Card>
+      <ApaleoMappingCard propertyId={property.id} apaleoPropertyId={property.apaleoPropertyId} />
 
       {/* Google Drive */}
       <Card className="p-5 shadow-soft sm:p-6">
