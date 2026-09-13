@@ -6,18 +6,23 @@ import type {
   IntegrationStatus,
 } from "@/types/admin";
 
-type AdminStatusTone = "positive" | "neutral" | "muted" | "attention";
+type AdminStatusTone = "positive" | "strong" | "neutral" | "muted";
 
-const TONE_CLASS: Record<AdminStatusTone, string> = {
-  positive: "bg-[#52664E]/10 text-[#52664E]",
-  neutral: "bg-[#171817]/6 text-[#171817]",
-  muted: "border border-[#E4E0D8] text-[#74736E]",
-  attention: "bg-[#87977E]/12 text-[#52664E]",
+// Same pill chrome as components/ui/StatusBadge.tsx (border-line/bg-paper/
+// text-ink-soft) - only the dot colour carries meaning, exactly like the
+// Owner Center's own status dots (confirmed/blocked/owner-use/free), so no
+// new "tinted badge" pattern is introduced for Admin.
+const DOT_CLASS: Record<AdminStatusTone, string> = {
+  positive: "bg-[#87977E]",
+  strong: "bg-[#52664E]",
+  neutral: "bg-ink-soft",
+  muted: "border border-ink/25 bg-transparent",
 };
 
 export function AdminStatusBadge({ label, tone = "neutral" }: { label: string; tone?: AdminStatusTone }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium ${TONE_CLASS[tone]}`}>
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-line bg-paper px-2.5 py-1 text-xs font-medium text-ink-soft">
+      <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASS[tone]}`} />
       {label}
     </span>
   );
@@ -32,7 +37,7 @@ export function accountStatusBadge(status: AccountStatus): { label: string; tone
 
 export function propertyStatusBadge(status: AdminPropertyStatus): { label: string; tone: AdminStatusTone } {
   if (status === "active") return { label: "Aktiv", tone: "positive" };
-  if (status === "onboarding") return { label: "Onboarding", tone: "attention" };
+  if (status === "onboarding") return { label: "Onboarding", tone: "neutral" };
   return { label: "Inaktiv", tone: "muted" };
 }
 
@@ -45,7 +50,7 @@ export function statementStatusBadge(status: AdminStatementStatus): { label: str
     case "published":
       return { label: "Veröffentlicht", tone: "positive" };
     case "updated":
-      return { label: "Aktualisiert", tone: "attention" };
+      return { label: "Aktualisiert", tone: "strong" };
   }
 }
 
@@ -55,6 +60,6 @@ export function generalDocumentStatusBadge(status: AdminGeneralDocumentStatus): 
 
 export function integrationStatusBadge(status: IntegrationStatus): { label: string; tone: AdminStatusTone } {
   if (status === "connected") return { label: "Verbunden", tone: "positive" };
-  if (status === "error") return { label: "Fehler", tone: "attention" };
+  if (status === "error") return { label: "Fehler", tone: "strong" };
   return { label: "Noch nicht verbunden", tone: "muted" };
 }

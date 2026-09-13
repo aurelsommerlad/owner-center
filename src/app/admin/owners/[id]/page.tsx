@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getOwner, getOwnerUsers, getPropertiesForOwner } from "@/services/admin/ownerService";
-import { AdminCard } from "@/components/admin/AdminCard";
+import { Card } from "@/components/ui/Card";
 import { AdminStatusBadge, accountStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { USER_ROLE_LABEL } from "@/lib/adminLabels";
 import { formatShortDate } from "@/lib/format";
@@ -9,8 +9,8 @@ import { formatShortDate } from "@/lib/format";
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-[#74736E]">{label}</p>
-      <p className="mt-1 text-sm text-[#171817]">{value}</p>
+      <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">{label}</p>
+      <p className="mt-1 text-sm text-ink">{value}</p>
     </div>
   );
 }
@@ -26,14 +26,14 @@ export default async function AdminOwnerDetailPage({ params }: { params: Promise
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div>
-        <Link href="/admin/owners" className="text-xs font-medium text-[#74736E] hover:text-[#171817]">
+        <Link href="/admin/owners" className="text-xs font-medium text-ink-soft transition-colors hover:text-ink">
           ← Eigentümer
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-[#171817]">{owner.name}</h1>
-        <p className="mt-1 text-sm text-[#74736E]">{owner.company}</p>
+        <h1 className="mt-2 text-2xl font-semibold text-ink">{owner.name}</h1>
+        <p className="mt-1 text-sm text-ink-soft">{owner.company}</p>
       </div>
 
-      <AdminCard className="grid grid-cols-2 gap-x-6 gap-y-5 p-5 sm:p-6 lg:grid-cols-4">
+      <Card className="grid grid-cols-2 gap-x-6 gap-y-5 p-5 shadow-soft sm:p-6 lg:grid-cols-4">
         <Field label="Name" value={owner.name} />
         <Field label="Unternehmen" value={owner.company} />
         <Field label="E-Mail" value={owner.email} />
@@ -60,29 +60,29 @@ export default async function AdminOwnerDetailPage({ params }: { params: Promise
         />
         <Field label="Letzter Login" value={owner.lastLoginAt ? formatShortDate(owner.lastLoginAt) : "—"} />
         <Field label="Erstellungsdatum" value={formatShortDate(owner.createdAt)} />
-      </AdminCard>
+      </Card>
 
-      <AdminCard className="p-5 sm:p-6">
+      <Card className="p-5 shadow-soft sm:p-6">
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold text-[#171817]">Nutzer</h2>
-          <span className="text-xs text-[#74736E]">{users.length} Nutzer</span>
+          <h2 className="text-sm font-semibold text-ink">Nutzer</h2>
+          <span className="text-xs text-ink-soft">{users.length} Nutzer</span>
         </div>
-        <p className="mt-1 text-xs text-[#74736E]">
+        <p className="mt-1 text-xs text-ink-soft">
           Ein Eigentümer kann mehrere Nutzer/Logins haben - vorbereitet für spätere Einladungen.
         </p>
-        <div className="mt-3 divide-y divide-[#E4E0D8]/70">
+        <div className="mt-3 divide-y divide-line">
           {users.map((user) => {
             const userStatus = accountStatusBadge(user.status);
             return (
               <div key={user.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
                 <div>
-                  <p className="font-medium text-[#171817]">{user.name}</p>
-                  <p className="text-xs text-[#74736E]">{user.email}</p>
+                  <p className="font-medium text-ink">{user.name}</p>
+                  <p className="text-xs text-ink-soft">{user.email}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-[#74736E]">{USER_ROLE_LABEL[user.role]}</span>
+                  <span className="text-xs text-ink-soft">{USER_ROLE_LABEL[user.role]}</span>
                   <AdminStatusBadge label={userStatus.label} tone={userStatus.tone} />
-                  <span className="text-xs text-[#74736E]">
+                  <span className="text-xs text-ink-soft">
                     {user.lastLoginAt ? formatShortDate(user.lastLoginAt) : "—"}
                   </span>
                 </div>
@@ -90,7 +90,7 @@ export default async function AdminOwnerDetailPage({ params }: { params: Promise
             );
           })}
         </div>
-      </AdminCard>
+      </Card>
     </div>
   );
 }

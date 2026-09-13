@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CloseIcon, LogoutIcon, MenuIcon, ProfileIcon } from "@/components/ui/icons";
-import { ChevronLeftIcon } from "@/components/ui/icons";
+import { ChevronLeftIcon, CloseIcon, LogoutIcon, MenuIcon, ProfileIcon } from "@/components/ui/icons";
 import { ADMIN_MAIN_NAV, isAdminNavItemActive } from "./navigation";
+
+// Mirrors components/layout/MobileNav.tsx exactly (same tokens, overlay,
+// drawer chrome and active/hover states) - only the nav items differ.
 
 export function AdminMobileNav() {
   const [open, setOpen] = useState(false);
@@ -30,7 +32,7 @@ export function AdminMobileNav() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-10 w-10 items-center justify-center rounded-full border border-[#E4E0D8] text-[#171817] lg:hidden"
+        className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-ink lg:hidden"
         aria-label="Menü öffnen"
       >
         <MenuIcon className="h-5 w-5" />
@@ -42,13 +44,13 @@ export function AdminMobileNav() {
             <button
               type="button"
               aria-label="Menü schließen"
-              className="absolute inset-0 bg-[#171817]/40"
+              className="absolute inset-0 bg-ink/40"
               onClick={() => setOpen(false)}
             />
-            <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-[#F8F6F1] px-5 py-6 shadow-[0_4px_12px_rgba(23,24,23,0.05),0_16px_40px_rgba(23,24,23,0.08)]">
+            <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-paper px-5 py-6 shadow-soft-lg">
               <div className="mb-8 flex items-center justify-between px-1">
                 <div>
-                  <p className="text-sm font-semibold tracking-[0.05em] text-[#171817]">UNIQUE PLACES</p>
+                  <p className="font-sans text-sm font-semibold tracking-[0.05em] text-[#171817]">UNIQUE PLACES</p>
                   <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-[#171817]/55">
                     Admin
                   </p>
@@ -56,7 +58,7 @@ export function AdminMobileNav() {
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E4E0D8] text-[#171817]"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink"
                   aria-label="Menü schließen"
                 >
                   <CloseIcon className="h-4 w-4" />
@@ -72,30 +74,27 @@ export function AdminMobileNav() {
                       key={item.key}
                       href={item.href}
                       className={`flex items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] ${
-                        active ? "bg-[#52664E] text-[#FAFAF7] font-medium" : "text-[#74736E]"
+                        active ? "bg-ink text-paper font-medium" : "text-ink-soft"
                       }`}
                     >
-                      <Icon className={`h-5 w-5 ${active ? "text-[#FAFAF7]" : "text-[#74736E]/70"}`} />
+                      <Icon className={`h-5 w-5 ${active ? "text-paper" : "text-ink-soft/70"}`} />
                       {item.label}
                     </Link>
                   );
                 })}
               </nav>
 
-              <div className="flex flex-col gap-1 border-t border-[#E4E0D8] pt-4">
-                <Link
-                  href="/"
-                  className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] text-[#74736E]"
-                >
-                  <ChevronLeftIcon className="h-5 w-5 text-[#74736E]/70" />
+              <div className="flex flex-col gap-1 border-t border-line pt-4">
+                <Link href="/" className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] text-ink-soft">
+                  <ChevronLeftIcon className="h-5 w-5 text-ink-soft/70" />
                   Zurück zum Owner Center
                 </Link>
-                <button type="button" className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[15px] text-[#74736E]">
-                  <ProfileIcon className="h-5 w-5 text-[#74736E]/70" />
+                <button type="button" className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[15px] text-ink-soft">
+                  <ProfileIcon className="h-5 w-5 text-ink-soft/70" />
                   Profil
                 </button>
-                <button type="button" className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[15px] text-[#74736E]">
-                  <LogoutIcon className="h-5 w-5 text-[#74736E]/70" />
+                <button type="button" className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[15px] text-ink-soft">
+                  <LogoutIcon className="h-5 w-5 text-ink-soft/70" />
                   Abmelden
                 </button>
               </div>

@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { getDashboardSummary } from "@/services/admin/dashboardService";
-import { AdminCard } from "@/components/admin/AdminCard";
+import { Card } from "@/components/ui/Card";
 import { formatShortDate } from "@/lib/format";
 
 function StatTile({ label, value }: { label: string; value: number }) {
   return (
-    <AdminCard className="p-4">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-[#74736E]">{label}</p>
-      <p className="mt-1.5 text-2xl font-semibold text-[#171817]">{value}</p>
-    </AdminCard>
+    <Card className="px-4 py-3.5 shadow-none sm:px-5 sm:py-4">
+      <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">{label}</p>
+      <p className="mt-1.5 text-2xl font-semibold text-ink">{value}</p>
+    </Card>
   );
 }
 
@@ -18,8 +18,8 @@ export default async function AdminDashboardPage() {
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-[#171817]">Dashboard</h1>
-        <p className="mt-1 text-sm text-[#74736E]">Interner Überblick über Eigentümer, Objekte und Abrechnungen.</p>
+        <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
+        <p className="mt-1 text-sm text-ink-soft">Interner Überblick über Eigentümer, Objekte und Abrechnungen.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -30,65 +30,68 @@ export default async function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <AdminCard className="p-5">
-          <h2 className="text-sm font-semibold text-[#171817]">Zuletzt hinzugefügt</h2>
+        <Card className="p-5 shadow-none sm:p-6">
+          <h2 className="text-sm font-semibold text-ink">Zuletzt hinzugefügt</h2>
 
           <div className="mt-4">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-[#74736E]">Eigentümer</p>
-            <div className="mt-1.5 divide-y divide-[#E4E0D8]/70">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">Eigentümer</p>
+            <div className="mt-1.5 divide-y divide-line">
               {summary.recentOwners.map((owner) => (
                 <div key={owner.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                  <Link href={`/admin/owners/${owner.id}`} className="text-[#171817] hover:underline">
+                  <Link href={`/admin/owners/${owner.id}`} className="text-ink transition-colors hover:text-ink-soft">
                     {owner.name}
                   </Link>
-                  <span className="text-xs text-[#74736E]">{formatShortDate(owner.createdAt)}</span>
+                  <span className="text-xs text-ink-soft">{formatShortDate(owner.createdAt)}</span>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="mt-4">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-[#74736E]">Objekte</p>
-            <div className="mt-1.5 divide-y divide-[#E4E0D8]/70">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">Objekte</p>
+            <div className="mt-1.5 divide-y divide-line">
               {summary.recentProperties.map((property) => (
                 <div key={property.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                  <Link href={`/admin/properties/${property.id}`} className="text-[#171817] hover:underline">
+                  <Link
+                    href={`/admin/properties/${property.id}`}
+                    className="text-ink transition-colors hover:text-ink-soft"
+                  >
                     {property.name}
                   </Link>
-                  <span className="text-xs text-[#74736E]">{formatShortDate(property.createdAt)}</span>
+                  <span className="text-xs text-ink-soft">{formatShortDate(property.createdAt)}</span>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="mt-4">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-[#74736E]">Dokumente</p>
-            <div className="mt-1.5 divide-y divide-[#E4E0D8]/70">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">Dokumente</p>
+            <div className="mt-1.5 divide-y divide-line">
               {summary.recentDocuments.map((document) => (
                 <div key={document.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                  <span className="min-w-0 truncate text-[#171817]">{document.title}</span>
-                  <span className="shrink-0 text-xs text-[#74736E]">{formatShortDate(document.createdAt)}</span>
+                  <span className="min-w-0 truncate text-ink">{document.title}</span>
+                  <span className="shrink-0 text-xs text-ink-soft">{formatShortDate(document.createdAt)}</span>
                 </div>
               ))}
             </div>
           </div>
-        </AdminCard>
+        </Card>
 
-        <AdminCard className="p-5">
-          <h2 className="text-sm font-semibold text-[#171817]">Hinweise</h2>
+        <Card className="p-5 shadow-none sm:p-6">
+          <h2 className="text-sm font-semibold text-ink">Hinweise</h2>
           {summary.hints.length === 0 ? (
-            <p className="mt-3 text-sm text-[#74736E]">Keine offenen Hinweise.</p>
+            <p className="mt-3 text-sm text-ink-soft">Keine offenen Hinweise.</p>
           ) : (
-            <div className="mt-3 flex flex-col divide-y divide-[#E4E0D8]/70">
+            <div className="mt-3 flex flex-col divide-y divide-line">
               {summary.hints.map((hint) => (
-                <div key={hint.id} className="flex items-start gap-2.5 py-2.5 text-sm text-[#171817]">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#74736E]" />
+                <div key={hint.id} className="flex items-start gap-2.5 py-2.5 text-sm text-ink">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-ink-soft" />
                   {hint.message}
                 </div>
               ))}
             </div>
           )}
-        </AdminCard>
+        </Card>
       </div>
     </div>
   );

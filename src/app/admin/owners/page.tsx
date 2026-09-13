@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getOwners, getPropertiesForOwner } from "@/services/admin/ownerService";
-import { AdminCard } from "@/components/admin/AdminCard";
+import { Card } from "@/components/ui/Card";
 import { AdminTable, type AdminTableColumn } from "@/components/admin/AdminTable";
 import { AdminStatusBadge, accountStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { formatShortDate } from "@/lib/format";
@@ -26,8 +26,8 @@ export default async function AdminOwnersPage() {
       header: "Name",
       render: (row) => (
         <div>
-          <p className="font-medium text-[#171817]">{row.owner.name}</p>
-          <p className="text-xs text-[#74736E]">{row.owner.email}</p>
+          <p className="font-medium text-ink">{row.owner.name}</p>
+          <p className="text-xs text-ink-soft">{row.owner.email}</p>
         </div>
       ),
     },
@@ -56,10 +56,13 @@ export default async function AdminOwnersPage() {
       className: "text-right",
       render: (row) => (
         <div className="flex items-center justify-end gap-3">
-          <Link href={`/admin/owners/${row.owner.id}`} className="text-xs font-medium text-[#52664E] hover:underline">
+          <Link
+            href={`/admin/owners/${row.owner.id}`}
+            className="text-xs font-medium text-ink-soft transition-colors hover:text-ink"
+          >
             Ansehen
           </Link>
-          <button type="button" className="text-xs font-medium text-[#74736E] hover:text-[#171817]">
+          <button type="button" className="text-xs font-medium text-ink-soft transition-colors hover:text-ink">
             Bearbeiten
           </button>
         </div>
@@ -70,15 +73,13 @@ export default async function AdminOwnersPage() {
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-[#171817]">Eigentümer</h1>
-        <p className="mt-1 text-sm text-[#74736E]">
-          {owners.length} Eigentümer · Zugänge und Objektzuordnung verwalten.
-        </p>
+        <h1 className="text-2xl font-semibold text-ink">Eigentümer</h1>
+        <p className="mt-1 text-sm text-ink-soft">{owners.length} Eigentümer · Zugänge und Objektzuordnung verwalten.</p>
       </div>
 
-      <AdminCard className="p-2 sm:p-3">
+      <Card className="p-2 shadow-soft sm:p-3">
         <AdminTable columns={columns} rows={rows} rowKey={(row) => row.owner.id} />
-      </AdminCard>
+      </Card>
     </div>
   );
 }

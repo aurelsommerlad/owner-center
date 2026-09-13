@@ -1,5 +1,5 @@
 import { getIntegrations } from "@/services/admin/integrationService";
-import { AdminCard } from "@/components/admin/AdminCard";
+import { Card } from "@/components/ui/Card";
 import { AdminStatusBadge, integrationStatusBadge } from "@/components/admin/AdminStatusBadge";
 
 export default async function AdminIntegrationsPage() {
@@ -8,8 +8,8 @@ export default async function AdminIntegrationsPage() {
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-[#171817]">Integrationen</h1>
-        <p className="mt-1 text-sm text-[#74736E]">
+        <h1 className="text-2xl font-semibold text-ink">Integrationen</h1>
+        <p className="mt-1 text-sm text-ink-soft">
           Vorbereitete Anbindungen. Noch keine Verbindung, kein OAuth, keine Secrets im Frontend.
         </p>
       </div>
@@ -18,25 +18,25 @@ export default async function AdminIntegrationsPage() {
         {integrations.map((integration) => {
           const badge = integrationStatusBadge(integration.status);
           return (
-            <AdminCard key={integration.id} className="p-5 sm:p-6">
+            <Card key={integration.id} className="p-5 shadow-soft sm:p-6">
               <div className="flex items-start justify-between gap-3">
-                <h2 className="text-sm font-semibold text-[#171817]">{integration.name}</h2>
+                <h2 className="text-sm font-semibold text-ink">{integration.name}</h2>
                 <AdminStatusBadge label={badge.label} tone={badge.tone} />
               </div>
-              <p className="mt-2 text-sm text-[#74736E]">{integration.description}</p>
+              <p className="mt-2 text-sm text-ink-soft">{integration.description}</p>
 
-              <div className="mt-4 border-t border-[#E4E0D8] pt-4">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-[#74736E]">Felder später</p>
+              <div className="mt-4 border-t border-line pt-4">
+                <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">Felder später</p>
                 <ul className="mt-2 flex flex-col gap-1.5">
                   {integration.upcomingFields.map((field) => (
-                    <li key={field} className="flex items-center gap-2 text-sm text-[#171817]">
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full border border-[#74736E]" />
+                    <li key={field} className="flex items-center gap-2 text-sm text-ink">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full border border-ink/25" />
                       {field}
                     </li>
                   ))}
                 </ul>
               </div>
-            </AdminCard>
+            </Card>
           );
         })}
       </div>

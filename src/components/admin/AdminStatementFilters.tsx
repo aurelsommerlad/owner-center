@@ -11,8 +11,9 @@ const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "updated", label: "Aktualisiert" },
 ];
 
+// Same <select> chrome as CalendarControls.tsx's unit selector.
 const SELECT_CLASS =
-  "rounded-full border border-[#E4E0D8] bg-[#F8F6F1] px-3.5 py-2 text-xs font-medium text-[#74736E] outline-none transition-colors hover:border-[#171817] focus:border-[#171817]";
+  "rounded-full border border-line bg-paper px-3.5 py-2 text-xs font-medium text-ink-soft outline-none transition-colors hover:border-ink focus:border-ink";
 
 export function AdminStatementFilters({ properties, years }: { properties: AdminProperty[]; years: number[] }) {
   const router = useRouter();

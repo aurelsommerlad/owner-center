@@ -3,6 +3,9 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { AdminOwner } from "@/types/admin";
 
+const SELECT_CLASS =
+  "rounded-full border border-line bg-paper px-3.5 py-2 text-xs font-medium text-ink-soft outline-none transition-colors hover:border-ink focus:border-ink";
+
 export function OwnerSelector({
   owners,
   paramName = "eigentuemer",
@@ -23,11 +26,7 @@ export function OwnerSelector({
   }
 
   return (
-    <select
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="rounded-full border border-[#E4E0D8] bg-[#F8F6F1] px-3.5 py-2 text-xs font-medium text-[#74736E] outline-none transition-colors hover:border-[#171817] focus:border-[#171817]"
-    >
+    <select value={value} onChange={(event) => onChange(event.target.value)} className={SELECT_CLASS}>
       <option value="all">Alle Eigentümer</option>
       {owners.map((owner) => (
         <option key={owner.id} value={owner.id}>

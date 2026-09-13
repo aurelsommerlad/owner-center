@@ -1,7 +1,7 @@
 import { getOwners } from "@/services/admin/ownerService";
 import { getProperties } from "@/services/admin/propertyService";
 import { getGeneralDocuments } from "@/services/admin/documentService";
-import { AdminCard } from "@/components/admin/AdminCard";
+import { Card } from "@/components/ui/Card";
 import { PropertySelector } from "@/components/admin/PropertySelector";
 import { OwnerSelector } from "@/components/admin/OwnerSelector";
 import { DocumentRow } from "@/components/admin/DocumentRow";
@@ -25,10 +25,8 @@ export default async function AdminDocumentsPage({
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-[#171817]">Dokumente</h1>
-        <p className="mt-1 text-sm text-[#74736E]">
-          Allgemeine Unterlagen außerhalb des monatlichen Abrechnungszyklus.
-        </p>
+        <h1 className="text-2xl font-semibold text-ink">Dokumente</h1>
+        <p className="mt-1 text-sm text-ink-soft">Allgemeine Unterlagen außerhalb des monatlichen Abrechnungszyklus.</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -36,16 +34,16 @@ export default async function AdminDocumentsPage({
         <OwnerSelector owners={owners} />
       </div>
 
-      <AdminCard className="p-5 sm:p-6">
+      <Card className="p-5 shadow-soft sm:p-6">
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold text-[#171817]">Dokumente</h2>
-          <span className="text-xs text-[#74736E]">{documents.length} Dokumente</span>
+          <h2 className="text-sm font-semibold text-ink">Dokumente</h2>
+          <span className="text-xs text-ink-soft">{documents.length} Dokumente</span>
         </div>
 
         {documents.length === 0 ? (
-          <p className="mt-6 text-sm text-[#74736E]">Keine Dokumente für diese Filter.</p>
+          <p className="mt-6 text-sm text-ink-soft">Keine Dokumente für diese Filter.</p>
         ) : (
-          <div className="mt-2 divide-y divide-[#E4E0D8]/70">
+          <div className="mt-2 divide-y divide-line">
             {documents.map((document) => {
               const badge = generalDocumentStatusBadge(document.status);
               return (
@@ -67,7 +65,7 @@ export default async function AdminDocumentsPage({
             })}
           </div>
         )}
-      </AdminCard>
+      </Card>
     </div>
   );
 }

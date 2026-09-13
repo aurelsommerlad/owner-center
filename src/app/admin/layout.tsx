@@ -12,7 +12,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const session = await requireAdminRole();
 
   return (
-    <div className="flex min-h-screen bg-[#F8F6F1]">
+    <div className="flex min-h-screen bg-paper">
       <AdminSidebar />
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <AdminHeader session={session} />
