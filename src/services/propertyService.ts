@@ -45,7 +45,7 @@ export async function getProperty(propertyId: string): Promise<Property | undefi
   const session = await getSession();
   if (!session) notFound();
 
-  const allowed = await canUserAccessProperty(session, propertyId);
+  const allowed = await canUserAccessProperty(session.userId, propertyId);
   if (!allowed) return undefined;
 
   const property = await prisma.property.findUnique({ where: { id: propertyId } });

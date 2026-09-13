@@ -2,21 +2,26 @@
 
 import { revalidatePath } from "next/cache";
 import type { AccountStatus } from "@/types/admin";
+import { requireAdminRole } from "@/lib/adminAuth";
 import { createOwner, updateOwner } from "@/services/admin/ownerService";
 import { createOwnerUser, updateOwnerUser } from "@/services/admin/ownerUserService";
 import { createProperty, updateProperty } from "@/services/admin/propertyService";
 import { grantAccess, setOwnerPropertyAccess, setPropertyOwnerAccess } from "@/services/admin/accessService";
 
 /**
- * Server Actions for the owner/user/property admin flows. Each one mutates
- * the central in-memory mock arrays (via services/admin/*) and then calls
- * revalidatePath so the affected Server Components re-render with the new
- * data - there is no client-side cache to keep in sync separately.
+ * Server Actions for the owner/user/property admin flows, backed by the
+ * real database (via services/admin/*), followed by revalidatePath so the
+ * affected Server Components re-render with the new data.
  *
- * This is the exact seam a later database swap replaces: once persistence
- * exists, only the service-layer bodies change (array mutation -> real
- * query), these action signatures and their revalidatePath calls stay the
- * same.
+ * Every exported action here calls requireAdminRole() FIRST, before doing
+ * anything else. This is not redundant with the /admin/(protected) layout's
+ * own requireAdminRole() call: Server Actions are independently invokable
+ * POST endpoints in Next.js, not gated by which page rendered the button
+ * that triggers them - an authenticated owner (or any caller who knows the
+ * action reference) could otherwise call e.g. setOwnerStatusAction or
+ * updateOwnerAccessAction directly, bypassing every admin page entirely.
+ * The check here is what actually enforces "Owner darf keine Admin-API
+ * verwenden", not the page-level gate.
  */
 
 export interface ActionResult {
@@ -29,6 +34,8 @@ function readString(formData: FormData, key: string): string {
 }
 
 export async function createOwnerAction(formData: FormData): Promise<ActionResult> {
+  await requireAdminRole();
+
   const name = readString(formData, "name");
   const companyName = readString(formData, "companyName");
   const firstName = readString(formData, "firstName");
@@ -67,6 +74,8 @@ export async function setOwnerStatusAction(
   status: AccountStatus,
   ownerName: string
 ): Promise<ActionResult> {
+  await requireAdminRole();
+
   await updateOwner(ownerId, { status });
   revalidatePath("/admin/owners");
   revalidatePath(`/admin/owners/${ownerId}`);
@@ -75,6 +84,8 @@ export async function setOwnerStatusAction(
 }
 
 export async function createOwnerUserAction(formData: FormData): Promise<ActionResult> {
+  await requireAdminRole();
+
   const ownerId = readString(formData, "ownerId");
   const firstName = readString(formData, "firstName");
   const lastName = readString(formData, "lastName");
@@ -100,6 +111,8 @@ export async function updateOwnerUserAction(
   ownerId: string,
   formData: FormData
 ): Promise<ActionResult> {
+  await requireAdminRole();
+
   const firstName = readString(formData, "firstName");
   const lastName = readString(formData, "lastName");
   const email = readString(formData, "email");
@@ -119,12 +132,16 @@ export async function setOwnerUserStatusAction(
   status: AccountStatus,
   userName: string
 ): Promise<ActionResult> {
+  await requireAdminRole();
+
   await updateOwnerUser(userId, { status });
   revalidatePath(`/admin/owners/${ownerId}`);
   return { ok: true, message: `${userName} wurde ${status === "active" ? "aktiviert" : "deaktiviert"}.` };
 }
 
 export async function updateOwnerAccessAction(ownerId: string, propertyIds: string[]): Promise<ActionResult> {
+  await requireAdminRole();
+
   await setOwnerPropertyAccess(ownerId, propertyIds);
   revalidatePath(`/admin/owners/${ownerId}`);
   revalidatePath("/admin/owners");
@@ -133,6 +150,8 @@ export async function updateOwnerAccessAction(ownerId: string, propertyIds: stri
 }
 
 export async function createPropertyAction(formData: FormData): Promise<ActionResult> {
+  await requireAdminRole();
+
   const name = readString(formData, "name");
   const location = readString(formData, "location");
   if (!name || !location) return { ok: false, message: "Bitte Objektname und Standort angeben." };
@@ -160,6 +179,8 @@ export async function createPropertyAction(formData: FormData): Promise<ActionRe
 }
 
 export async function updatePropertyAction(propertyId: string, formData: FormData): Promise<ActionResult> {
+  await requireAdminRole();
+
   const name = readString(formData, "name");
   const location = readString(formData, "location");
   if (!name || !location) return { ok: false, message: "Bitte Objektname und Standort angeben." };
