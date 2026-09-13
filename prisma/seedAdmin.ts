@@ -1,4 +1,5 @@
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/server/passwordCore";
 
@@ -18,17 +19,17 @@ import { hashPassword } from "../src/server/passwordCore";
  * this bootstrap script.
  *
  * Reads INITIAL_ADMIN_EMAIL / INITIAL_ADMIN_PASSWORD from the real process
- * environment (export them in your shell, CI secret, or hosting platform's
- * env var settings - see .env.example). Deliberately does NOT read a
- * committed .env file itself and does not fall back to any default
- * credentials: with no admin yet and these unset, it refuses to run rather
- * than silently doing nothing insecure.
+ * environment (export them in your shell, a gitignored local .env for
+ * dev - loaded above via `dotenv/config` - CI secret, or hosting
+ * platform's env var settings; see .env.example). Never a committed file,
+ * and no fallback default credentials: with no admin yet and these unset,
+ * it refuses to run rather than silently doing nothing insecure.
  *
  * Usage:
  *   INITIAL_ADMIN_EMAIL=admin@example.com INITIAL_ADMIN_PASSWORD=... npm run seed:admin
  */
 
-const adapter = new PrismaBetterSqlite3({ url: "file:./prisma/dev.db" });
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {

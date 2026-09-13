@@ -1,9 +1,10 @@
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/server/passwordCore";
 
 /**
- * Seeds the SQLite database with the same owners/users/properties/access
+ * Seeds the database with the same owners/users/properties/access
  * that the previous mock-data step used, plus a realistic statement- and
  * general-document archive - so the existing UI keeps working with the same
  * example data, now served from the real database instead of in-memory
@@ -16,7 +17,7 @@ import { hashPassword } from "../src/server/passwordCore";
  * recreate it, since that is the "no public admin registration" boundary.
  */
 
-const adapter = new PrismaBetterSqlite3({ url: "file:./prisma/dev.db" });
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 const OWNER_PASSWORD = "owner-2026";

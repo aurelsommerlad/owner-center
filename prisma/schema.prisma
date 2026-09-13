@@ -1,10 +1,12 @@
 // Real relational data store for the UNIQUE PLACES Owner Center / Admin
-// area. SQLite is used deliberately: it is a genuine relational database
-// (real persistence across restarts, real foreign keys, real constraints),
-// but needs no external service, credentials, or network access - so the
-// whole app still runs from a single checkout. Swapping to Postgres later
-// only means changing the `provider`/`url` in prisma7.config.ts; every
-// model, service and query below stays the same.
+// area: Postgres, reached over the network via `@prisma/adapter-pg` (see
+// src/server/db.ts). Started out as local SQLite during initial
+// development, but that only works for a single-machine sandbox - a
+// deployed target like Vercel runs stateless, read-only-filesystem
+// serverless functions, which need a real network-reachable database.
+// `DATABASE_URL` (see .env.example) is the one connection secret this
+// needs; everything else about the schema/services below is provider-
+// agnostic and unchanged.
 //
 // Only the models explicitly requested for this step are modeled here:
 // User (login), Owner, OwnerUser (User <-> Owner link), Property,
@@ -20,7 +22,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 /// A login. Deliberately separate from Owner: a User is "who can sign in",

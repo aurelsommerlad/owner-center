@@ -1,13 +1,13 @@
+import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
 /**
- * The SQLite file path is not a secret - it is a relative path on disk, not
- * a credential - so it is safely hardcoded here rather than routed through
- * an untracked .env file. This keeps `npm install && npm run build` working
- * on a fresh checkout with zero required setup. A later move to a real
- * server (e.g. Postgres) would read `url` from `process.env.DATABASE_URL`
- * instead, which is the one place a real connection secret would then live
- * - server-side only, never bundled into client code.
+ * A real Postgres connection string - a genuine secret, unlike the old
+ * local-file SQLite path this used to hold. Read from process.env only:
+ * locally from a gitignored .env (never committed, loaded here via
+ * `dotenv/config` since the Prisma CLI/tsx scripts don't auto-load it the
+ * way Next.js does for the app itself); in Vercel from the project's
+ * Environment Variables settings. See .env.example.
  */
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -15,6 +15,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: "file:./prisma/dev.db",
+    url: process.env.DATABASE_URL,
   },
 });
