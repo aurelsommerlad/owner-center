@@ -5,7 +5,12 @@ import { revalidatePath } from "next/cache";
 import type { AccountStatus } from "@/types/admin";
 import { requireAdminRole } from "@/lib/adminAuth";
 import { createOwner, deleteOwnerPermanently, getOwner, updateOwner } from "@/services/admin/ownerService";
-import { createOwnerUser, recreateOwnerUserInvitation, updateOwnerUser } from "@/services/admin/ownerUserService";
+import {
+  createOwnerUser,
+  deleteOwnerUserPermanently,
+  recreateOwnerUserInvitation,
+  updateOwnerUser,
+} from "@/services/admin/ownerUserService";
 import { createProperty, getProperty, updateProperty } from "@/services/admin/propertyService";
 import { grantAccess, revokeAccess, setOwnerPropertyAccess, setPropertyOwnerAccess } from "@/services/admin/accessService";
 import { testApaleoConnection, type ApaleoConnectionStatus } from "@/server/integrations/apaleo/connectionCheck";
@@ -217,6 +222,24 @@ export async function setOwnerUserStatusAction(
   }
   revalidatePath(`/admin/owners/${ownerId}`);
   return { ok: true, message: `${userName} wurde ${status === "active" ? "aktiviert" : "deaktiviert"}.` };
+}
+
+/**
+ * "Nutzer endgültig löschen" - see ownerUserService.ts#deleteOwnerUserPermanently
+ * for the actual scoping/safety rules (user-level relations only, never
+ * blocked by the owner's own properties/documents). `ownerId` here is only
+ * used for revalidatePath - the real authorization is requireAdminRole()
+ * plus the re-checks inside deleteOwnerUserPermanently itself.
+ */
+export async function deleteOwnerUserAction(ownerUserId: string, ownerId: string): Promise<ActionResult> {
+  await requireAdminRole();
+
+  const result = await deleteOwnerUserPermanently(ownerUserId);
+  if (result.ok) {
+    revalidatePath(`/admin/owners/${ownerId}`);
+    revalidatePath("/admin/owners");
+  }
+  return result;
 }
 
 export async function updateOwnerAccessAction(ownerId: string, propertyIds: string[]): Promise<ActionResult> {

@@ -17,6 +17,7 @@ import { ViewAsOwnerButton } from "@/components/admin/ViewAsOwnerButton";
 import { OwnerUserFormModal } from "@/components/admin/OwnerUserFormModal";
 import { OwnerUserStatusToggle } from "@/components/admin/OwnerUserStatusToggle";
 import { RecreateInvitationButton } from "@/components/admin/RecreateInvitationButton";
+import { DeleteOwnerUserButton } from "@/components/admin/DeleteOwnerUserButton";
 import { EditAccessButton } from "@/components/admin/EditAccessButton";
 import { loadApaleoMappingOverview, mappingStatusFor } from "@/server/integrations/apaleo/mappingStatus";
 import { formatShortDate } from "@/lib/format";
@@ -130,6 +131,11 @@ export default async function AdminOwnerDetailPage({ params }: { params: Promise
                     ownerId={owner.id}
                     userName={`${user.firstName} ${user.lastName}`}
                     status={user.status}
+                  />
+                  <DeleteOwnerUserButton
+                    ownerUserId={user.id}
+                    ownerId={owner.id}
+                    userName={`${user.firstName} ${user.lastName}`}
                   />
                 </div>
               </div>

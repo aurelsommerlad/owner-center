@@ -119,3 +119,65 @@ export async function updateOwnerUser(id: string, input: UpdateOwnerUserInput): 
 export async function setOwnerUserStatus(id: string, status: AccountStatus): Promise<AdminOwnerUser | undefined> {
   return updateOwnerUser(id, { status });
 }
+
+export interface DeleteOwnerUserResult {
+  ok: boolean;
+  message: string;
+}
+
+/**
+ * "Nutzer endgültig löschen" - permanently removes a single OwnerUser login,
+ * deliberately scoped to USER-level relations only:
+ *
+ *   User -> OwnerUser -> Session -> OwnerInvitation
+ *
+ * `OwnerPropertyAccess` (and StatementDocument/GeneralDocument) belong to
+ * the OWNER, not to any individual OwnerUser - see prisma/schema.prisma,
+ * where none of them carry a `userId`/`ownerUserId` column at all - so a
+ * user is NEVER blocked from deletion by the owner still holding
+ * properties or documents. That is a distinct, separate decision (see
+ * ownerService.ts#deleteOwnerPermanently, which deletes the whole Owner
+ * company record and rightly blocks on those - a different operation from
+ * this one, which only ever removes one login).
+ *
+ * A single `prisma.user.delete()` is enough: prisma/schema.prisma declares
+ * `onDelete: Cascade` from User to OwnerUser, Session, and OwnerInvitation
+ * (every relation that actually points at a User row), so all three are
+ * removed together as one controlled operation - no separate cleanup
+ * needed, and nothing outside those three is ever touched. There is
+ * currently no audit/tracking table in the schema that references a User
+ * by id (OwnerInvitation.createdByAdminId and AdminImpersonation.adminUserId
+ * are deliberately plain scalars, not relations - see their own doc
+ * comments - so deleting a user who once triggered an invitation or a
+ * preview never cascades into or corrupts those historical rows).
+ */
+export async function deleteOwnerUserPermanently(ownerUserId: string): Promise<DeleteOwnerUserResult> {
+  return prisma.$transaction(async (tx) => {
+    const ownerUser = await tx.ownerUser.findUnique({ where: { id: ownerUserId }, include: { user: true } });
+    if (!ownerUser) {
+      return { ok: false, message: "Dieser Benutzer wurde nicht gefunden." };
+    }
+
+    // Defensive: an OwnerUser row should never point at anything but a
+    // role="owner" User. Refuse rather than ever let this path touch an
+    // admin login, even if some future bug or data issue produced such a
+    // row - the Eigentümerverwaltung must never be a way to delete admins.
+    if (ownerUser.user.role !== "owner") {
+      return { ok: false, message: "Dieser Benutzer kann über die Eigentümerverwaltung nicht gelöscht werden." };
+    }
+
+    if (ownerUser.status === "active") {
+      const activeCount = await tx.ownerUser.count({ where: { ownerId: ownerUser.ownerId, status: "active" } });
+      if (activeCount <= 1) {
+        return {
+          ok: false,
+          message: "Dieser Benutzer kann nicht gelöscht werden, weil er der letzte aktive Zugang dieses Eigentümers ist.",
+        };
+      }
+    }
+
+    const userName = `${ownerUser.firstName} ${ownerUser.lastName}`;
+    await tx.user.delete({ where: { id: ownerUser.userId } });
+    return { ok: true, message: `${userName} wurde endgültig gelöscht.` };
+  });
+}
