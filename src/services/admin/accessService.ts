@@ -1,33 +1,45 @@
-import { randomUUID } from "crypto";
 import type { OwnerPropertyAccess } from "@/types/admin";
-import { ownerPropertyAccess } from "@/data/admin";
+import { prisma } from "@/server/db";
+import { toDateString } from "@/server/mapDate";
 
 /**
- * Reads and writes against the central `ownerPropertyAccess` mock array.
- * Access is never deleted, only soft-revoked (status flips to "inactive"),
- * so there is always a record of who was ever granted access to what.
+ * Reads and writes against the real `OwnerPropertyAccess` table. Access is
+ * never deleted, only soft-revoked (status flips to "inactive"), so there
+ * is always a record of who was ever granted access to what.
  */
 
-export async function grantAccess(ownerId: string, propertyId: string): Promise<OwnerPropertyAccess> {
-  const existing = ownerPropertyAccess.find((access) => access.ownerId === ownerId && access.propertyId === propertyId);
-  if (existing) {
-    existing.status = "active";
-    return existing;
-  }
-  const access: OwnerPropertyAccess = {
-    id: `access-${randomUUID()}`,
-    ownerId,
-    propertyId,
-    status: "active",
-    createdAt: new Date().toISOString().slice(0, 10),
+function toAccess(row: {
+  id: string;
+  ownerId: string;
+  propertyId: string;
+  status: string;
+  createdAt: Date;
+}): OwnerPropertyAccess {
+  return {
+    id: row.id,
+    ownerId: row.ownerId,
+    propertyId: row.propertyId,
+    status: row.status as OwnerPropertyAccess["status"],
+    createdAt: toDateString(row.createdAt),
   };
-  ownerPropertyAccess.push(access);
-  return access;
+}
+
+export async function grantAccess(ownerId: string, propertyId: string): Promise<OwnerPropertyAccess> {
+  const access = await prisma.ownerPropertyAccess.upsert({
+    where: { ownerId_propertyId: { ownerId, propertyId } },
+    update: { status: "active" },
+    create: { ownerId, propertyId, status: "active" },
+  });
+  return toAccess(access);
 }
 
 export async function revokeAccess(ownerId: string, propertyId: string): Promise<void> {
-  const existing = ownerPropertyAccess.find((access) => access.ownerId === ownerId && access.propertyId === propertyId);
-  if (existing) existing.status = "inactive";
+  await prisma.ownerPropertyAccess
+    .update({
+      where: { ownerId_propertyId: { ownerId, propertyId } },
+      data: { status: "inactive" },
+    })
+    .catch(() => null);
 }
 
 /**
@@ -37,11 +49,10 @@ export async function revokeAccess(ownerId: string, propertyId: string): Promise
  */
 export async function setOwnerPropertyAccess(ownerId: string, propertyIds: string[]): Promise<void> {
   const desired = new Set(propertyIds);
-  for (const access of ownerPropertyAccess) {
-    if (access.ownerId === ownerId && access.status === "active" && !desired.has(access.propertyId)) {
-      access.status = "inactive";
-    }
-  }
+  await prisma.ownerPropertyAccess.updateMany({
+    where: { ownerId, status: "active", propertyId: { notIn: Array.from(desired) } },
+    data: { status: "inactive" },
+  });
   for (const propertyId of desired) {
     await grantAccess(ownerId, propertyId);
   }
@@ -50,11 +61,10 @@ export async function setOwnerPropertyAccess(ownerId: string, propertyIds: strin
 /** Same as setOwnerPropertyAccess, from the property side - used by the property create/edit form's owner picker. */
 export async function setPropertyOwnerAccess(propertyId: string, ownerIds: string[]): Promise<void> {
   const desired = new Set(ownerIds);
-  for (const access of ownerPropertyAccess) {
-    if (access.propertyId === propertyId && access.status === "active" && !desired.has(access.ownerId)) {
-      access.status = "inactive";
-    }
-  }
+  await prisma.ownerPropertyAccess.updateMany({
+    where: { propertyId, status: "active", ownerId: { notIn: Array.from(desired) } },
+    data: { status: "inactive" },
+  });
   for (const ownerId of desired) {
     await grantAccess(ownerId, propertyId);
   }

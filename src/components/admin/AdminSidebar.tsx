@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronLeftIcon, LogoutIcon, ProfileIcon } from "@/components/ui/icons";
 import { ADMIN_MAIN_NAV, isAdminNavItemActive } from "./navigation";
+import { logoutAction } from "@/app/actions";
 
 // Mirrors components/layout/Sidebar.tsx exactly (same tokens, spacing,
 // active/hover states) - only the nav items and the wordmark's second line
@@ -55,13 +56,15 @@ export function AdminSidebar() {
           <ProfileIcon className="h-[18px] w-[18px] shrink-0 text-ink-soft/70 group-hover:text-ink" />
           Profil
         </button>
-        <button
-          type="button"
-          className="group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-ink-soft transition-colors hover:bg-paper-dim hover:text-ink"
-        >
-          <LogoutIcon className="h-[18px] w-[18px] shrink-0 text-ink-soft/70 group-hover:text-ink" />
-          Abmelden
-        </button>
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-ink-soft transition-colors hover:bg-paper-dim hover:text-ink"
+          >
+            <LogoutIcon className="h-[18px] w-[18px] shrink-0 text-ink-soft/70 group-hover:text-ink" />
+            Abmelden
+          </button>
+        </form>
       </div>
     </aside>
   );

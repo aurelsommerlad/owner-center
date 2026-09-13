@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronLeftIcon, CloseIcon, LogoutIcon, MenuIcon, ProfileIcon } from "@/components/ui/icons";
 import { ADMIN_MAIN_NAV, isAdminNavItemActive } from "./navigation";
+import { logoutAction } from "@/app/actions";
 
 // Mirrors components/layout/MobileNav.tsx exactly (same tokens, overlay,
 // drawer chrome and active/hover states) - only the nav items differ.
@@ -93,10 +94,12 @@ export function AdminMobileNav() {
                   <ProfileIcon className="h-5 w-5 text-ink-soft/70" />
                   Profil
                 </button>
-                <button type="button" className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[15px] text-ink-soft">
-                  <LogoutIcon className="h-5 w-5 text-ink-soft/70" />
-                  Abmelden
-                </button>
+                <form action={logoutAction}>
+                  <button type="submit" className="flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[15px] text-ink-soft">
+                    <LogoutIcon className="h-5 w-5 text-ink-soft/70" />
+                    Abmelden
+                  </button>
+                </form>
               </div>
             </div>
           </div>,

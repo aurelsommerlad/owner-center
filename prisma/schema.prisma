@@ -1,0 +1,214 @@
+// Real relational data store for the UNIQUE PLACES Owner Center / Admin
+// area. SQLite is used deliberately: it is a genuine relational database
+// (real persistence across restarts, real foreign keys, real constraints),
+// but needs no external service, credentials, or network access - so the
+// whole app still runs from a single checkout. Swapping to Postgres later
+// only means changing the `provider`/`url` in prisma7.config.ts; every
+// model, service and query below stays the same.
+//
+// Only the models explicitly requested for this step are modeled here:
+// User (login), Owner, OwnerUser (User <-> Owner link), Property,
+// OwnerPropertyAccess (Owner <-> Property link), StatementDocument,
+// GeneralDocument. Reservations, guests, occupancy, units, pricing and
+// availability are deliberately NOT modeled here - they remain apaleo's
+// domain and keep coming from the existing mock data under src/data/mock
+// until that integration exists.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// A login. Deliberately separate from Owner: a User is "who can sign in",
+/// an Owner is "which company/eigentümer entity". `role` gates /admin vs the
+/// Owner Center; an owner-role User is linked to exactly one Owner via
+/// OwnerUser (see there for why several Users can share one Owner).
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String
+  /// Display name for admin-role users only (shown in the admin header).
+  /// Owner-role users display OwnerUser.firstName/lastName instead.
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions  Session[]
+  ownerUser OwnerUser?
+}
+
+/// A server-validated login session. The browser only ever holds this row's
+/// id (in an httpOnly cookie) - never a token that encodes identity/claims
+/// itself - so a session can be revoked (logout, deactivation) by deleting
+/// or invalidating this row, and no signing secret exists anywhere.
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// The contract partner / owner company. Deliberately not "one person" and
+/// deliberately carries no login credentials of its own - see OwnerUser for
+/// the individual logins under it (an owner can have several), and
+/// OwnerPropertyAccess for the (many-to-many) link to properties.
+model Owner {
+  id          String   @id @default(cuid())
+  name        String
+  companyName String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ownerUsers         OwnerUser[]
+  access             OwnerPropertyAccess[]
+  statementDocuments StatementDocument[]
+  generalDocuments   GeneralDocument[]
+}
+
+/// An individual person with Owner Center access, belonging to exactly one
+/// Owner (an owner can have several such users) and exactly one User login.
+/// `status` gates Owner Center access independently of the underlying
+/// User row, so "Nutzer deaktivieren" in admin never has to touch login
+/// credentials themselves.
+model OwnerUser {
+  id          String    @id @default(cuid())
+  ownerId     String
+  owner       Owner     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName   String
+  lastName    String
+  status      String    @default("active")
+  /// Fixed to "owner" for now - no per-user detail permissions yet.
+  role        String    @default("owner")
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([ownerId])
+}
+
+/// The connection/permission record for a property. Reservations, guests,
+/// occupancy, units, pricing and availability are NOT modeled here and never
+/// will be - those stay apaleo's domain and are fetched from there once that
+/// integration exists. Admin only owns the identity + access side.
+model Property {
+  id                      String   @id @default(cuid())
+  name                    String
+  city                    String
+  /// Not shown/edited in the admin form (which only has one "Standort"
+  /// field, mapped to `city`) - carried through for the Owner Center's
+  /// richer location display, set at seed/creation time.
+  region                  String?
+  status                  String   @default("active")
+  /// Mock configuration value only - no real apaleo connection.
+  apaleoPropertyId        String?
+  /// Mock configuration value only - no real Drive connection.
+  statementsDriveFolderId String?
+  /// Mock configuration value only - no real Drive connection.
+  documentsDriveFolderId  String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  access             OwnerPropertyAccess[]
+  statementDocuments StatementDocument[]
+  generalDocuments   GeneralDocument[]
+}
+
+/// Many-to-many link between owners and properties: one owner can hold
+/// several properties, and one property can be linked to several owners.
+/// Never collapse this into a single `ownerId` field on Property.
+///
+/// `status` lets access be revoked without deleting the record (an audit
+/// trail of who was ever granted access to what) - "removing" a property
+/// from an owner in the admin UI sets this to "inactive" rather than
+/// deleting the row. Every access/permission check only considers "active"
+/// rows - see src/server/permissions.ts#canUserAccessProperty, the
+/// server-side gate every property-scoped page and query goes through.
+model OwnerPropertyAccess {
+  id         String   @id @default(cuid())
+  ownerId    String
+  owner      Owner    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  status     String   @default("active")
+  createdAt  DateTime @default(now())
+
+  @@unique([ownerId, propertyId])
+}
+
+/// A statement-archive document (Eigentümerreporting / Rechnung / Gutschrift
+/// / other), synced in from Google Drive once that integration exists.
+/// `adminStatus` is the admin-side publication lifecycle (draft -> ready ->
+/// published/updated) and is separate from - and upstream of - the
+/// owner-facing "Neu"/"Gesehen" status computed from the view/download
+/// fields below: a document only becomes visible to an owner once it is
+/// "published" or "updated" (see statementDocumentService.getStatementDocuments).
+model StatementDocument {
+  id           String   @id @default(cuid())
+  ownerId      String
+  owner        Owner    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  propertyId   String
+  property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  /// 1-12
+  month        Int
+  year         Int
+  /// "owner_report" | "invoice" | "credit_note" | "other"
+  documentType String
+  /// Only shown in the UI for "other" documents - the three fachlich
+  /// defined types always display their fixed label instead.
+  title        String
+  fileName     String
+  /// Google Drive file id. `null` until the Drive integration is wired up.
+  driveFileId  String?
+  /// Bumped whenever UNIQUE PLACES replaces this document with a corrected version.
+  version      Int      @default(1)
+  /// "draft" | "ready" | "published" | "updated"
+  adminStatus  String   @default("draft")
+  /// `null` while still a draft/not yet made available to the owner.
+  publishedAt  DateTime?
+  /// Most recent version replacement, if any - deliberately not
+  /// Prisma's `@updatedAt` (which would fire on every view/download-count
+  /// write below, which is not what this field means).
+  updatedAt    DateTime?
+  /// First time the owner opened this document since its last publish/update.
+  firstViewedAt     DateTime?
+  /// First download of the current version. Internal-only.
+  firstDownloadedAt DateTime?
+  /// Most recent download - shown to the owner.
+  lastDownloadedAt  DateTime?
+  /// Internal-only download counter.
+  downloadCount     Int      @default(0)
+  createdAt         DateTime @default(now())
+
+  @@index([propertyId, year])
+  @@index([ownerId])
+}
+
+/// General documents outside the monthly statement cycle (contracts, tax
+/// papers, insurance, ...). `propertyId`/`ownerId` are nullable: a document
+/// can be uploaded before it has been assigned to either.
+model GeneralDocument {
+  id          String    @id @default(cuid())
+  title       String
+  /// "vertrag" | "steuerunterlage" | "objektunterlage" | "versicherung" | "sonstiges"
+  category    String
+  propertyId  String?
+  property    Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  ownerId     String?
+  owner       Owner?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  fileName    String
+  /// "draft" | "published"
+  status      String    @default("draft")
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+}

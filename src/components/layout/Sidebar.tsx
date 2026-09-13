@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FOOTER_NAV, LOGOUT_ITEM, MAIN_NAV, navHref, type NavItem } from "./navigation";
+import { logoutAction } from "@/app/actions";
 
 function NavLink({ item, propertyId, active }: { item: NavItem; propertyId: string; active: boolean }) {
   const Icon = item.icon;
@@ -46,13 +47,15 @@ export function Sidebar({ propertyId }: { propertyId: string }) {
         {FOOTER_NAV.map((item) => (
           <NavLink key={item.key} item={item} propertyId={propertyId} active={activeSegment === item.segment} />
         ))}
-        <button
-          type="button"
-          className="group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-ink-soft transition-colors hover:bg-paper-dim hover:text-ink"
-        >
-          <LOGOUT_ITEM.icon className="h-[18px] w-[18px] shrink-0 text-ink-soft/70 group-hover:text-ink" />
-          {LOGOUT_ITEM.label}
-        </button>
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-ink-soft transition-colors hover:bg-paper-dim hover:text-ink"
+          >
+            <LOGOUT_ITEM.icon className="h-[18px] w-[18px] shrink-0 text-ink-soft/70 group-hover:text-ink" />
+            {LOGOUT_ITEM.label}
+          </button>
+        </form>
       </div>
     </aside>
   );

@@ -1,40 +1,63 @@
 import type { StatementDocument } from "@/types";
-import { mockStatementDocuments } from "@/data/mock";
+import { prisma } from "@/server/db";
+import { toDateString } from "@/server/mapDate";
+import type { StatementDocument as DbStatementDocument } from "@/generated/prisma/client";
 
 /**
  * Statement documents for a property/year - a flat list, since a month can
- * hold any number of documents (Eigentümerreporting, Rechnung, Gutschrift -
- * the three fachlich defined ones - plus any number of further "other"
- * files). Group by month with
+ * hold any number of documents. Group by month with
  * lib/statementDocuments.ts#groupStatementDocumentsByMonth before rendering.
  *
- * This is the seam the later Google Drive sync replaces: instead of
- * filtering the in-memory mock array, it would resolve
- * ownerId + propertyId + year + month against Drive's
- * "Owner Center / Eigentümer / {Property} / Abrechnungen / {year} / {month}"
- * folder - which may contain any number of files, not exactly three - and
- * return the same StatementDocument[] shape, filling in a real
- * `driveFileId` per file. The authorization check - that the caller's
- * ownerId is actually entitled to this propertyId - belongs here, on the
- * server side, once this stops being mock data; it must not be enforced by
- * the frontend alone, and a signed, time-limited download should be issued
- * per request rather than a public Drive link.
+ * Only documents whose admin-side lifecycle has reached "published" or
+ * "updated" are ever returned here - a "draft"/"ready" document exists in
+ * the database (visible in /admin/statements) but is not yet visible to the
+ * owner. Property-level authorization is the caller's responsibility: both
+ * call sites (the /abrechnungen page, via propertyService.getProperty) run
+ * behind the property layout's canUserAccessProperty check first.
  */
+
+function toStatementDocument(document: DbStatementDocument): StatementDocument {
+  return {
+    id: document.id,
+    ownerId: document.ownerId,
+    propertyId: document.propertyId,
+    month: document.month,
+    year: document.year,
+    documentType: document.documentType as StatementDocument["documentType"],
+    title: document.title,
+    fileName: document.fileName,
+    driveFileId: document.driveFileId,
+    version: document.version,
+    publishedAt: toDateString(document.publishedAt)!,
+    updatedAt: toDateString(document.updatedAt),
+    firstViewedAt: toDateString(document.firstViewedAt),
+    firstDownloadedAt: toDateString(document.firstDownloadedAt),
+    lastDownloadedAt: toDateString(document.lastDownloadedAt),
+    downloadCount: document.downloadCount,
+  };
+}
+
 export async function getStatementDocuments(
   propertyId: string,
   year: number
 ): Promise<StatementDocument[]> {
-  return mockStatementDocuments
-    .filter((document) => document.propertyId === propertyId && document.year === year)
-    .sort((a, b) => b.month - a.month);
+  const documents = await prisma.statementDocument.findMany({
+    where: {
+      propertyId,
+      year,
+      adminStatus: { in: ["published", "updated"] },
+    },
+    orderBy: { month: "desc" },
+  });
+  return documents.map(toStatementDocument);
 }
 
-/** Years that have at least one statement for this property, newest first. */
+/** Years that have at least one published statement for this property, newest first. */
 export async function getStatementDocumentYears(propertyId: string): Promise<number[]> {
-  const years = new Set(
-    mockStatementDocuments
-      .filter((document) => document.propertyId === propertyId)
-      .map((document) => document.year)
-  );
-  return Array.from(years).sort((a, b) => b - a);
+  const documents = await prisma.statementDocument.findMany({
+    where: { propertyId, adminStatus: { in: ["published", "updated"] } },
+    select: { year: true },
+    distinct: ["year"],
+  });
+  return documents.map((document) => document.year).sort((a, b) => b - a);
 }

@@ -34,14 +34,12 @@ export default async function AdminOwnersPage({
   const status = query.status === "active" || query.status === "inactive" ? (query.status as AccountStatus) : undefined;
 
   const [owners, allProperties] = await Promise.all([getOwners({ search: query.q, status }), getProperties()]);
-  const rows: OwnerRow[] = owners.map((owner) => {
-    const users = getUsersForOwner(owner.id);
-    return { owner, users, propertyNames: [] };
-  });
-  await Promise.all(
-    rows.map(async (row) => {
-      row.propertyNames = (await getPropertiesForOwner(row.owner.id)).map((property) => property.name);
-    })
+  const rows: OwnerRow[] = await Promise.all(
+    owners.map(async (owner) => ({
+      owner,
+      users: await getUsersForOwner(owner.id),
+      propertyNames: (await getPropertiesForOwner(owner.id)).map((property) => property.name),
+    }))
   );
 
   const columns: AdminTableColumn<OwnerRow>[] = [

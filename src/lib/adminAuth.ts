@@ -1,9 +1,10 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { UserRole } from "@/types/admin";
+import { getSession } from "@/server/session";
 
 /**
- * Mock stand-in for real authentication/session data. There is no login yet
- * anywhere in the app, so this always resolves to a fixed admin identity.
+ * Real session data, shaped for the admin UI (AdminHeader etc.). Backed by
+ * src/server/session.ts's DB-validated session - no more mock identity.
  */
 export interface AdminSession {
   userId: string;
@@ -12,30 +13,29 @@ export interface AdminSession {
   role: UserRole;
 }
 
-const MOCK_ADMIN_SESSION: AdminSession = {
-  userId: "admin-1",
-  name: "UNIQUE PLACES Team",
-  email: "admin@unique-places.example",
-  role: "admin",
-};
-
-/** Replace this with a real session/auth lookup once authentication exists. */
 export async function getAdminSession(): Promise<AdminSession | null> {
-  return MOCK_ADMIN_SESSION;
+  const session = await getSession();
+  if (!session) return null;
+  return {
+    userId: session.userId,
+    name: session.name ?? session.email,
+    email: session.email,
+    role: session.role,
+  };
 }
 
 /**
  * Server-side guard called from the /admin route layout (never from client
- * code or by hiding the nav link alone). Today it always passes because
- * getAdminSession() is mocked, but centralizing the check here is what lets
- * a later real auth check - reject/redirect when there is no session or
- * `role !== "admin"` - be added in this one place and immediately cover
- * every /admin route, instead of requiring every page to remember to check.
+ * code or by hiding the nav link alone). Every route under /admin inherits
+ * this check by virtue of Next.js layout nesting - it is not possible to
+ * reach an /admin page without this running first, which is what makes
+ * this a real access boundary: no session -> sent to /login; a valid,
+ * non-admin session (e.g. an owner) -> notFound(), so /admin's existence is
+ * not even confirmed to an owner who stumbles onto the URL.
  */
 export async function requireAdminRole(): Promise<AdminSession> {
   const session = await getAdminSession();
-  if (!session || session.role !== "admin") {
-    notFound();
-  }
+  if (!session) redirect("/login");
+  if (session.role !== "admin") notFound();
   return session;
 }

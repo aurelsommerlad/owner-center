@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CloseIcon, MenuIcon } from "@/components/ui/icons";
 import { FOOTER_NAV, LOGOUT_ITEM, MAIN_NAV, navHref } from "./navigation";
+import { logoutAction } from "@/app/actions";
 
 export function MobileNav({ propertyId }: { propertyId: string }) {
   const [open, setOpen] = useState(false);
@@ -99,13 +100,15 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
                     </Link>
                   );
                 })}
-                <button
-                  type="button"
-                  className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[15px] text-ink-soft"
-                >
-                  <LOGOUT_ITEM.icon className="h-5 w-5 text-ink-soft/70" />
-                  {LOGOUT_ITEM.label}
-                </button>
+                <form action={logoutAction}>
+                  <button
+                    type="submit"
+                    className="flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[15px] text-ink-soft"
+                  >
+                    <LOGOUT_ITEM.icon className="h-5 w-5 text-ink-soft/70" />
+                    {LOGOUT_ITEM.label}
+                  </button>
+                </form>
               </div>
             </div>
           </div>,

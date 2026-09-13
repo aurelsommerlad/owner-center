@@ -1,10 +1,55 @@
+import { notFound } from "next/navigation";
 import type { Property } from "@/types";
-import { mockProperties } from "@/data/mock";
+import { prisma } from "@/server/db";
+import { getSession } from "@/server/session";
+import { canUserAccessProperty } from "@/server/permissions";
+import type { Property as DbProperty } from "@/generated/prisma/client";
 
-export async function getPropertiesForOwner(ownerId: string): Promise<Property[]> {
-  return mockProperties.filter((property) => property.ownerId === ownerId);
+/**
+ * `Property.ownerId` predates OwnerPropertyAccess (properties can now have
+ * several owners) and is read by no component - kept only for backward type
+ * compatibility. Filled in with the requesting owner's id where known,
+ * since that is the closest still-meaningful value; never treat it as the
+ * authoritative owner of a property (query OwnerPropertyAccess for that).
+ */
+function toProperty(property: DbProperty, viewerOwnerId: string): Property {
+  return {
+    id: property.id,
+    ownerId: viewerOwnerId,
+    name: property.name,
+    location: { city: property.city, region: property.region ?? property.city },
+    imageSeed: property.id,
+  };
 }
 
+export async function getPropertiesForOwner(ownerId: string): Promise<Property[]> {
+  const access = await prisma.ownerPropertyAccess.findMany({
+    where: { ownerId, status: "active", property: { status: "active" } },
+    include: { property: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return access.map((row) => toProperty(row.property, ownerId));
+}
+
+/**
+ * The real server-side access gate for property-scoped pages: every page
+ * under /[propertyId] calls this (directly or via a service that wraps it),
+ * so a signed-in owner can never see another owner's property by editing
+ * the URL - canUserAccessProperty runs on every request, independent of
+ * what the client sent. Returns `undefined` (callers already do
+ * `if (!property) notFound()`) both when the property does not exist and
+ * when the caller is not entitled to see it - the two cases are
+ * deliberately indistinguishable to the caller.
+ */
 export async function getProperty(propertyId: string): Promise<Property | undefined> {
-  return mockProperties.find((property) => property.id === propertyId);
+  const session = await getSession();
+  if (!session) notFound();
+
+  const allowed = await canUserAccessProperty(session, propertyId);
+  if (!allowed) return undefined;
+
+  const property = await prisma.property.findUnique({ where: { id: propertyId } });
+  if (!property) return undefined;
+
+  return toProperty(property, session.ownerId ?? "");
 }

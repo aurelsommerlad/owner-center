@@ -1,13 +1,17 @@
-import { randomUUID } from "crypto";
-import type { AccountStatus, AdminOwner, AdminProperty } from "@/types/admin";
-import { adminOwners } from "@/data/admin";
-import { getPropertiesForOwner as getPropertiesForOwnerPermission, getUsersForOwner } from "@/lib/adminPermissions";
+import type { AccountStatus, AdminOwner } from "@/types/admin";
+import { prisma } from "@/server/db";
+import {
+  getPropertiesForOwner as getPropertiesForOwnerPermission,
+  getUsersForOwner,
+  toAdminOwner,
+} from "@/lib/adminPermissions";
+import type { AdminProperty } from "@/types/admin";
 
 /**
- * Reads and writes against the central `adminOwners` mock array (see
- * data/admin/owners.ts). This is the seam a later database swap replaces:
- * every function here keeps its signature, only the body changes from
- * "array find/push" to a real query/insert.
+ * Reads and writes against the real `Owner` table. This is the seam a
+ * mock-array version of this file used to fill: every function here keeps
+ * its signature, only the body changed from "array find/push" to a real
+ * Prisma query/insert.
  */
 
 export interface OwnerFilters {
@@ -17,18 +21,26 @@ export interface OwnerFilters {
 }
 
 export async function getOwners(filters: OwnerFilters = {}): Promise<AdminOwner[]> {
-  const search = filters.search?.trim().toLowerCase();
-  return adminOwners.filter((owner) => {
-    if (filters.status && owner.status !== filters.status) return false;
-    if (!search) return true;
-    const emails = getUsersForOwner(owner.id).map((user) => user.email);
-    const haystack = [owner.name, owner.companyName ?? "", ...emails].join(" ").toLowerCase();
-    return haystack.includes(search);
+  const owners = await prisma.owner.findMany({
+    where: filters.status ? { status: filters.status } : undefined,
+    orderBy: { createdAt: "desc" },
   });
+
+  const search = filters.search?.trim().toLowerCase();
+  if (!search) return owners.map(toAdminOwner);
+
+  const results: AdminOwner[] = [];
+  for (const owner of owners) {
+    const emails = (await getUsersForOwner(owner.id)).map((user) => user.email);
+    const haystack = [owner.name, owner.companyName ?? "", ...emails].join(" ").toLowerCase();
+    if (haystack.includes(search)) results.push(toAdminOwner(owner));
+  }
+  return results;
 }
 
 export async function getOwner(id: string): Promise<AdminOwner | undefined> {
-  return adminOwners.find((owner) => owner.id === id);
+  const owner = await prisma.owner.findUnique({ where: { id } });
+  return owner ? toAdminOwner(owner) : undefined;
 }
 
 /** Properties this owner has active access to, via OwnerPropertyAccess (many-to-many). */
@@ -43,17 +55,14 @@ export interface CreateOwnerInput {
 }
 
 export async function createOwner(input: CreateOwnerInput): Promise<AdminOwner> {
-  const now = new Date().toISOString().slice(0, 10);
-  const owner: AdminOwner = {
-    id: `admin-owner-${randomUUID()}`,
-    name: input.name,
-    companyName: input.companyName,
-    status: input.status ?? "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-  adminOwners.push(owner);
-  return owner;
+  const owner = await prisma.owner.create({
+    data: {
+      name: input.name,
+      companyName: input.companyName,
+      status: input.status ?? "active",
+    },
+  });
+  return toAdminOwner(owner);
 }
 
 export interface UpdateOwnerInput {
@@ -63,13 +72,17 @@ export interface UpdateOwnerInput {
 }
 
 export async function updateOwner(id: string, input: UpdateOwnerInput): Promise<AdminOwner | undefined> {
-  const owner = adminOwners.find((candidate) => candidate.id === id);
-  if (!owner) return undefined;
-  if (input.name !== undefined) owner.name = input.name;
-  if (input.companyName !== undefined) owner.companyName = input.companyName || undefined;
-  if (input.status !== undefined) owner.status = input.status;
-  owner.updatedAt = new Date().toISOString().slice(0, 10);
-  return owner;
+  const owner = await prisma.owner
+    .update({
+      where: { id },
+      data: {
+        name: input.name,
+        companyName: input.companyName === undefined ? undefined : input.companyName || null,
+        status: input.status,
+      },
+    })
+    .catch(() => null);
+  return owner ? toAdminOwner(owner) : undefined;
 }
 
 export async function setOwnerStatus(id: string, status: AccountStatus): Promise<AdminOwner | undefined> {

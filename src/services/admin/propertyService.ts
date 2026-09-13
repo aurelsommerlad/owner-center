@@ -1,21 +1,22 @@
-import { randomUUID } from "crypto";
 import type { AdminOwner, AdminProperty, AdminPropertyStatus } from "@/types/admin";
-import { adminProperties } from "@/data/admin";
-import { getOwnersForProperty as getOwnersForPropertyPermission } from "@/lib/adminPermissions";
+import { prisma } from "@/server/db";
+import { getOwnersForProperty as getOwnersForPropertyPermission, toAdminProperty } from "@/lib/adminPermissions";
 
 /**
- * Reads and writes against the central `adminProperties` mock array. Only
- * identity/config fields live here - reservations, guests, occupancy,
- * units, pricing and availability are never modeled in this service; those
- * stay apaleo's domain once that integration exists.
+ * Reads and writes against the real `Property` table. Only identity/config
+ * fields live here - reservations, guests, occupancy, units, pricing and
+ * availability are never modeled in this service; those stay apaleo's
+ * domain once that integration exists.
  */
 
 export async function getProperties(): Promise<AdminProperty[]> {
-  return adminProperties;
+  const properties = await prisma.property.findMany({ orderBy: { createdAt: "desc" } });
+  return properties.map(toAdminProperty);
 }
 
 export async function getProperty(id: string): Promise<AdminProperty | undefined> {
-  return adminProperties.find((property) => property.id === id);
+  const property = await prisma.property.findUnique({ where: { id } });
+  return property ? toAdminProperty(property) : undefined;
 }
 
 /** Owners with active access to this property, via OwnerPropertyAccess (many-to-many). */
@@ -25,6 +26,7 @@ export async function getOwnersForProperty(propertyId: string): Promise<AdminOwn
 
 export interface PropertyInput {
   name: string;
+  /** Admin's single "Standort" field - stored as Property.city. */
   location: string;
   status?: AdminPropertyStatus;
   /** Mock configuration only - never a real apaleo connection. */
@@ -36,37 +38,36 @@ export interface PropertyInput {
 }
 
 export async function createProperty(input: PropertyInput): Promise<AdminProperty> {
-  const now = new Date().toISOString().slice(0, 10);
-  const property: AdminProperty = {
-    id: `admin-property-${randomUUID()}`,
-    name: input.name,
-    location: input.location,
-    status: input.status ?? "active",
-    apaleoPropertyId: input.apaleoPropertyId || undefined,
-    statementsDriveFolderId: input.statementsDriveFolderId || undefined,
-    documentsDriveFolderId: input.documentsDriveFolderId || undefined,
-    createdAt: now,
-    updatedAt: now,
-  };
-  adminProperties.push(property);
-  return property;
+  const property = await prisma.property.create({
+    data: {
+      name: input.name,
+      city: input.location,
+      status: input.status ?? "active",
+      apaleoPropertyId: input.apaleoPropertyId || undefined,
+      statementsDriveFolderId: input.statementsDriveFolderId || undefined,
+      documentsDriveFolderId: input.documentsDriveFolderId || undefined,
+    },
+  });
+  return toAdminProperty(property);
 }
 
 export async function updateProperty(id: string, input: Partial<PropertyInput>): Promise<AdminProperty | undefined> {
-  const property = adminProperties.find((candidate) => candidate.id === id);
-  if (!property) return undefined;
-  if (input.name !== undefined) property.name = input.name;
-  if (input.location !== undefined) property.location = input.location;
-  if (input.status !== undefined) property.status = input.status;
-  if (input.apaleoPropertyId !== undefined) property.apaleoPropertyId = input.apaleoPropertyId || undefined;
-  if (input.statementsDriveFolderId !== undefined) {
-    property.statementsDriveFolderId = input.statementsDriveFolderId || undefined;
-  }
-  if (input.documentsDriveFolderId !== undefined) {
-    property.documentsDriveFolderId = input.documentsDriveFolderId || undefined;
-  }
-  property.updatedAt = new Date().toISOString().slice(0, 10);
-  return property;
+  const property = await prisma.property
+    .update({
+      where: { id },
+      data: {
+        name: input.name,
+        city: input.location,
+        status: input.status,
+        apaleoPropertyId: input.apaleoPropertyId === undefined ? undefined : input.apaleoPropertyId || null,
+        statementsDriveFolderId:
+          input.statementsDriveFolderId === undefined ? undefined : input.statementsDriveFolderId || null,
+        documentsDriveFolderId:
+          input.documentsDriveFolderId === undefined ? undefined : input.documentsDriveFolderId || null,
+      },
+    })
+    .catch(() => null);
+  return property ? toAdminProperty(property) : undefined;
 }
 
 export async function setPropertyStatus(id: string, status: AdminPropertyStatus): Promise<AdminProperty | undefined> {

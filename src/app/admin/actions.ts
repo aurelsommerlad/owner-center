@@ -43,7 +43,12 @@ export async function createOwnerAction(formData: FormData): Promise<ActionResul
   const propertyIds = formData.getAll("propertyIds").map(String);
 
   const owner = await createOwner({ name, companyName: companyName || undefined });
-  await createOwnerUser({ ownerId: owner.id, firstName, lastName, email });
+  let tempPassword: string;
+  try {
+    ({ tempPassword } = await createOwnerUser({ ownerId: owner.id, firstName, lastName, email }));
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Nutzer konnte nicht angelegt werden." };
+  }
   for (const propertyId of propertyIds) {
     await grantAccess(owner.id, propertyId);
   }
@@ -51,7 +56,10 @@ export async function createOwnerAction(formData: FormData): Promise<ActionResul
   revalidatePath("/admin/owners");
   revalidatePath("/admin/properties");
   revalidatePath("/admin");
-  return { ok: true, message: `${name} wurde angelegt.` };
+  return {
+    ok: true,
+    message: `${name} wurde angelegt. Vorläufiges Passwort für ${email}: ${tempPassword}`,
+  };
 }
 
 export async function setOwnerStatusAction(
@@ -74,9 +82,17 @@ export async function createOwnerUserAction(formData: FormData): Promise<ActionR
   if (!ownerId || !firstName || !lastName || !email) {
     return { ok: false, message: "Bitte alle Felder ausfüllen." };
   }
-  await createOwnerUser({ ownerId, firstName, lastName, email });
+  let tempPassword: string;
+  try {
+    ({ tempPassword } = await createOwnerUser({ ownerId, firstName, lastName, email }));
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Nutzer konnte nicht angelegt werden." };
+  }
   revalidatePath(`/admin/owners/${ownerId}`);
-  return { ok: true, message: `${firstName} ${lastName} wurde hinzugefügt.` };
+  return {
+    ok: true,
+    message: `${firstName} ${lastName} wurde hinzugefügt. Vorläufiges Passwort für ${email}: ${tempPassword}`,
+  };
 }
 
 export async function updateOwnerUserAction(
@@ -88,7 +104,11 @@ export async function updateOwnerUserAction(
   const lastName = readString(formData, "lastName");
   const email = readString(formData, "email");
   if (!firstName || !lastName || !email) return { ok: false, message: "Bitte alle Felder ausfüllen." };
-  await updateOwnerUser(userId, { firstName, lastName, email });
+  try {
+    await updateOwnerUser(userId, { firstName, lastName, email });
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Nutzer konnte nicht aktualisiert werden." };
+  }
   revalidatePath(`/admin/owners/${ownerId}`);
   return { ok: true, message: `${firstName} ${lastName} wurde aktualisiert.` };
 }
