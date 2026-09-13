@@ -8,7 +8,6 @@ import {
   OverviewIcon,
   ProfileIcon,
   ReceiptIcon,
-  UnitsIcon,
 } from "@/components/ui/icons";
 
 export type NavIcon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -25,7 +24,6 @@ export const MAIN_NAV: NavItem[] = [
   { key: "kalender", label: "Kalender", segment: "kalender", icon: CalendarIcon },
   { key: "statistiken", label: "Statistiken", segment: "statistiken", icon: ChartIcon },
   { key: "abrechnungen", label: "Abrechnungen", segment: "abrechnungen", icon: ReceiptIcon },
-  { key: "einheiten", label: "Einheiten", segment: "einheiten", icon: UnitsIcon },
   { key: "dokumente", label: "Dokumente", segment: "dokumente", icon: DocumentsIcon },
 ];
 
