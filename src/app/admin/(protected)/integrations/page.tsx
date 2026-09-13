@@ -3,19 +3,24 @@ import { getProperties } from "@/services/admin/propertyService";
 import { Card } from "@/components/ui/Card";
 import { AdminStatusBadge, integrationStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { ApaleoIntegrationCard, type ApaleoMappingStats } from "@/components/admin/ApaleoIntegrationCard";
+import { GoogleDriveIntegrationCard } from "@/components/admin/GoogleDriveIntegrationCard";
 import { getApaleoConnectionStatus } from "@/server/integrations/apaleo/connectionCheck";
 import { loadApaleoMappingOverview, mappingStatusFor } from "@/server/integrations/apaleo/mappingStatus";
+import { getGoogleDriveConnectionStatus } from "@/server/integrations/googleDrive/connectionCheck";
 
 export default async function AdminIntegrationsPage() {
-  const [integrations, apaleoStatus, apaleoOverview, internalProperties] = await Promise.all([
+  const [integrations, apaleoStatus, apaleoOverview, internalProperties, googleDriveStatus] = await Promise.all([
     getIntegrations(),
     getApaleoConnectionStatus(),
     loadApaleoMappingOverview(),
     getProperties(),
+    getGoogleDriveConnectionStatus(),
   ]);
-  // apaleo is real/functional now (see below) - only the still-mock
-  // integrations (Google Drive) go through the generic status-card loop.
-  const otherIntegrations = integrations.filter((integration) => integration.id !== "apaleo");
+  // apaleo and Google Drive are real/functional now (see below) - only the
+  // still-mock integrations go through the generic status-card loop.
+  const otherIntegrations = integrations.filter(
+    (integration) => integration.id !== "apaleo" && integration.id !== "google-drive"
+  );
 
   const mappedCount = internalProperties.filter(
     (property) => mappingStatusFor(property.apaleoPropertyId, apaleoOverview) === "connected"
@@ -44,6 +49,7 @@ export default async function AdminIntegrationsPage() {
           lastCheck={apaleoStatus.lastCheck}
           mappingStats={mappingStats}
         />
+        <GoogleDriveIntegrationCard configured={googleDriveStatus.configured} lastCheck={googleDriveStatus.lastCheck} />
         {otherIntegrations.map((integration) => {
           const badge = integrationStatusBadge(integration.status);
           return (

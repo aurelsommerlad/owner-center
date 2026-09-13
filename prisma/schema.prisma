@@ -243,6 +243,18 @@ model ApaleoConnectionCheck {
   errorMessage  String?
 }
 
+/// Same purpose/shape as ApaleoConnectionCheck above, for the Google Drive
+/// connection layer (src/server/integrations/googleDrive) - a singleton row
+/// recording the last "Verbindung testen" result on /admin/integrations.
+model GoogleDriveConnectionCheck {
+  id             String   @id @default("google-drive")
+  checkedAt      DateTime @updatedAt
+  success        Boolean
+  rootFolderName String?
+  itemCount      Int?
+  errorMessage   String?
+}
+
 /// General documents outside the monthly statement cycle (contracts, tax
 /// papers, insurance, ...). `propertyId`/`ownerId` are nullable: a document
 /// can be uploaded before it has been assigned to either.

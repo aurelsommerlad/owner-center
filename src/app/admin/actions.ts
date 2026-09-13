@@ -13,6 +13,7 @@ import { getApaleoProperty } from "@/server/integrations/apaleo/propertyService"
 import { getUnitsForProperty } from "@/server/integrations/apaleo/unitService";
 import { describeApaleoError } from "@/server/integrations/apaleo/errors";
 import { loadApaleoMappingOverview } from "@/server/integrations/apaleo/mappingStatus";
+import { testGoogleDriveConnection, type GoogleDriveConnectionStatus } from "@/server/integrations/googleDrive/connectionCheck";
 import { prisma } from "@/server/db";
 
 /**
@@ -223,6 +224,21 @@ export async function updatePropertyAction(propertyId: string, formData: FormDat
 export async function testApaleoConnectionAction(): Promise<ApaleoConnectionStatus["lastCheck"]> {
   await requireAdminRole();
   const result = await testApaleoConnection();
+  revalidatePath("/admin/integrations");
+  return result;
+}
+
+/**
+ * Performs a real, live "Verbindung testen" call to Google Drive (loading
+ * the configured root folder and counting its immediate children) and
+ * persists the outcome, so the /admin/integrations card can show a "letzter
+ * erfolgreicher Check" that survives across requests. Never throws -
+ * failures come back as a normal (unsuccessful) result. Admin-only: Owner
+ * Center code never imports this or the underlying connectionCheck module.
+ */
+export async function testGoogleDriveConnectionAction(): Promise<GoogleDriveConnectionStatus["lastCheck"]> {
+  await requireAdminRole();
+  const result = await testGoogleDriveConnection();
   revalidatePath("/admin/integrations");
   return result;
 }
