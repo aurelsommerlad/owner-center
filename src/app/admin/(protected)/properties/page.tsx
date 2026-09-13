@@ -16,7 +16,15 @@ interface PropertyRow {
 }
 
 export default async function AdminPropertiesPage() {
-  const [properties, owners, apaleoOverview] = await Promise.all([getProperties(), getOwners(), loadApaleoMappingOverview()]);
+  // "+ Objekt hinzufügen" is create-only (no existing assignment could ever
+  // be silently dropped), so it's safe - and correct, per "Owner
+  // verschwindet aus normalen aktiven Auswahlfeldern" - to only offer active
+  // owners here.
+  const [properties, owners, apaleoOverview] = await Promise.all([
+    getProperties(),
+    getOwners({ status: "active" }),
+    loadApaleoMappingOverview(),
+  ]);
   const rows: PropertyRow[] = await Promise.all(
     properties.map(async (property) => ({
       property,

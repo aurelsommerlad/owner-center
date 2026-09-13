@@ -38,7 +38,7 @@ export function OwnerStatusToggle({
         title={`${ownerName} ${status === "active" ? "deaktivieren" : "aktivieren"}?`}
         description={
           status === "active"
-            ? "Der Eigentümer und alle zugehörigen Nutzer verlieren den Zugriff auf das Owner Center."
+            ? "Der Zugang zum Owner Center wird gesperrt. Bestehende Daten und Zuordnungen bleiben erhalten."
             : "Der Eigentümer erhält wieder Zugriff auf das Owner Center."
         }
         confirmLabel={actionLabel}

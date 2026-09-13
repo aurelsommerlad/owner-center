@@ -1,4 +1,4 @@
-import type { AccountStatus, AdminOwner } from "@/types/admin";
+import type { AccountStatus, AdminOwner, OwnerDependencySummary } from "@/types/admin";
 import { prisma } from "@/server/db";
 import {
   getPropertiesForOwner as getPropertiesForOwnerPermission,
@@ -87,4 +87,73 @@ export async function updateOwner(id: string, input: UpdateOwnerInput): Promise<
 
 export async function setOwnerStatus(id: string, status: AccountStatus): Promise<AdminOwner | undefined> {
   return updateOwner(id, { status });
+}
+
+/**
+ * Every dependent row that has to be zero before deleteOwnerPermanently is
+ * allowed to run. `propertyAccessCount` counts every OwnerPropertyAccess row
+ * regardless of its own status (active or soft-revoked/"inactive" - see
+ * accessService, which never hard-deletes these rows either): a revoked
+ * row is still a historical record a hard delete must not silently
+ * destroy. OwnerInvitation is deliberately not counted separately here - an
+ * invitation only ever exists for a User that has an OwnerUser under this
+ * owner (see createOwnerUser/createInvitationForUser), so a zero
+ * ownerUserCount already implies zero invitations for this owner.
+ */
+export async function getOwnerDependencySummary(id: string): Promise<OwnerDependencySummary> {
+  const [ownerUserCount, propertyAccessCount, statementDocumentCount, generalDocumentCount] = await Promise.all([
+    prisma.ownerUser.count({ where: { ownerId: id } }),
+    prisma.ownerPropertyAccess.count({ where: { ownerId: id } }),
+    prisma.statementDocument.count({ where: { ownerId: id } }),
+    prisma.generalDocument.count({ where: { ownerId: id } }),
+  ]);
+  return { ownerUserCount, propertyAccessCount, statementDocumentCount, generalDocumentCount };
+}
+
+function hasBlockingDependencies(summary: OwnerDependencySummary): boolean {
+  return (
+    summary.ownerUserCount > 0 ||
+    summary.propertyAccessCount > 0 ||
+    summary.statementDocumentCount > 0 ||
+    summary.generalDocumentCount > 0
+  );
+}
+
+export const OWNER_DELETE_BLOCKED_MESSAGE =
+  "Dieser Eigentümer kann nicht endgültig gelöscht werden, solange noch Benutzer, Objekte oder Dokumente zugeordnet sind. Bitte entfernen Sie zuerst die entsprechenden Zuordnungen oder deaktivieren Sie den Eigentümer.";
+
+export interface DeleteOwnerResult {
+  ok: boolean;
+  message: string;
+}
+
+/**
+ * "Eigentümer endgültig löschen" - only ever removes the Owner row itself
+ * (plus its own AdminImpersonation preview history, which belongs to no one
+ * else) once a fresh, in-transaction re-check confirms zero OwnerUser,
+ * OwnerPropertyAccess, StatementDocument and GeneralDocument rows still
+ * reference it - closing the TOCTOU window between an earlier
+ * getOwnerDependencySummary() read and this call. Never touches the `User`
+ * table: by construction there is no OwnerUser (and therefore no User) left
+ * to consider once this point is reached.
+ */
+export async function deleteOwnerPermanently(id: string): Promise<DeleteOwnerResult> {
+  return prisma.$transaction(async (tx) => {
+    const owner = await tx.owner.findUnique({ where: { id } });
+    if (!owner) return { ok: false, message: "Eigentümer wurde nicht gefunden." };
+
+    const [ownerUserCount, propertyAccessCount, statementDocumentCount, generalDocumentCount] = await Promise.all([
+      tx.ownerUser.count({ where: { ownerId: id } }),
+      tx.ownerPropertyAccess.count({ where: { ownerId: id } }),
+      tx.statementDocument.count({ where: { ownerId: id } }),
+      tx.generalDocument.count({ where: { ownerId: id } }),
+    ]);
+    if (hasBlockingDependencies({ ownerUserCount, propertyAccessCount, statementDocumentCount, generalDocumentCount })) {
+      return { ok: false, message: OWNER_DELETE_BLOCKED_MESSAGE };
+    }
+
+    await tx.adminImpersonation.deleteMany({ where: { ownerId: id } });
+    await tx.owner.delete({ where: { id } });
+    return { ok: true, message: `${owner.name} wurde endgültig gelöscht.` };
+  });
 }

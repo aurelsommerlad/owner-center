@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { AccountStatus } from "@/types/admin";
 import { requireAdminRole } from "@/lib/adminAuth";
-import { createOwner, getOwner, updateOwner } from "@/services/admin/ownerService";
+import { createOwner, deleteOwnerPermanently, getOwner, updateOwner } from "@/services/admin/ownerService";
 import { createOwnerUser, recreateOwnerUserInvitation, updateOwnerUser } from "@/services/admin/ownerUserService";
 import { createProperty, getProperty, updateProperty } from "@/services/admin/propertyService";
 import { grantAccess, revokeAccess, setOwnerPropertyAccess, setPropertyOwnerAccess } from "@/services/admin/accessService";
@@ -92,6 +92,31 @@ export async function createOwnerAction(formData: FormData): Promise<InvitationA
   revalidatePath("/admin/properties");
   revalidatePath("/admin");
   return { ok: true, message: `${name} wurde angelegt. Einladung erstellt.`, inviteToken, inviteExpiresAt };
+}
+
+/**
+ * "Eigentümerdaten bearbeiten" - master-data only (name/companyName). Never
+ * touches `status` (that stays behind the separate, confirmation-gated
+ * deactivate/reactivate flow) and never touches User/OwnerUser data - Owner
+ * and OwnerUser are deliberately kept technically separate, so editing an
+ * owner's master data can never change who has login access or which
+ * properties/users are assigned.
+ */
+export async function updateOwnerAction(ownerId: string, formData: FormData): Promise<ActionResult> {
+  await requireAdminRole();
+
+  const owner = await getOwner(ownerId);
+  if (!owner) return { ok: false, message: "Eigentümer nicht gefunden." };
+
+  const name = readString(formData, "name");
+  const companyName = readString(formData, "companyName");
+  if (!name) return { ok: false, message: "Bitte einen Namen für den Eigentümer angeben." };
+
+  await updateOwner(ownerId, { name, companyName: companyName || undefined });
+
+  revalidatePath("/admin/owners");
+  revalidatePath(`/admin/owners/${ownerId}`);
+  return { ok: true, message: `${name} wurde aktualisiert.` };
 }
 
 export async function setOwnerStatusAction(
@@ -508,4 +533,25 @@ export async function createPropertyFromApaleoAction(apaleoPropertyId: string, f
   revalidatePath("/admin");
   revalidatePath("/admin/integrations");
   return { ok: true, message: `${name} wurde angelegt und mit apaleo verknüpft.` };
+}
+
+/**
+ * "Eigentümer endgültig löschen" - Gefahrenbereich action. Deliberately
+ * re-checks every dependency inside deleteOwnerPermanently's own transaction
+ * rather than trusting whatever the page last rendered - the id itself is
+ * the only client input this trusts, and it's validated against the real
+ * Owner table (never assumed to exist). On success the owner detail page no
+ * longer exists, so the caller redirects to the list; that happens outside
+ * this action (see DeleteOwnerButton) so a failed delete never navigates
+ * away.
+ */
+export async function deleteOwnerAction(ownerId: string): Promise<ActionResult> {
+  await requireAdminRole();
+
+  const result = await deleteOwnerPermanently(ownerId);
+  if (!result.ok) return result;
+
+  revalidatePath("/admin/owners");
+  revalidatePath("/admin");
+  return result;
 }

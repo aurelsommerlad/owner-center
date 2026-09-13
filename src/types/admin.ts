@@ -64,6 +64,23 @@ export interface AdminOwnerUser {
   updatedAt: string;
 }
 
+/**
+ * Every owner-owned row type that has to be checked before a hard delete
+ * (src/services/admin/ownerService.ts#deleteOwnerPermanently) is allowed -
+ * any of these being non-zero blocks the delete. `propertyAccessCount`
+ * deliberately counts EVERY OwnerPropertyAccess row regardless of its own
+ * status (active or revoked/"entfernt" - see accessService, which never
+ * hard-deletes these rows either): a revoked-but-still-present row is
+ * still a historical record that a hard delete must not silently destroy,
+ * so it blocks deletion exactly like an active one.
+ */
+export interface OwnerDependencySummary {
+  ownerUserCount: number;
+  propertyAccessCount: number;
+  statementDocumentCount: number;
+  generalDocumentCount: number;
+}
+
 export type AdminPropertyStatus = "active" | "inactive";
 
 /**

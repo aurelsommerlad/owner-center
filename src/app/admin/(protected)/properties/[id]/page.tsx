@@ -71,7 +71,18 @@ export default async function AdminPropertyDetailPage({ params }: { params: Prom
     }
   }
 
-  const availableOwners = allOwners.filter((owner) => !owners.some((current) => current.id === owner.id));
+  // Inactive owners never re-enter selection here: "available" is for
+  // adding a NEW assignment, and an inactive owner disappearing from normal
+  // active selection fields is the whole point of deactivating them. The
+  // edit-mode PropertyFormModal below is different - it must still include
+  // any owner already assigned (even inactive), or resubmitting the form's
+  // wholesale-replace access update would silently drop their access.
+  const availableOwners = allOwners.filter(
+    (owner) => owner.status === "active" && !owners.some((current) => current.id === owner.id)
+  );
+  const ownersForFormModal = allOwners.filter(
+    (owner) => owner.status === "active" || owners.some((current) => current.id === owner.id)
+  );
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -86,7 +97,7 @@ export default async function AdminPropertyDetailPage({ params }: { params: Prom
           </div>
           <PropertyFormModal
             property={property}
-            owners={allOwners}
+            owners={ownersForFormModal}
             ownerIds={owners.map((owner) => owner.id)}
             triggerLabel="Bearbeiten"
             triggerClassName="rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-colors hover:border-ink hover:text-ink"
