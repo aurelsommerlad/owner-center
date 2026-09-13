@@ -81,6 +81,11 @@ export async function listApaleoReservationsForProperty(
     const data = await apaleoRequest<RawApaleoReservationListResponse>(
       `/booking/v1/reservations?${params.toString()}`
     );
+    // An empty body (apaleo sends one for "nothing to return" on some
+    // endpoints - see apaleoRequest) means no reservations in range; treat
+    // exactly like a page with zero results rather than guessing further.
+    if (!data) break;
+
     total = data.count;
     fetched += data.reservations.length;
 

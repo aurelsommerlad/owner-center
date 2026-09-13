@@ -63,6 +63,11 @@ export async function listApaleoMaintenancesForProperty(
     const data = await apaleoRequest<RawApaleoMaintenanceListResponse>(
       `/operations/v1/maintenances?${params.toString()}`
     );
+    // apaleo returns a genuinely empty body (not a JSON object) here when a
+    // property has no maintenance windows in the queried range - treat that
+    // exactly like a page with zero results ([]), never as a parse error.
+    if (!data) break;
+
     total = data.count;
     fetched += data.maintenances.length;
 

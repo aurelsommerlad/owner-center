@@ -22,5 +22,6 @@ export async function getUnitsForProperty(apaleoPropertyId: string): Promise<Apa
   const data = await apaleoRequest<RawApaleoUnitListResponse>(
     `/inventory/v1/units?propertyId=${encodeURIComponent(apaleoPropertyId)}&pageSize=200&status=All`,
   );
+  if (!data) return [];
   return data.units.map(toUnitSummary);
 }

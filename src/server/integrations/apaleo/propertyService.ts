@@ -22,15 +22,17 @@ function toPropertySummary(raw: RawApaleoProperty): ApaleoPropertySummary {
 
 export async function listApaleoProperties(): Promise<ApaleoPropertySummary[]> {
   const data = await apaleoRequest<RawApaleoPropertyListResponse>("/inventory/v1/properties?pageSize=200");
+  if (!data) return [];
   return data.properties.map(toPropertySummary);
 }
 
-/** Returns `null` specifically for "not found" (a bad apaleoPropertyId) - throws on every other failure. */
+/** Returns `null` for "not found" (a bad apaleoPropertyId, or an empty response body apaleo sent instead of a proper 404) - throws on every other failure. */
 export async function getApaleoProperty(apaleoPropertyId: string): Promise<ApaleoPropertySummary | null> {
   try {
     const raw = await apaleoRequest<RawApaleoProperty>(
       `/inventory/v1/properties/${encodeURIComponent(apaleoPropertyId)}`,
     );
+    if (!raw) return null;
     return toPropertySummary(raw);
   } catch (err) {
     if (err instanceof ApaleoError && err.kind === "not_found") return null;

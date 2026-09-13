@@ -81,34 +81,48 @@ export async function getOwnerPortalReservations(
   const context = await resolveOwnerPortalProperty(propertyId);
   if (!context || !context.apaleoPropertyId) return [];
 
-  try {
-    const [rawReservations, rawMaintenances] = await Promise.all([
-      listApaleoReservationsForProperty(context.apaleoPropertyId, {
-        from: range.start,
-        to: range.endExclusive,
-      }),
-      listApaleoMaintenancesForProperty(context.apaleoPropertyId, {
-        from: range.start,
-        to: range.endExclusive,
-      }),
-    ]);
+  // Reservations and maintenance windows are fetched independently, and a
+  // maintenance failure is never allowed to take reservations down with it:
+  // reservations are core data (the calendar, occupancy, every KPI), while
+  // maintenance windows only refine the occupancy picture (Out-of-Service/
+  // -Order/-Inventory blocking) - losing them means slightly less accurate
+  // "blocked" bars, not "no data at all". Promise.allSettled runs both
+  // concurrently while keeping their failures separate.
+  const [reservationsResult, maintenancesResult] = await Promise.allSettled([
+    listApaleoReservationsForProperty(context.apaleoPropertyId, {
+      from: range.start,
+      to: range.endExclusive,
+    }),
+    listApaleoMaintenancesForProperty(context.apaleoPropertyId, {
+      from: range.start,
+      to: range.endExclusive,
+    }),
+  ]);
 
-    const reservations = rawReservations
-      .filter((raw) => OCCUPYING_STATUSES.has(raw.status))
-      .map((raw) => toReservation(propertyId, raw));
-
-    const maintenanceBlocks = rawMaintenances.map((raw) =>
-      maintenanceToReservation(propertyId, `maintenance-${raw.id}`, raw.unitId, raw.fromDate, raw.toDate)
-    );
-
-    return [...reservations, ...maintenanceBlocks];
-  } catch (err) {
-    // Any failure here - a recognized ApaleoError, a shape/parsing mismatch
-    // in a real apaleo response, or anything else - degrades to "data
-    // unavailable" rather than crashing the page. Logged server-side (shows
-    // up in Vercel's function logs) so a real cause is still diagnosable.
-    console.error(`[ownerPortal] failed to load reservations for property ${propertyId}:`, err);
+  if (reservationsResult.status === "rejected") {
+    // A recognized ApaleoError, a shape/parsing mismatch in a real apaleo
+    // response, or anything else - degrades to "data unavailable" rather
+    // than crashing the page. Logged server-side (shows up in Vercel's
+    // function logs) so a real cause is still diagnosable.
+    console.error(`[ownerPortal] failed to load reservations for property ${propertyId}:`, reservationsResult.reason);
     markOwnerPortalDataError();
     return [];
   }
+
+  const reservations = reservationsResult.value
+    .filter((raw) => OCCUPYING_STATUSES.has(raw.status))
+    .map((raw) => toReservation(propertyId, raw));
+
+  if (maintenancesResult.status === "rejected") {
+    // Supplementary data only - warn, do not flag the page-wide "data
+    // unavailable" notice, and still return the reservations we do have.
+    console.warn(`[ownerPortal] maintenance data unavailable for property ${propertyId}:`, maintenancesResult.reason);
+    return reservations;
+  }
+
+  const maintenanceBlocks = maintenancesResult.value.map((raw) =>
+    maintenanceToReservation(propertyId, `maintenance-${raw.id}`, raw.unitId, raw.fromDate, raw.toDate)
+  );
+
+  return [...reservations, ...maintenanceBlocks];
 }
