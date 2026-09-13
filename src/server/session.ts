@@ -37,16 +37,32 @@ export interface SessionData {
  * callers decide what to do (redirect to /login, notFound, etc.), this
  * function never redirects itself so it stays usable from plain data
  * services too.
+ *
+ * A cookie is present on essentially every request once someone has ever
+ * logged in on that domain (it persists across redeploys of the same
+ * preview URL), so the DB lookup below runs unconditionally, including for
+ * a page that only wants to know "is anyone logged in". If the database
+ * itself is unreachable or misconfigured for the current environment, that
+ * lookup throws - fail toward "no session" rather than let that propagate
+ * as an uncaught exception: a DB outage should degrade to "logged out",
+ * never to a crash, and every caller already treats `null` as "not
+ * authenticated" (redirect to a login page), so this never grants access.
  */
 export async function getSession(): Promise<SessionData | null> {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
   if (!sessionId) return null;
 
-  const session = await prisma.session.findUnique({
-    where: { id: sessionId },
-    include: { user: { include: { ownerUser: { include: { owner: true } } } } },
-  });
+  let session;
+  try {
+    session = await prisma.session.findUnique({
+      where: { id: sessionId },
+      include: { user: { include: { ownerUser: { include: { owner: true } } } } },
+    });
+  } catch (error) {
+    console.error("[session] getSession DB lookup failed - treating as no session:", error);
+    return null;
+  }
   if (!session) return null;
 
   if (session.expiresAt.getTime() <= Date.now()) {
