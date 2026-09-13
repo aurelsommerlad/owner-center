@@ -61,6 +61,8 @@ export interface Reservation {
   status: ReservationStatus;
   totalAmount: number;
   currency: string;
+  /** Optional occupancy summary for the calendar tooltip, e.g. "2 Erwachsene · 1 Kind". No other guest data is ever shown. */
+  occupancy?: string;
 }
 
 export type StatementStatus = "ready" | "processing" | "paid";

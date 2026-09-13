@@ -81,6 +81,22 @@ export function formatLongDayMonth(iso: string): string {
   return `${dayOfMonth(iso)}. ${monthLabel(parseIsoDate(iso).getUTCMonth() + 1)}`;
 }
 
+/**
+ * "10.–14. September 2026" style range for a reservation tooltip. Falls back
+ * to naming both months when the stay crosses one.
+ */
+export function formatDateRange(checkIn: string, checkOut: string): string {
+  const start = parseIsoDate(checkIn);
+  const end = parseIsoDate(checkOut);
+  const sameMonth = start.getUTCFullYear() === end.getUTCFullYear() && start.getUTCMonth() === end.getUTCMonth();
+  if (sameMonth) {
+    return `${start.getUTCDate()}.–${end.getUTCDate()}. ${monthLabel(end.getUTCMonth() + 1)} ${end.getUTCFullYear()}`;
+  }
+  return `${start.getUTCDate()}. ${monthLabel(start.getUTCMonth() + 1)} – ${end.getUTCDate()}. ${monthLabel(
+    end.getUTCMonth() + 1
+  )} ${end.getUTCFullYear()}`;
+}
+
 export function isWeekend(iso: string): boolean {
   const day = parseIsoDate(iso).getUTCDay();
   return day === 0 || day === 6;

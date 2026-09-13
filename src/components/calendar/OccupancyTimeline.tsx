@@ -1,8 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Reservation, ReservationStatus, Unit } from "@/types";
-import { dayOfMonth, weekdayLabel } from "@/lib/dates";
-import { formatShortDate } from "@/lib/format";
-import { statusLabel } from "@/components/ui/StatusBadge";
+import { dayOfMonth, formatDateRange, nightsBetween, weekdayLabel } from "@/lib/dates";
 
 export interface TimelineDay {
   date: string;
@@ -13,8 +11,6 @@ export interface TimelineRow {
   reservations: Reservation[];
 }
 
-type TimelineTone = "default" | "subtle";
-
 interface OccupancyTimelineProps {
   days: TimelineDay[];
   rows: TimelineRow[];
@@ -23,17 +19,16 @@ interface OccupancyTimelineProps {
   rowHeight?: number;
   unitColumnWidth?: number;
   className?: string;
-  /**
-   * "default" keeps the original bold styling (used by the full Kalender page).
-   * "subtle" is the lighter, less dominant look for the Übersicht preview widget.
-   */
-  tone?: TimelineTone;
+  /** Shortens the reservation-nights label to "4 N." instead of "4 Nächte" for the compact Übersicht widget. */
+  compactLabels?: boolean;
 }
 
-const STATUS_BAR_CLASS: Record<ReservationStatus, string> = {
-  confirmed: "bg-status-occupied",
-  blocked: "bg-status-blocked",
-  "owner-use": "bg-status-owner",
+/** Calendar-local labels - independent of the shared statusLabel() used elsewhere in the app. */
+const CALENDAR_STATUS_LABEL: Record<ReservationStatus | "free", string> = {
+  confirmed: "Reservierung",
+  blocked: "Blockiert",
+  "owner-use": "Eigennutzung",
+  free: "Frei",
 };
 
 const BLOCKED_HATCH_STYLE: CSSProperties = {
@@ -42,50 +37,26 @@ const BLOCKED_HATCH_STYLE: CSSProperties = {
     "repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(116,115,110,0.35) 3px, rgba(116,115,110,0.35) 4px)",
 };
 
-function barVisual(status: ReservationStatus, tone: TimelineTone): { className: string; style?: CSSProperties } {
-  if (tone === "default") {
-    return { className: STATUS_BAR_CLASS[status] };
-  }
-  if (status === "confirmed") return { className: "bg-[#87977E]" };
+const RESERVATION_BAR_STYLE: CSSProperties = { backgroundColor: "rgba(116, 115, 110, 0.55)" };
+
+function barVisual(status: ReservationStatus): { className: string; style?: CSSProperties } {
   if (status === "owner-use") return { className: "bg-[#52664E]" };
-  return { className: "", style: BLOCKED_HATCH_STYLE };
+  if (status === "blocked") return { className: "", style: BLOCKED_HATCH_STYLE };
+  return { className: "", style: RESERVATION_BAR_STYLE };
 }
 
-function labelTextClass(status: ReservationStatus, tone: TimelineTone): string {
-  if (tone === "default") return "text-ink";
-  if (status === "owner-use") return "text-[#FAFAF7]";
-  return "text-[#74736E]";
+/** Bar label text - nights for a normal stay, the fixed status label for owner-use, nothing for blocked (kept quiet). */
+function barLabel(reservation: Reservation, compactLabels: boolean): string | null {
+  if (reservation.status === "owner-use") return CALENDAR_STATUS_LABEL["owner-use"];
+  if (reservation.status === "blocked") return null;
+  const nights = nightsBetween(reservation.checkIn, reservation.checkOut);
+  return compactLabels ? `${nights} N.` : `${nights} ${nights === 1 ? "Nacht" : "Nächte"}`;
 }
 
 function dateIndex(iso: string, days: TimelineDay[]): number {
   const idx = days.findIndex((day) => day.date === iso);
   if (idx !== -1) return idx;
   return iso < days[0].date ? 0 : days.length;
-}
-
-/**
- * Which status kinds are actually visible in this grid, used to decide whether
- * the (optional) legend is worth showing at all.
- */
-export function getPresentStatuses(
-  days: TimelineDay[],
-  rows: TimelineRow[]
-): Array<ReservationStatus | "free"> {
-  const present = new Set<ReservationStatus | "free">();
-  for (const row of rows) {
-    const covered = new Array(days.length).fill(false);
-    for (const reservation of row.reservations) {
-      const startIdx = dateIndex(reservation.checkIn, days);
-      const endIdx = dateIndex(reservation.checkOut, days);
-      if (endIdx <= startIdx) continue;
-      present.add(reservation.status);
-      for (let i = Math.max(startIdx, 0); i < Math.min(endIdx, days.length); i++) {
-        covered[i] = true;
-      }
-    }
-    if (covered.some((isCovered) => !isCovered)) present.add("free");
-  }
-  return Array.from(present);
 }
 
 export function OccupancyTimeline({
@@ -96,29 +67,23 @@ export function OccupancyTimeline({
   rowHeight = 46,
   unitColumnWidth = 132,
   className = "",
-  tone = "default",
+  compactLabels = false,
 }: OccupancyTimelineProps) {
   const gridWidth = days.length * cellWidth;
   const todayIndex = dateIndex(today, days);
-  const isSubtle = tone === "subtle";
 
-  const hLineClass = isSubtle ? "border-[#E4E0D8]" : "border-line";
-  const vLineClass = isSubtle ? "border-[#E4E0D8]/45" : "border-line/70";
-  const weekendHeaderClass = isSubtle ? "bg-[#F1EDE4]/45" : "bg-paper-dim/60";
-  const weekendBodyClass = isSubtle ? "bg-[#F1EDE4]/30" : "bg-paper-dim/40";
-  const barToneClass = isSubtle
-    ? "shadow-[0_1px_2px_rgba(23,24,23,0.05)] hover:brightness-105"
-    : "shadow-sm hover:brightness-110";
+  // Small fixed inset shaved off both ends of every bar so two stays that
+  // meet at the same day's midpoint (one check-out, the next check-in)
+  // read as two distinct bars instead of visually merging into one -
+  // purely a rendering adjustment, the underlying midpoint math is untouched.
+  const BAR_GAP = 1.5;
 
   return (
     <div className={`overflow-x-auto ${className}`}>
       <div style={{ width: unitColumnWidth + gridWidth, minWidth: "100%" }}>
         {/* Header row */}
         <div className="flex">
-          <div
-            className="sticky left-0 z-10 shrink-0 bg-paper"
-            style={{ width: unitColumnWidth }}
-          />
+          <div className="sticky left-0 z-10 shrink-0 bg-paper" style={{ width: unitColumnWidth }} />
           <div className="relative flex" style={{ width: gridWidth }}>
             {days.map((day) => {
               const isToday = day.date === today;
@@ -126,8 +91,8 @@ export function OccupancyTimeline({
               return (
                 <div
                   key={day.date}
-                  className={`flex shrink-0 flex-col items-center justify-center gap-0.5 border-b ${hLineClass} py-1.5 text-[11px] ${
-                    weekend ? weekendHeaderClass : ""
+                  className={`flex shrink-0 flex-col items-center justify-center gap-0.5 border-b border-[#E4E0D8] py-1.5 text-[11px] ${
+                    weekend ? "bg-[#F1EDE4]/45" : ""
                   } ${isToday ? "text-ink" : "text-ink-soft"}`}
                   style={{ width: cellWidth }}
                 >
@@ -148,10 +113,10 @@ export function OccupancyTimeline({
         </div>
 
         {/* Rows */}
-        {rows.map((row) => (
+        {rows.map((row, rowIndex) => (
           <div key={row.unit.id} className="flex">
             <div
-              className={`sticky left-0 z-10 flex shrink-0 flex-col justify-center border-b ${hLineClass} bg-paper pr-3`}
+              className="sticky left-0 z-10 flex shrink-0 flex-col justify-center border-b border-[#E4E0D8] bg-paper pr-3"
               style={{ width: unitColumnWidth, height: rowHeight }}
             >
               <p className="text-sm font-medium text-ink">{row.unit.name}</p>
@@ -159,10 +124,7 @@ export function OccupancyTimeline({
                 {row.unit.minOccupancy}–{row.unit.maxOccupancy} Personen
               </p>
             </div>
-            <div
-              className={`relative shrink-0 border-b ${hLineClass}`}
-              style={{ width: gridWidth, height: rowHeight }}
-            >
+            <div className="relative shrink-0 border-b border-[#E4E0D8]" style={{ width: gridWidth, height: rowHeight }}>
               {/* day separators + weekend shading */}
               <div className="pointer-events-none absolute inset-0 flex">
                 {days.map((day) => {
@@ -170,7 +132,7 @@ export function OccupancyTimeline({
                   return (
                     <div
                       key={day.date}
-                      className={`shrink-0 border-r ${vLineClass} ${weekend ? weekendBodyClass : ""}`}
+                      className={`shrink-0 border-r border-[#E4E0D8]/50 ${weekend ? "bg-[#F1EDE4]/30" : ""}`}
                       style={{ width: cellWidth }}
                     />
                   );
@@ -196,35 +158,60 @@ export function OccupancyTimeline({
                 // the grid edge when the stay actually continues outside the visible range.
                 const left = continuesBefore ? 0 : startIdx * cellWidth + cellWidth / 2;
                 const right = continuesAfter ? days.length * cellWidth : endIdx * cellWidth + cellWidth / 2;
-                const width = right - left;
+                const rawWidth = right - left;
 
-                // Guest bookings stay unlabeled (colour + hover tooltip only) to keep the
-                // timeline calm; owner-use and blocked stays are always labelled since an
-                // owner needs to recognise them at a glance without hovering.
-                const alwaysLabelled = reservation.status !== "confirmed";
-                const labelFits = alwaysLabelled && width > 56;
-                const visual = barVisual(reservation.status, tone);
+                const visualLeft = left + BAR_GAP;
+                const visualWidth = Math.max(rawWidth - BAR_GAP * 2, 4);
+
+                const label = barLabel(reservation, compactLabels);
+                const labelFits = label !== null && rawWidth > 56;
+                const visual = barVisual(reservation.status);
+                const nights = nightsBetween(reservation.checkIn, reservation.checkOut);
+                const tooltipHeading =
+                  reservation.status === "blocked" ? null : CALENDAR_STATUS_LABEL[reservation.status];
+                // The grid's horizontal scroll container clips vertical overflow too (a CSS
+                // side effect of overflow-x: auto), so a tooltip popping up above the very
+                // first row would be cut off - render it below the bar there instead.
+                const tooltipBelow = rowIndex === 0;
+
                 return (
                   <div
                     key={reservation.id}
-                    title={`${statusLabel(reservation.status)} · ${formatShortDate(reservation.checkIn)} – ${formatShortDate(reservation.checkOut)}`}
-                    className={`absolute top-1/2 h-6 -translate-y-1/2 transition-[filter,transform] duration-150 hover:z-10 ${barToneClass} ${
-                      visual.className
-                    } ${continuesBefore ? "rounded-l-none" : "rounded-l-full"} ${
-                      continuesAfter ? "rounded-r-none" : "rounded-r-full"
-                    }`}
-                    style={{
-                      left,
-                      width: Math.max(width, 6),
-                      ...visual.style,
-                    }}
+                    className="group absolute top-1/2 h-5 -translate-y-1/2 hover:z-20"
+                    style={{ left: visualLeft, width: visualWidth }}
                   >
-                    {labelFits && (
-                      <span
-                        className={`pointer-events-none absolute inset-0 flex items-center justify-center truncate px-4 text-[11px] font-medium ${labelTextClass(reservation.status, tone)}`}
+                    <div
+                      className={`h-full w-full transition-[filter] duration-150 group-hover:brightness-105 ${
+                        visual.className
+                      } ${continuesBefore ? "rounded-l-none" : "rounded-l-md"} ${
+                        continuesAfter ? "rounded-r-none" : "rounded-r-md"
+                      }`}
+                      style={visual.style}
+                    >
+                      {labelFits && (
+                        <span className="pointer-events-none flex h-full items-center justify-center truncate px-3 text-[11px] font-medium text-[#FAFAF7]">
+                          {label}
+                        </span>
+                      )}
+                    </div>
+
+                    {tooltipHeading && (
+                      <div
+                        className={`pointer-events-none absolute left-1/2 z-30 hidden w-max max-w-[220px] -translate-x-1/2 rounded-lg border border-line bg-paper px-3 py-2 text-left opacity-0 shadow-soft-lg transition-opacity duration-150 group-hover:opacity-100 sm:block ${
+                          tooltipBelow ? "top-full mt-2" : "bottom-full mb-2"
+                        }`}
                       >
-                        {statusLabel(reservation.status)}
-                      </span>
+                        <p className="text-xs font-semibold text-ink">{tooltipHeading}</p>
+                        <p className="mt-0.5 text-xs text-ink-soft">
+                          {formatDateRange(reservation.checkIn, reservation.checkOut)}
+                        </p>
+                        <p className="text-xs text-ink-soft">
+                          {nights} {nights === 1 ? "Nacht" : "Nächte"}
+                        </p>
+                        {reservation.occupancy && (
+                          <p className="mt-0.5 text-xs text-ink-soft">{reservation.occupancy}</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 );
@@ -237,37 +224,20 @@ export function OccupancyTimeline({
   );
 }
 
-export function TimelineLegend({
-  statuses,
-  tone = "default",
-}: {
-  statuses?: Array<ReservationStatus | "free">;
-  tone?: TimelineTone;
-} = {}) {
-  const entries: Array<{ status: ReservationStatus | "free"; className: string; style?: CSSProperties }> =
-    tone === "subtle"
-      ? [
-          { status: "confirmed", className: "bg-[#87977E]" },
-          { status: "owner-use", className: "bg-[#52664E]" },
-          { status: "blocked", className: "", style: BLOCKED_HATCH_STYLE },
-          { status: "free", className: "border border-[#74736E]/30 bg-transparent" },
-        ]
-      : [
-          { status: "confirmed", className: "bg-status-occupied" },
-          { status: "free", className: "border border-ink/25 bg-transparent" },
-          { status: "owner-use", className: "bg-status-owner" },
-          { status: "blocked", className: "bg-status-blocked" },
-        ];
-
-  const visible = statuses ? entries.filter((entry) => statuses.includes(entry.status)) : entries;
-  if (statuses && visible.length < 2) return null;
+export function TimelineLegend() {
+  const entries: Array<{ status: ReservationStatus | "free"; className: string; style?: CSSProperties }> = [
+    { status: "confirmed", className: "", style: RESERVATION_BAR_STYLE },
+    { status: "owner-use", className: "bg-[#52664E]" },
+    { status: "blocked", className: "", style: BLOCKED_HATCH_STYLE },
+    { status: "free", className: "border border-[#74736E]/30 bg-transparent" },
+  ];
 
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink-soft">
-      {visible.map((entry) => (
+      {entries.map((entry) => (
         <span key={entry.status} className="flex items-center gap-1.5">
           <span className={`h-2.5 w-2.5 rounded-full ${entry.className}`} style={entry.style} />
-          {statusLabel(entry.status)}
+          {CALENDAR_STATUS_LABEL[entry.status]}
         </span>
       ))}
     </div>

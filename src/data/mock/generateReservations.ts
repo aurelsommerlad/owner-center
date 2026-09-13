@@ -23,6 +23,16 @@ function pickWeighted<T>(random: () => number, options: Array<[T, number]>): T {
   return options[options.length - 1][0];
 }
 
+/** Deterministic "2 Erwachsene · 1 Kind" style summary for the calendar tooltip, capped to the unit's capacity. */
+function pickOccupancy(random: () => number, maxOccupancy: number): string {
+  const adults = Math.max(1, Math.min(pickWeighted(random, [[1, 2], [2, 5], [3, 2], [4, 1]]), maxOccupancy));
+  const remainingCapacity = Math.max(maxOccupancy - adults, 0);
+  const children = Math.min(pickWeighted(random, [[0, 6], [1, 3], [2, 1]]), remainingCapacity);
+  const adultsLabel = `${adults} ${adults === 1 ? "Erwachsener" : "Erwachsene"}`;
+  if (children === 0) return adultsLabel;
+  return `${adultsLabel} · ${children} ${children === 1 ? "Kind" : "Kinder"}`;
+}
+
 /** Units that receive one manual owner-use / maintenance block for realism. */
 const OWNER_USE_UNIT = "laeke-07";
 const MAINTENANCE_UNIT = "laeke-03";
@@ -101,6 +111,7 @@ export function generateMockReservations(
         status,
         totalAmount,
         currency: "EUR",
+        occupancy: status === "confirmed" ? pickOccupancy(random, unit.maxOccupancy) : undefined,
       });
 
       bookingSeq += 1;
