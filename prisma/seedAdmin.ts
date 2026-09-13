@@ -1,17 +1,16 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { bootstrapInitialAdmin } from "../src/server/adminBootstrapCore";
+import { bootstrapInitialAdminFromEnv } from "../src/server/adminBootstrapCore";
 
 /**
- * CLI entry point for the shared bootstrap logic in
- * src/server/adminBootstrapCore.ts - see that file for the actual rules
- * (idempotent, env-var-only credentials, no public registration). This is
- * the path for anyone who DOES have local/CI terminal access to the
- * database; GET /api/admin/bootstrap (src/app/api/admin/bootstrap/route.ts)
- * is the equivalent path for triggering it from a browser instead, e.g. on
- * a host like Vercel where a local terminal never touches the production
- * database at all.
+ * Optional terminal/CI entry point for the shared bootstrap logic in
+ * src/server/adminBootstrapCore.ts. The primary, recommended way to create
+ * the first admin is the web-based first-run setup at /admin/setup (see
+ * src/app/admin/setup/) - visiting /admin with no admin account yet lands
+ * there automatically, no terminal or environment variables needed. This
+ * script is only useful for deployments that prefer to provision the first
+ * admin via CI/automation instead of ever exposing that page.
  *
  * Usage:
  *   INITIAL_ADMIN_EMAIL=admin@example.com INITIAL_ADMIN_PASSWORD=... npm run seed:admin
@@ -21,7 +20,7 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const result = await bootstrapInitialAdmin(prisma);
+  const result = await bootstrapInitialAdminFromEnv(prisma);
   console.log(result.message);
   if (result.status === "misconfigured") {
     console.error("Set both environment variables and re-run: npm run seed:admin");

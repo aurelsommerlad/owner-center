@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/server/session";
+import { prisma } from "@/server/db";
+import { adminAccountExists } from "@/server/adminBootstrapCore";
 import { Card } from "@/components/ui/Card";
 import { AdminLoginForm } from "./AdminLoginForm";
 
@@ -8,8 +10,21 @@ import { AdminLoginForm } from "./AdminLoginForm";
  * comment) - lives outside the app/admin/(protected) route group so it is
  * reachable without a session (the group's layout is what gates every
  * other /admin/* route via requireAdminRole).
+ *
+ * `force-dynamic` is required: the admin-exists check below runs (and can
+ * redirect) before any `cookies()` call, so Next.js's static analysis
+ * cannot infer on its own that this page depends on live, per-request
+ * database state - see the same note on /admin/setup/page.tsx.
  */
+export const dynamic = "force-dynamic";
 export default async function AdminLoginPage() {
+  // No admin exists yet - a login form here could never succeed, send the
+  // visitor to the one-time setup instead (same redirect requireAdminRole()
+  // applies to every other /admin/* route).
+  if (!(await adminAccountExists(prisma))) {
+    redirect("/admin/setup");
+  }
+
   const session = await getSession();
   if (session) {
     redirect(session.role === "admin" ? "/admin" : "/");
