@@ -114,7 +114,14 @@ export function BookingSourceDonut({ sources }: { sources: BookingSourceBreakdow
   }
 
   return (
-    <div className="flex flex-col items-center">
+    // Fixed width, matching the ring below: the detail row's text length
+    // varies a lot between the idle placeholder and an active segment's
+    // "name, amount, %, count" - without a fixed width here, that swing
+    // resized this flex column and re-centered the ring under it, moving
+    // the ring out from under a stationary cursor and re-triggering hover
+    // on a different segment (which swings the text again - a flicker
+    // loop, not a hover-detection bug).
+    <div className="flex w-[216px] flex-col items-center">
       <div className="relative h-[216px] w-[216px]">
         <svg
           ref={svgRef}
@@ -149,7 +156,7 @@ export function BookingSourceDonut({ sources }: { sources: BookingSourceBreakdow
         </div>
       </div>
 
-      <div className="mt-4 flex h-8 min-w-full items-center justify-center gap-3 rounded-xl border border-line bg-paper-dim/50 px-3 text-xs">
+      <div className="mt-4 flex min-h-8 w-full flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-xl border border-line bg-paper-dim/50 px-3 py-1.5 text-xs">
         {active ? (
           <>
             <span className="flex items-center gap-1.5 font-medium text-ink">
