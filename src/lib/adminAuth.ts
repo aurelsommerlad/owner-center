@@ -9,6 +9,7 @@ import { adminAccountExists } from "@/server/adminBootstrapCore";
  * src/server/session.ts's DB-validated session - no more mock identity.
  */
 export interface AdminSession {
+  sessionId: string;
   userId: string;
   name: string;
   email: string;
@@ -19,6 +20,7 @@ export async function getAdminSession(): Promise<AdminSession | null> {
   const session = await getSession();
   if (!session) return null;
   return {
+    sessionId: session.sessionId,
     userId: session.userId,
     name: session.name ?? session.email,
     email: session.email,

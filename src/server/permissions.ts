@@ -30,8 +30,21 @@ export async function canUserAccessProperty(userId: string, propertyId: string):
     return false;
   }
 
+  return canOwnerAccessProperty(ownerUser.ownerId, propertyId);
+}
+
+/**
+ * The pure ownerId-keyed rule underneath canUserAccessProperty - and the
+ * one every Owner-Center-facing read should use directly (via
+ * src/server/ownerContext.ts#getEffectiveOwnerContext), since it applies
+ * identically to a real Owner login and an admin "Als Owner ansehen"
+ * preview. Deliberately has no admin bypass: unlike canUserAccessProperty
+ * above (an admin-side convenience for reads that are allowed to see
+ * everything), this only ever reflects OwnerPropertyAccess.
+ */
+export async function canOwnerAccessProperty(ownerId: string, propertyId: string): Promise<boolean> {
   const access = await prisma.ownerPropertyAccess.findUnique({
-    where: { ownerId_propertyId: { ownerId: ownerUser.ownerId, propertyId } },
+    where: { ownerId_propertyId: { ownerId, propertyId } },
   });
   return access?.status === "active";
 }

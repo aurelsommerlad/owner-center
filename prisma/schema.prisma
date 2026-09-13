@@ -55,6 +55,8 @@ model Session {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
+  impersonations AdminImpersonation[]
+
   @@index([userId])
 }
 
@@ -74,6 +76,34 @@ model Owner {
   access             OwnerPropertyAccess[]
   statementDocuments StatementDocument[]
   generalDocuments   GeneralDocument[]
+  impersonations     AdminImpersonation[]
+}
+
+/// Records one "Als Owner ansehen" admin preview: an admin (still
+/// authenticated as themselves - see `sessionId`, always their own real
+/// Session row, never an OwnerUser login) temporarily views the Owner
+/// Center as `ownerId`. `endedAt` null means the preview is currently
+/// active for that session; ending it sets `endedAt` rather than deleting
+/// the row, so this doubles as the lightweight audit trail requested for
+/// this step (adminUserId/ownerId/startedAt/endedAt) - not a full audit
+/// system, just enough to know who previewed what and when.
+///
+/// `adminUserId` is deliberately a plain scalar, not a `User` relation:
+/// this stays an audit-only reference and shouldn't widen User's relation
+/// surface. See src/server/ownerContext.ts#getEffectiveOwnerContext, the
+/// only place that reads this table to decide "which owner's data may this
+/// request see".
+model AdminImpersonation {
+  id          String    @id @default(cuid())
+  sessionId   String
+  session     Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  adminUserId String
+  ownerId     String
+  owner       Owner     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+
+  @@index([sessionId, endedAt])
 }
 
 /// An individual person with Owner Center access, belonging to exactly one

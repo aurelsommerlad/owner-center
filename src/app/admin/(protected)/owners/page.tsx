@@ -8,6 +8,7 @@ import { AdminStatusBadge, accountStatusBadge } from "@/components/admin/AdminSt
 import { AdminOwnerFilters } from "@/components/admin/AdminOwnerFilters";
 import { AddOwnerButton } from "@/components/admin/AddOwnerButton";
 import { OwnerStatusToggle } from "@/components/admin/OwnerStatusToggle";
+import { ViewAsOwnerButton } from "@/components/admin/ViewAsOwnerButton";
 import { formatShortDate } from "@/lib/format";
 import type { AccountStatus, AdminOwner, AdminOwnerUser } from "@/types/admin";
 
@@ -94,6 +95,7 @@ export default async function AdminOwnersPage({
           >
             Ansehen
           </Link>
+          <ViewAsOwnerButton ownerId={row.owner.id} />
           <OwnerStatusToggle ownerId={row.owner.id} ownerName={row.owner.name} status={row.owner.status} />
         </div>
       ),

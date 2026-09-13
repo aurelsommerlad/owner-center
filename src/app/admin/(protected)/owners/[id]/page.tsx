@@ -6,6 +6,7 @@ import { getProperties } from "@/services/admin/propertyService";
 import { Card } from "@/components/ui/Card";
 import { AdminStatusBadge, accountStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { OwnerStatusToggle } from "@/components/admin/OwnerStatusToggle";
+import { ViewAsOwnerButton } from "@/components/admin/ViewAsOwnerButton";
 import { OwnerUserFormModal } from "@/components/admin/OwnerUserFormModal";
 import { OwnerUserStatusToggle } from "@/components/admin/OwnerUserStatusToggle";
 import { EditAccessButton } from "@/components/admin/EditAccessButton";
@@ -43,12 +44,18 @@ export default async function AdminOwnerDetailPage({ params }: { params: Promise
             <h1 className="text-2xl font-semibold text-ink">{owner.name}</h1>
             {owner.companyName && <p className="mt-1 text-sm text-ink-soft">{owner.companyName}</p>}
           </div>
-          <OwnerStatusToggle
-            ownerId={owner.id}
-            ownerName={owner.name}
-            status={owner.status}
-            className="rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-colors hover:border-ink hover:text-ink"
-          />
+          <div className="flex items-center gap-2">
+            <ViewAsOwnerButton
+              ownerId={owner.id}
+              className="rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-colors hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <OwnerStatusToggle
+              ownerId={owner.id}
+              ownerName={owner.name}
+              status={owner.status}
+              className="rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-colors hover:border-ink hover:text-ink"
+            />
+          </div>
         </div>
       </div>
 

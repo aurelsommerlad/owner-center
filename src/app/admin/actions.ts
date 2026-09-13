@@ -1,5 +1,6 @@
 "use server";
 
+import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { AccountStatus } from "@/types/admin";
 import { requireAdminRole } from "@/lib/adminAuth";
@@ -11,6 +12,7 @@ import { testApaleoConnection, type ApaleoConnectionStatus } from "@/server/inte
 import { getApaleoProperty } from "@/server/integrations/apaleo/propertyService";
 import { getUnitsForProperty } from "@/server/integrations/apaleo/unitService";
 import { describeApaleoError } from "@/server/integrations/apaleo/errors";
+import { prisma } from "@/server/db";
 
 /**
  * Server Actions for the owner/user/property admin flows, backed by the
@@ -257,4 +259,61 @@ export async function checkApaleoMappingAction(propertyId: string): Promise<Apal
   } catch (err) {
     return { ok: false, message: describeApaleoError(err) };
   }
+}
+
+/**
+ * "Als Owner ansehen": starts a secure admin preview of the Owner Center as
+ * `ownerId`, WITHOUT logging the admin out of their own account or logging
+ * them into any OwnerUser - the admin's own Session row (and its cookie)
+ * stays exactly as it was. What changes is a separate AdminImpersonation
+ * row, keyed to that same sessionId, which src/server/ownerContext.ts#
+ * getEffectiveOwnerContext reads on every subsequent Owner Center request
+ * to resolve "which owner's data may this request see". requireAdminRole()
+ * is the actual security boundary here (same as every other action in this
+ * file): a non-admin caller - including a plain owner trying to invoke this
+ * action reference directly - is redirected/404'd before anything else
+ * runs, so an owner can never start a preview or pick an arbitrary ownerId
+ * via a manipulated request.
+ */
+export async function startImpersonationAction(ownerId: string): Promise<void> {
+  const admin = await requireAdminRole();
+
+  const owner = await prisma.owner.findUnique({ where: { id: ownerId } });
+  if (!owner) notFound();
+
+  // Defensive: never leave more than one active preview row per session -
+  // if the admin was already previewing someone else, close that one out.
+  await prisma.adminImpersonation.updateMany({
+    where: { sessionId: admin.sessionId, endedAt: null },
+    data: { endedAt: new Date() },
+  });
+  await prisma.adminImpersonation.create({
+    data: { sessionId: admin.sessionId, adminUserId: admin.userId, ownerId },
+  });
+
+  redirect("/");
+}
+
+/**
+ * Ends the current admin's active "Als Owner ansehen" preview (if any) and
+ * returns to the Owner's admin detail page - the admin was never logged
+ * out, so no re-login is needed. Also requireAdminRole()-gated, though in
+ * practice only an admin session can ever have an active preview to end.
+ */
+export async function endImpersonationAction(): Promise<void> {
+  const admin = await requireAdminRole();
+
+  const active = await prisma.adminImpersonation.findFirst({
+    where: { sessionId: admin.sessionId, endedAt: null },
+    orderBy: { startedAt: "desc" },
+  });
+
+  if (active) {
+    await prisma.adminImpersonation.update({
+      where: { id: active.id },
+      data: { endedAt: new Date() },
+    });
+  }
+
+  redirect(active ? `/admin/owners/${active.ownerId}` : "/admin/owners");
 }
