@@ -2,20 +2,21 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { ArrowRightIcon } from "@/components/ui/icons";
 import { formatDayMonth } from "@/lib/dates";
-import { MOCK_TODAY } from "@/lib/config";
 import type { ArrivalDepartureDay, ArrivalsDeparturesSummary } from "@/services/overviewService";
 
-function dayLabel(date: string): string {
-  return date === MOCK_TODAY ? "Heute" : formatDayMonth(date);
+function dayLabel(date: string, today: string): string {
+  return date === today ? "Heute" : formatDayMonth(date);
 }
 
 function DayList({
   days,
+  today,
   singular,
   plural,
   emptyLabel,
 }: {
   days: ArrivalDepartureDay[];
+  today: string;
   singular: string;
   plural: string;
   emptyLabel: string;
@@ -27,7 +28,7 @@ function DayList({
     <ul className="flex flex-col gap-1.5">
       {days.map((day) => (
         <li key={day.date} className="flex items-center justify-between gap-3 text-xs">
-          <span className="text-ink-soft">{dayLabel(day.date)}</span>
+          <span className="text-ink-soft">{dayLabel(day.date, today)}</span>
           <span className="text-ink">
             {day.units} {day.units === 1 ? singular : plural}
           </span>
@@ -40,9 +41,11 @@ function DayList({
 export function ArrivalsDeparturesCard({
   summary,
   propertyId,
+  today,
 }: {
   summary: ArrivalsDeparturesSummary;
   propertyId: string;
+  today: string;
 }) {
   return (
     <Card className="p-5 shadow-none sm:p-6">
@@ -65,12 +68,14 @@ export function ArrivalsDeparturesCard({
       <div className="mt-4 grid grid-cols-2 gap-4 border-t border-line pt-3.5">
         <DayList
           days={summary.arrivalDays}
+          today={today}
           singular="Anreise"
           plural="Anreisen"
           emptyLabel="Keine Anreisen"
         />
         <DayList
           days={summary.departureDays}
+          today={today}
           singular="Abreise"
           plural="Abreisen"
           emptyLabel="Keine Abreisen"

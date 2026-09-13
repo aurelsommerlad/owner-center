@@ -3,14 +3,15 @@ import { Card } from "@/components/ui/Card";
 import { ArrowRightIcon } from "@/components/ui/icons";
 import { OccupancyTimeline, TimelineLegend } from "@/components/calendar/OccupancyTimeline";
 import type { OccupancyPreview } from "@/services/overviewService";
-import { MOCK_TODAY } from "@/lib/config";
 
 export function OccupancyPreviewCard({
   preview,
   propertyId,
+  today,
 }: {
   preview: OccupancyPreview;
   propertyId: string;
+  today: string;
 }) {
   return (
     <Card className="p-5 shadow-none sm:p-6">
@@ -29,7 +30,7 @@ export function OccupancyPreviewCard({
         <OccupancyTimeline
           days={preview.days}
           rows={preview.rows}
-          today={MOCK_TODAY}
+          today={today}
           cellWidth={40}
           rowHeight={42}
           unitColumnWidth={112}

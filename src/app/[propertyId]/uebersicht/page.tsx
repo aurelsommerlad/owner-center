@@ -21,7 +21,9 @@ import { RecentStatements } from "@/components/overview/RecentStatements";
 import { DocumentsPreview } from "@/components/overview/DocumentsPreview";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
 import { monthLabel, parseIsoDate } from "@/lib/dates";
-import { MOCK_TODAY } from "@/lib/config";
+import { ownerPortalToday } from "@/server/services/ownerPortal/today";
+import { hadOwnerPortalDataError } from "@/server/services/ownerPortal/errorState";
+import { DataUnavailableNotice } from "@/components/ui/DataUnavailableNotice";
 
 export default async function UebersichtPage({
   params,
@@ -37,7 +39,7 @@ export default async function UebersichtPage({
   const property = await getProperty(propertyId);
   if (!property) notFound();
 
-  const todayDate = parseIsoDate(MOCK_TODAY);
+  const todayDate = parseIsoDate(ownerPortalToday());
   const periodLabel =
     period === "year"
       ? `Jahr ${todayDate.getUTCFullYear()}`
@@ -53,10 +55,12 @@ export default async function UebersichtPage({
       getLatestStatements(propertyId, 1),
       getDocumentsForProperty(propertyId),
     ]);
+  const dataError = hadOwnerPortalDataError();
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
       <HeroSection property={property} periodLabel={periodLabel} />
+      {dataError && <DataUnavailableNotice />}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PeriodFilter propertyId={propertyId} period={period} />
@@ -113,11 +117,11 @@ export default async function UebersichtPage({
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <OccupancyPreviewCard preview={preview} propertyId={propertyId} />
+          <OccupancyPreviewCard preview={preview} propertyId={propertyId} today={ownerPortalToday()} />
         </div>
         <div className="flex flex-col gap-5">
           <TodayStatusCard status={todayStatus} />
-          <ArrivalsDeparturesCard summary={arrivalsDepartures} propertyId={propertyId} />
+          <ArrivalsDeparturesCard summary={arrivalsDepartures} propertyId={propertyId} today={ownerPortalToday()} />
         </div>
       </div>
 

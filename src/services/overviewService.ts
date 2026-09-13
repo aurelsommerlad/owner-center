@@ -1,11 +1,15 @@
 import type { PropertyOverviewKpis, ReservationStatus, Reservation, Unit } from "@/types";
 import { addDays, daysInMonth, isoDate, parseIsoDate } from "@/lib/dates";
-import { MOCK_TODAY } from "@/lib/config";
+import { ownerPortalToday } from "@/server/services/ownerPortal/today";
 import {
   arrivalsInRange,
-  averageStayNights,
+  calculateAverageStay,
+  calculateBookingCount,
+  calculateBookingRevenue,
+  calculateOccupancy,
   departuresInRange,
-  occupancyPct,
+  nightsOfStatusInRange,
+  reservationsInRange,
   statusOnDate,
   unitsWithStatusOnDate,
   type DateRange,
@@ -17,10 +21,10 @@ const PREVIEW_WINDOW_DAYS = 14;
 
 export type OverviewPeriod = "month" | "year";
 
-function rangeForPeriod(period: OverviewPeriod): DateRange {
-  const today = parseIsoDate(MOCK_TODAY);
-  const year = today.getUTCFullYear();
-  const month = today.getUTCMonth() + 1;
+function rangeForPeriod(period: OverviewPeriod, today: string, yearOffset = 0): DateRange {
+  const todayDate = parseIsoDate(today);
+  const year = todayDate.getUTCFullYear() + yearOffset;
+  const month = todayDate.getUTCMonth() + 1;
 
   if (period === "year") {
     return { start: isoDate(year, 1, 1), endExclusive: isoDate(year + 1, 1, 1) };
@@ -30,32 +34,51 @@ function rangeForPeriod(period: OverviewPeriod): DateRange {
   return { start, endExclusive: addDays(start, daysInMonth(year, month)) };
 }
 
+interface PeriodKpis {
+  occupancyPct: number;
+  revenue: number;
+  bookingsCount: number;
+  avgStayNights: number;
+}
+
+async function kpisForRange(propertyId: string, units: Unit[], range: DateRange): Promise<PeriodKpis> {
+  const reservations = await getReservationsForProperty(propertyId, range);
+  const scoped = reservationsInRange(reservations, propertyId, range);
+
+  const occupiedNights = nightsOfStatusInRange(reservations, range, ["confirmed"]);
+  const availableNights = units.length * (parseIsoDate(range.endExclusive).getTime() - parseIsoDate(range.start).getTime()) / 86_400_000;
+
+  return {
+    occupancyPct: calculateOccupancy(occupiedNights, availableNights),
+    revenue: calculateBookingRevenue(scoped),
+    bookingsCount: calculateBookingCount(scoped),
+    avgStayNights: calculateAverageStay(scoped),
+  };
+}
+
 export async function getPropertyOverviewKpis(
   propertyId: string,
   period: OverviewPeriod = "month"
 ): Promise<PropertyOverviewKpis> {
+  const today = ownerPortalToday();
   const units = await getUnitsForProperty(propertyId);
-  const range = rangeForPeriod(period);
-  const reservations = await getReservationsForProperty(propertyId, range);
-  const bookings = arrivalsInRange(reservations, propertyId, range).filter(
-    (reservation) => reservation.status === "confirmed"
-  );
+  const range = rangeForPeriod(period, today);
+  const previousYearRange = rangeForPeriod(period, today, -1);
 
-  const occupancy = occupancyPct(reservations, units, range);
-  const revenue = reservations
-    .filter((reservation) => reservation.status === "confirmed")
-    .reduce((sum, reservation) => sum + reservation.totalAmount, 0);
-  const avgStay = averageStayNights(reservations);
+  const [current, previous] = await Promise.all([
+    kpisForRange(propertyId, units, range),
+    kpisForRange(propertyId, units, previousYearRange),
+  ]);
 
   return {
-    occupancyPct: occupancy,
-    occupancyPctPreviousYear: Math.max(occupancy - 6, 0),
-    revenue,
-    revenuePreviousYear: revenue / 1.12,
-    bookingsCount: bookings.length,
-    bookingsCountPreviousYear: Math.max(bookings.length - 2, 0),
-    avgStayNights: avgStay,
-    avgStayNightsPreviousYear: Math.max(avgStay - 0.4, 0),
+    occupancyPct: current.occupancyPct,
+    occupancyPctPreviousYear: previous.occupancyPct,
+    revenue: current.revenue,
+    revenuePreviousYear: previous.revenue,
+    bookingsCount: current.bookingsCount,
+    bookingsCountPreviousYear: previous.bookingsCount,
+    avgStayNights: current.avgStayNights,
+    avgStayNightsPreviousYear: previous.avgStayNights,
   };
 }
 
@@ -75,10 +98,11 @@ export interface OccupancyPreview {
 }
 
 export async function getOccupancyPreview(propertyId: string): Promise<OccupancyPreview> {
+  const today = ownerPortalToday();
   const units = await getUnitsForProperty(propertyId);
   const range: DateRange = {
-    start: MOCK_TODAY,
-    endExclusive: addDays(MOCK_TODAY, PREVIEW_WINDOW_DAYS),
+    start: today,
+    endExclusive: addDays(today, PREVIEW_WINDOW_DAYS),
   };
   const reservations = await getReservationsForProperty(propertyId, range);
 
@@ -116,9 +140,10 @@ export interface ArrivalsDeparturesSummary {
 export async function getArrivalsDeparturesSummary(
   propertyId: string
 ): Promise<ArrivalsDeparturesSummary> {
+  const today = ownerPortalToday();
   const range: DateRange = {
-    start: MOCK_TODAY,
-    endExclusive: addDays(MOCK_TODAY, ARRIVALS_DEPARTURES_WINDOW_DAYS),
+    start: today,
+    endExclusive: addDays(today, ARRIVALS_DEPARTURES_WINDOW_DAYS),
   };
   const reservations = await getReservationsForProperty(propertyId, range);
   const arrivals = arrivalsInRange(reservations, propertyId, range);
@@ -156,13 +181,14 @@ export interface TodayStatus {
 }
 
 export async function getTodayStatus(propertyId: string): Promise<TodayStatus> {
+  const today = ownerPortalToday();
   const units = await getUnitsForProperty(propertyId);
-  const range: DateRange = { start: MOCK_TODAY, endExclusive: addDays(MOCK_TODAY, 1) };
+  const range: DateRange = { start: today, endExclusive: addDays(today, 1) };
   const reservations = await getReservationsForProperty(propertyId, range);
 
   return {
-    date: MOCK_TODAY,
-    occupiedUnits: unitsWithStatusOnDate(reservations, units, MOCK_TODAY).length,
+    date: today,
+    occupiedUnits: unitsWithStatusOnDate(reservations, units, today).length,
     totalUnits: units.length,
     arrivals: arrivalsInRange(reservations, propertyId, range).length,
     departures: departuresInRange(reservations, propertyId, range).length,
@@ -180,13 +206,14 @@ export interface UnitStatusOverview {
 }
 
 export async function getUnitStatusOverview(propertyId: string): Promise<UnitStatusOverview> {
+  const today = ownerPortalToday();
   const units = await getUnitsForProperty(propertyId);
-  const range: DateRange = { start: MOCK_TODAY, endExclusive: addDays(MOCK_TODAY, 1) };
+  const range: DateRange = { start: today, endExclusive: addDays(today, 1) };
   const reservations = await getReservationsForProperty(propertyId, range);
 
   const entries: UnitStatusEntry[] = units.map((unit) => ({
     unit,
-    status: statusOnDate(reservations, unit.id, MOCK_TODAY),
+    status: statusOnDate(reservations, unit.id, today),
   }));
 
   const counts = entries.reduce(

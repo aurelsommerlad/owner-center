@@ -59,10 +59,20 @@ export interface Reservation {
   /** ISO date (yyyy-MM-dd), exclusive (checkout morning). */
   checkOut: string;
   status: ReservationStatus;
-  totalAmount: number;
+  /**
+   * Accommodation/overnight revenue only - never Kurtaxe (city tax), never
+   * extras/services, never parking. On live apaleo data this is the sum of
+   * each stay night's `timeSlices[].baseAmount.grossAmount` (see
+   * server/integrations/apaleo/reservationService.ts) - the one apaleo
+   * field that reliably isolates accommodation charges from everything
+   * else on a folio.
+   */
+  accommodationAmount: number;
   currency: string;
   /** Optional occupancy summary for the calendar tooltip, e.g. "2 Erwachsene · 1 Kind". No other guest data is ever shown. */
   occupancy?: string;
+  /** Sales channel this booking came through, when the data source can classify it (see server/services/ownerPortal/channels.ts). Never present on a "blocked"/maintenance entry. */
+  channel?: BookingSourceId;
 }
 
 export type StatementStatus = "ready" | "processing" | "paid";
@@ -235,6 +245,8 @@ export interface PropertyStatistics {
   monthlyRevenue: MonthlyRevenuePoint[];
   monthlyOccupancy: MonthlyOccupancyPoint[];
   unitStats: UnitStatistics[];
+  /** The date range unitStats above actually covers, e.g. "September 2026" - may differ from `periodLabel` (the mock fallback always reports the current month regardless of the page's period filter; see services/statisticsService.ts). */
+  unitStatsPeriodLabel: string;
   /** Sums exactly to `revenue.value` / `bookingsCount.value` for the period. */
   bookingSources: BookingSourceBreakdown[];
   /** Illustrative mock figures until real booking-lead-time/cancellation data exists. */

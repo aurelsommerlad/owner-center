@@ -3,8 +3,10 @@ import { getProperty } from "@/services/propertyService";
 import { getUnitsForProperty } from "@/services/unitService";
 import { getCalendarData } from "@/services/calendarService";
 import type { CalendarViewType } from "@/lib/calendarView";
-import { MOCK_TODAY } from "@/lib/config";
+import { ownerPortalToday } from "@/server/services/ownerPortal/today";
+import { hadOwnerPortalDataError } from "@/server/services/ownerPortal/errorState";
 import { Card } from "@/components/ui/Card";
+import { DataUnavailableNotice } from "@/components/ui/DataUnavailableNotice";
 import { CalendarControls } from "@/components/calendar/CalendarControls";
 import { CalendarStatsBar } from "@/components/calendar/CalendarStatsBar";
 import { OccupancyTimeline, TimelineLegend } from "@/components/calendar/OccupancyTimeline";
@@ -27,13 +29,15 @@ export default async function KalenderPage({
   const view: CalendarViewType = VALID_VIEWS.includes(query.view as CalendarViewType)
     ? (query.view as CalendarViewType)
     : "month";
-  const anchor = query.anchor ?? MOCK_TODAY;
+  const today = ownerPortalToday();
+  const anchor = query.anchor ?? today;
   const selectedUnitId = query.unit;
 
   const [units, calendar] = await Promise.all([
     getUnitsForProperty(propertyId),
     getCalendarData(propertyId, view, anchor, selectedUnitId),
   ]);
+  const dataError = hadOwnerPortalDataError();
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -43,6 +47,8 @@ export default async function KalenderPage({
           Belegungsübersicht für {property.name} · {property.location.city}
         </p>
       </div>
+
+      {dataError && <DataUnavailableNotice />}
 
       <CalendarStatsBar stats={calendar.stats} />
 
@@ -54,10 +60,11 @@ export default async function KalenderPage({
           label={calendar.label}
           units={units}
           selectedUnitId={selectedUnitId}
+          today={today}
         />
 
         <div className="mt-5">
-          <OccupancyTimeline days={calendar.days} rows={calendar.rows} today={MOCK_TODAY} />
+          <OccupancyTimeline days={calendar.days} rows={calendar.rows} today={today} />
         </div>
 
         <div className="mt-5 border-t border-line pt-4">

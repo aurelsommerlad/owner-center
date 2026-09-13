@@ -99,7 +99,7 @@ export function generateMockReservations(
 
       const weekendUplift = isWeekend(cursor) || isWeekend(addDays(checkOut, -1)) ? 1.08 : 1;
       const rate = Math.round(baseRate * weekendUplift);
-      const totalAmount = status === "confirmed" ? rate * nights : 0;
+      const accommodationAmount = status === "confirmed" ? rate * nights : 0;
 
       reservations.push({
         id: `${unit.id}-res-${bookingSeq}`,
@@ -109,7 +109,7 @@ export function generateMockReservations(
         checkIn: cursor,
         checkOut,
         status,
-        totalAmount,
+        accommodationAmount,
         currency: "EUR",
         occupancy: status === "confirmed" ? pickOccupancy(random, unit.maxOccupancy) : undefined,
       });

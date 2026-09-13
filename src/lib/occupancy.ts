@@ -10,6 +10,15 @@ export interface DateRange {
 
 const UNAVAILABLE_STATUSES: ReservationStatus[] = ["confirmed", "blocked", "owner-use"];
 
+/**
+ * Reservations whose stay OVERLAPS `range` (not "arrives within range" and
+ * not "was booked within range"). This is the app-wide definition of
+ * "Buchungen im Zeitraum" for performance/stay KPIs (Belegung, Ø
+ * Aufenthaltsdauer, Buchungsumsatz) - a stay that starts in August and ends
+ * in September counts toward September's occupancy for the nights it
+ * actually covers there. `arrivalsInRange`/`departuresInRange` below are
+ * the separate, narrower definitions used only for "An-/Abreisen" widgets.
+ */
 export function reservationsInRange(
   reservations: Reservation[],
   propertyId: string,
@@ -142,4 +151,45 @@ export function averageStayNights(reservations: Reservation[]): number {
     0
   );
   return Math.round((totalNights / guestStays.length) * 10) / 10;
+}
+
+/**
+ * Central, named KPI formulas - Dashboard (Übersicht) and Statistik call
+ * these directly instead of recomputing inline, so the two pages can never
+ * silently drift apart. Every one of them is a thin, pure wrapper over the
+ * range/status-filtering helpers above; the wrappers exist so the formula
+ * itself (not just its inputs) has one definition.
+ */
+
+/** Belegung = belegte Unit-Nächte / verfügbare Unit-Nächte, as a percentage. */
+export function calculateOccupancy(occupiedUnitNights: number, availableUnitNights: number): number {
+  if (availableUnitNights <= 0) return 0;
+  return Math.round((occupiedUnitNights / availableUnitNights) * 1000) / 10;
+}
+
+/** Buchungsumsatz = sum of accommodation-only revenue across confirmed reservations - never city tax/extras (see Reservation.accommodationAmount). */
+export function calculateBookingRevenue(reservations: Pick<Reservation, "status" | "accommodationAmount">[]): number {
+  return reservations
+    .filter((reservation) => reservation.status === "confirmed")
+    .reduce((sum, reservation) => sum + reservation.accommodationAmount, 0);
+}
+
+/** Buchungen = count of confirmed reservations whose stay overlaps the period (see reservationsInRange above for the overlap definition). */
+export function calculateBookingCount(reservations: Pick<Reservation, "status">[]): number {
+  return reservations.filter((reservation) => reservation.status === "confirmed").length;
+}
+
+/** Ø Aufenthaltsdauer - alias kept alongside averageStayNights so every KPI has a calculate*-named entry point. */
+export function calculateAverageStay(reservations: Reservation[]): number {
+  return averageStayNights(reservations);
+}
+
+/** ADR = Accommodation Revenue / belegte Unit-Nächte. */
+export function calculateADR(accommodationRevenue: number, occupiedUnitNights: number): number {
+  return occupiedUnitNights > 0 ? accommodationRevenue / occupiedUnitNights : 0;
+}
+
+/** RevPAR = Accommodation Revenue / verfügbare Unit-Nächte - mathematically ADR × Belegung, always consistent since both are derived from the same occupied/available unit-night counts. */
+export function calculateRevPAR(accommodationRevenue: number, availableUnitNights: number): number {
+  return availableUnitNights > 0 ? accommodationRevenue / availableUnitNights : 0;
 }

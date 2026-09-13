@@ -1,6 +1,6 @@
 import type { Reservation, Unit } from "@/types";
 import { addDays } from "@/lib/dates";
-import { MOCK_TODAY } from "@/lib/config";
+import { ownerPortalToday } from "@/server/services/ownerPortal/today";
 import { getCalendarWindow, type CalendarViewType, type CalendarWindow } from "@/lib/calendarView";
 import {
   arrivalsInRange,
@@ -66,11 +66,12 @@ export async function getCalendarData(
     reservations: scopedReservations.filter((reservation) => reservation.unitId === unit.id),
   }));
 
-  const next7Days: DateRange = { start: MOCK_TODAY, endExclusive: addDays(MOCK_TODAY, 7) };
+  const today = ownerPortalToday();
+  const next7Days: DateRange = { start: today, endExclusive: addDays(today, 7) };
 
   const stats: CalendarStats = {
     occupancyPct: occupancyPct(scopedReservations, units, range),
-    unitsOccupiedToday: unitsWithStatusOnDate(scopedReservations, units, MOCK_TODAY).length,
+    unitsOccupiedToday: unitsWithStatusOnDate(scopedReservations, units, today).length,
     unitsTotal: units.length,
     arrivalsNext7Days: arrivalsInRange(scopedReservations, propertyId, next7Days).length,
     departuresNext7Days: departuresInRange(scopedReservations, propertyId, next7Days).length,

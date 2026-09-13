@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import type { Unit } from "@/types";
-import { MOCK_TODAY } from "@/lib/config";
 import { shiftAnchor, type CalendarViewType } from "@/lib/calendarView";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
 
@@ -13,6 +12,7 @@ interface CalendarControlsProps {
   label: string;
   units: Unit[];
   selectedUnitId?: string;
+  today: string;
 }
 
 const VIEW_OPTIONS: Array<{ value: CalendarViewType; label: string }> = [
@@ -34,6 +34,7 @@ export function CalendarControls({
   label,
   units,
   selectedUnitId,
+  today,
 }: CalendarControlsProps) {
   const router = useRouter();
 
@@ -50,7 +51,7 @@ export function CalendarControls({
   }
 
   function goToToday() {
-    go(view, MOCK_TODAY);
+    go(view, today);
   }
 
   function onViewChange(nextView: CalendarViewType) {

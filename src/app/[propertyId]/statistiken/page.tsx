@@ -10,6 +10,8 @@ import { BookingSourceDonut } from "@/components/statistics/BookingSourceDonut";
 import { BookingSourceTable } from "@/components/statistics/BookingSourceTable";
 import { UnitPerformanceTable, type UnitPerformanceRow } from "@/components/statistics/UnitPerformanceTable";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
+import { hadOwnerPortalDataError } from "@/server/services/ownerPortal/errorState";
+import { DataUnavailableNotice } from "@/components/ui/DataUnavailableNotice";
 
 function percentDelta(value: number, previousYear: number): number | undefined {
   return previousYear > 0 ? ((value - previousYear) / previousYear) * 100 : undefined;
@@ -64,6 +66,7 @@ export default async function StatistikenPage({
   const [currentYear, previousYear] = years;
 
   const directSharePct = stats.bookingSources.find((source) => source.source === "direct")?.revenueShare ?? 0;
+  const dataError = hadOwnerPortalDataError();
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -71,6 +74,8 @@ export default async function StatistikenPage({
         <h1 className="font-display text-2xl italic text-ink sm:text-3xl">Performance</h1>
         <p className="mt-1 text-sm text-ink-soft">Entwicklung und Kennzahlen von {property.name}</p>
       </div>
+
+      {dataError && <DataUnavailableNotice />}
 
       <StatisticsPeriodFilter propertyId={propertyId} period={period} comparisonLabel={stats.comparisonLabel} />
 
@@ -194,7 +199,7 @@ export default async function StatistikenPage({
       <Card className="p-5 shadow-none sm:p-6">
         <div className="flex items-baseline justify-between gap-2">
           <h2 className="font-display text-lg italic text-ink">Performance je Einheit</h2>
-          <span className="text-[11px] text-ink-soft/70">September 2026</span>
+          <span className="text-[11px] text-ink-soft/70">{stats.unitStatsPeriodLabel}</span>
         </div>
         <div className="mt-4">
           <UnitPerformanceTable rows={unitRows} />

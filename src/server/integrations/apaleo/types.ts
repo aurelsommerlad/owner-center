@@ -51,3 +51,92 @@ export interface ApaleoUnitSummary {
   isActive: boolean;
   maxPersons?: number;
 }
+
+/**
+ * Raw shapes for `/booking/v1/reservations` (expand=timeSlices) and
+ * `/operations/v1/maintenances`, grounded against real apaleo test data.
+ * Deliberately omits every guest/PII field that the raw payload actually
+ * carries (`primaryGuest`, `booker`, `paymentAccount`, ...) - this file only
+ * declares the fields this app is ever allowed to read.
+ */
+
+export type RawApaleoReservationStatus = "Confirmed" | "InHouse" | "CheckedOut" | "Canceled" | "NoShow";
+
+export interface RawApaleoMoney {
+  amount: number;
+  currency: string;
+}
+
+/** `baseAmount` on a timeSlice - the accommodation-only (no city tax, no extras) per-night charge. */
+export interface RawApaleoBaseAmount {
+  grossAmount: number;
+  netAmount: number;
+  currency: string;
+}
+
+export interface RawApaleoTimeSlice {
+  serviceDate: string;
+  unit?: { id: string };
+  baseAmount?: RawApaleoBaseAmount;
+}
+
+export interface RawApaleoReservation {
+  id: string;
+  status: RawApaleoReservationStatus;
+  arrival: string;
+  departure: string;
+  adults?: number;
+  children?: number;
+  channelCode?: string;
+  source?: string;
+  hasCityTax?: boolean;
+  unit?: { id: string };
+  timeSlices?: RawApaleoTimeSlice[];
+}
+
+export interface RawApaleoReservationListResponse {
+  reservations: RawApaleoReservation[];
+  count: number;
+}
+
+/** Normalized, already PII-free reservation shape this app's server layer works with. */
+export interface ApaleoReservationSummary {
+  id: string;
+  status: RawApaleoReservationStatus;
+  unitId: string;
+  /** ISO date (yyyy-MM-dd), inclusive - the property-local calendar date apaleo returns. */
+  arrivalDate: string;
+  /** ISO date (yyyy-MM-dd), exclusive. */
+  departureDate: string;
+  adults: number | null;
+  children: number | null;
+  channelCode: string | null;
+  source: string | null;
+  /** Sum of every timeSlice's `baseAmount.grossAmount` - accommodation only, never city tax/extras. `null` when apaleo returned no timeSlices to sum (never guessed from another field). */
+  accommodationGrossAmount: number | null;
+  currency: string;
+}
+
+export type RawApaleoMaintenanceType = "OutOfService" | "OutOfOrder" | "OutOfInventory";
+
+export interface RawApaleoMaintenance {
+  id: string;
+  type: RawApaleoMaintenanceType;
+  from: string;
+  to: string;
+  unit?: { id: string };
+}
+
+export interface RawApaleoMaintenanceListResponse {
+  maintenances: RawApaleoMaintenance[];
+  count: number;
+}
+
+export interface ApaleoMaintenanceSummary {
+  id: string;
+  unitId: string;
+  /** ISO date (yyyy-MM-dd), inclusive. */
+  fromDate: string;
+  /** ISO date (yyyy-MM-dd), exclusive. */
+  toDate: string;
+}
