@@ -196,6 +196,16 @@ export function MoonIcon(props: IconProps) {
   );
 }
 
+export function PlugIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 3v5M15 3v5" />
+      <path d="M6.5 8h11a1 1 0 0 1 1 1v3a5.5 5.5 0 0 1-5.5 5.5h-2A5.5 5.5 0 0 1 5.5 12V9a1 1 0 0 1 1-1Z" />
+      <path d="M12 17.5V21" />
+    </svg>
+  );
+}
+
 export function MapPinIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
