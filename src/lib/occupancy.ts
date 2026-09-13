@@ -184,6 +184,28 @@ export function calculateAverageStay(reservations: Reservation[]): number {
   return averageStayNights(reservations);
 }
 
+export type StayTimingStatus = "past" | "in-house" | "upcoming";
+
+/**
+ * Where a *confirmed* reservation's stay sits relative to `today` - the
+ * single source of truth for the calendar's "Abgereist"/"Im Haus"/
+ * "Erwartet" bar coloring (see components/calendar/OccupancyTimeline.tsx),
+ * so every calendar view (Monat/14 Tage/Woche, and the Übersicht's embedded
+ * 14-day preview - all the same component) applies identically without
+ * reimplementing the rule. Based purely on `checkIn`/`checkOut` vs `today`;
+ * never on guest name, booking status, or channel.
+ *
+ * A reservation is "in-house" while `checkIn <= today < checkOut`. On the
+ * departure day itself (`checkOut === today` - checkout is exclusive, so
+ * this is the morning the guest leaves), it is no longer in-house; it
+ * falls to "past" together with every earlier departure, not to "upcoming".
+ */
+export function reservationTimingStatus(checkIn: string, checkOut: string, today: string): StayTimingStatus {
+  if (checkIn > today) return "upcoming";
+  if (checkOut > today) return "in-house";
+  return "past";
+}
+
 /** ADR = Accommodation Revenue / belegte Unit-Nächte. */
 export function calculateADR(accommodationRevenue: number, occupiedUnitNights: number): number {
   return occupiedUnitNights > 0 ? accommodationRevenue / occupiedUnitNights : 0;

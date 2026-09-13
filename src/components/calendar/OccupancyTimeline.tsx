@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import type { Reservation, ReservationStatus, Unit } from "@/types";
 import { dayOfMonth, formatDateRange, nightsBetween, weekdayLabel } from "@/lib/dates";
+import { reservationTimingStatus, type StayTimingStatus } from "@/lib/occupancy";
 
 export interface TimelineDay {
   date: string;
@@ -31,18 +32,49 @@ const CALENDAR_STATUS_LABEL: Record<ReservationStatus | "free", string> = {
   free: "Frei",
 };
 
+/**
+ * A *confirmed* reservation's bar color/label depends on where its stay
+ * sits relative to today (see lib/occupancy.ts#reservationTimingStatus) -
+ * never on guest name or booking source. Text color is chosen per bucket
+ * so it stays readable against that bucket's background: dark ink on the
+ * pale "past" bar and the mid-toned "in-house" sage, cream on the darker
+ * "upcoming" greige (unchanged from before this change).
+ */
+const TIMING_STATUS_LABEL: Record<StayTimingStatus, string> = {
+  past: "Abgereist",
+  "in-house": "Im Haus",
+  upcoming: "Erwartet",
+};
+
+const TIMING_BAR_STYLE: Record<StayTimingStatus, CSSProperties> = {
+  // Warm greige, unchanged from the previous single confirmed-reservation color.
+  upcoming: { backgroundColor: "rgba(116, 115, 110, 0.55)" },
+  // UNIQUE PLACES sage/green, slightly transparent so it sits calmly in the grid.
+  "in-house": { backgroundColor: "rgba(135, 151, 126, 0.88)" },
+  // Same base grey as "upcoming", at very low opacity - a quiet, receded bar.
+  past: { backgroundColor: "rgba(116, 115, 110, 0.16)" },
+};
+
+const TIMING_TEXT_CLASS: Record<StayTimingStatus, string> = {
+  upcoming: "text-[#FAFAF7]",
+  "in-house": "text-ink",
+  past: "text-ink-soft",
+};
+
 const BLOCKED_HATCH_STYLE: CSSProperties = {
   backgroundColor: "#E4E0D8",
   backgroundImage:
     "repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(116,115,110,0.35) 3px, rgba(116,115,110,0.35) 4px)",
 };
 
-const RESERVATION_BAR_STYLE: CSSProperties = { backgroundColor: "rgba(116, 115, 110, 0.55)" };
-
-function barVisual(status: ReservationStatus): { className: string; style?: CSSProperties } {
-  if (status === "owner-use") return { className: "bg-[#52664E]" };
-  if (status === "blocked") return { className: "", style: BLOCKED_HATCH_STYLE };
-  return { className: "", style: RESERVATION_BAR_STYLE };
+function barVisual(
+  reservation: Reservation,
+  today: string
+): { className: string; style?: CSSProperties; textClassName: string } {
+  if (reservation.status === "owner-use") return { className: "bg-[#52664E]", textClassName: "text-[#FAFAF7]" };
+  if (reservation.status === "blocked") return { className: "", style: BLOCKED_HATCH_STYLE, textClassName: "text-ink-soft" };
+  const timing = reservationTimingStatus(reservation.checkIn, reservation.checkOut, today);
+  return { className: "", style: TIMING_BAR_STYLE[timing], textClassName: TIMING_TEXT_CLASS[timing] };
 }
 
 /** Bar label text - nights for a normal stay, the fixed status label for owner-use, nothing for blocked (kept quiet). */
@@ -165,10 +197,14 @@ export function OccupancyTimeline({
 
                 const label = barLabel(reservation, compactLabels);
                 const labelFits = label !== null && rawWidth > 56;
-                const visual = barVisual(reservation.status);
+                const visual = barVisual(reservation, today);
                 const nights = nightsBetween(reservation.checkIn, reservation.checkOut);
                 const tooltipHeading =
-                  reservation.status === "blocked" ? null : CALENDAR_STATUS_LABEL[reservation.status];
+                  reservation.status === "blocked"
+                    ? null
+                    : reservation.status === "confirmed"
+                      ? TIMING_STATUS_LABEL[reservationTimingStatus(reservation.checkIn, reservation.checkOut, today)]
+                      : CALENDAR_STATUS_LABEL[reservation.status];
                 // The grid's horizontal scroll container clips vertical overflow too (a CSS
                 // side effect of overflow-x: auto), so a tooltip popping up above the very
                 // first row would be cut off - render it below the bar there instead.
@@ -189,7 +225,9 @@ export function OccupancyTimeline({
                       style={visual.style}
                     >
                       {labelFits && (
-                        <span className="pointer-events-none flex h-full items-center justify-center truncate px-3 text-[11px] font-medium text-[#FAFAF7]">
+                        <span
+                          className={`pointer-events-none flex h-full items-center justify-center truncate px-3 text-[11px] font-medium ${visual.textClassName}`}
+                        >
                           {label}
                         </span>
                       )}
@@ -225,19 +263,21 @@ export function OccupancyTimeline({
 }
 
 export function TimelineLegend() {
-  const entries: Array<{ status: ReservationStatus | "free"; className: string; style?: CSSProperties }> = [
-    { status: "confirmed", className: "", style: RESERVATION_BAR_STYLE },
-    { status: "owner-use", className: "bg-[#52664E]" },
-    { status: "blocked", className: "", style: BLOCKED_HATCH_STYLE },
-    { status: "free", className: "border border-[#74736E]/30 bg-transparent" },
+  const entries: Array<{ key: string; label: string; className: string; style?: CSSProperties }> = [
+    { key: "in-house", label: TIMING_STATUS_LABEL["in-house"], className: "", style: TIMING_BAR_STYLE["in-house"] },
+    { key: "past", label: TIMING_STATUS_LABEL.past, className: "", style: TIMING_BAR_STYLE.past },
+    { key: "upcoming", label: TIMING_STATUS_LABEL.upcoming, className: "", style: TIMING_BAR_STYLE.upcoming },
+    { key: "owner-use", label: CALENDAR_STATUS_LABEL["owner-use"], className: "bg-[#52664E]" },
+    { key: "blocked", label: CALENDAR_STATUS_LABEL.blocked, className: "", style: BLOCKED_HATCH_STYLE },
+    { key: "free", label: CALENDAR_STATUS_LABEL.free, className: "border border-[#74736E]/30 bg-transparent" },
   ];
 
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-ink-soft">
       {entries.map((entry) => (
-        <span key={entry.status} className="flex items-center gap-1.5">
+        <span key={entry.key} className="flex items-center gap-1.5">
           <span className={`h-2.5 w-2.5 rounded-full ${entry.className}`} style={entry.style} />
-          {CALENDAR_STATUS_LABEL[entry.status]}
+          {entry.label}
         </span>
       ))}
     </div>
