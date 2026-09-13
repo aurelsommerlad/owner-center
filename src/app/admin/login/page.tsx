@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/server/session";
 import { prisma } from "@/server/db";
-import { adminAccountExists } from "@/server/adminBootstrapCore";
+import { adminAccountExistsForRouting } from "@/server/adminBootstrapCore";
 import { Card } from "@/components/ui/Card";
 import { AdminLoginForm } from "./AdminLoginForm";
 
@@ -21,7 +21,7 @@ export default async function AdminLoginPage() {
   // No admin exists yet - a login form here could never succeed, send the
   // visitor to the one-time setup instead (same redirect requireAdminRole()
   // applies to every other /admin/* route).
-  if (!(await adminAccountExists(prisma))) {
+  if (!(await adminAccountExistsForRouting(prisma))) {
     redirect("/admin/setup");
   }
 

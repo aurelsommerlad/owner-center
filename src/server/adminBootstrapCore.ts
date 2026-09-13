@@ -46,6 +46,31 @@ export async function adminAccountExists(prisma: PrismaClient): Promise<boolean>
   return count > 0;
 }
 
+/**
+ * Same check, but for the read-only routing decisions in
+ * src/lib/adminAuth.ts#requireAdminRole and the /admin/login and
+ * /admin/setup pages - places that run on EVERY /admin/* request,
+ * including for a visitor with no session at all. Those call sites had no
+ * error handling around the database call, so a misconfigured or
+ * unreachable DATABASE_URL (e.g. a Preview environment pointing at a
+ * different/unmigrated database than expected) made adminAccountExists()
+ * throw uncaught during the page render - never a controlled redirect.
+ *
+ * Fails toward "assume an admin exists": the resulting redirect only ever
+ * lands on /admin/login (never the one-time, unauthenticated /admin/setup
+ * form, and never any protected page) - the same safe, non-admin
+ * destination a real DB error should resolve to once connectivity is
+ * restored, instead of an unhandled exception.
+ */
+export async function adminAccountExistsForRouting(prisma: PrismaClient): Promise<boolean> {
+  try {
+    return await adminAccountExists(prisma);
+  } catch (error) {
+    console.error("[adminBootstrapCore] admin-exists check failed - failing safe to /admin/login:", error);
+    return true;
+  }
+}
+
 function isUniqueConstraintError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "P2002";
 }

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/server/session";
 import { prisma } from "@/server/db";
-import { adminAccountExists } from "@/server/adminBootstrapCore";
+import { adminAccountExistsForRouting } from "@/server/adminBootstrapCore";
 import { Card } from "@/components/ui/Card";
 import { AdminSetupForm } from "./AdminSetupForm";
 
@@ -22,7 +22,7 @@ import { AdminSetupForm } from "./AdminSetupForm";
  */
 export const dynamic = "force-dynamic";
 export default async function AdminSetupPage() {
-  if (await adminAccountExists(prisma)) {
+  if (await adminAccountExistsForRouting(prisma)) {
     const session = await getSession();
     redirect(session?.role === "admin" ? "/admin" : "/admin/login");
   }

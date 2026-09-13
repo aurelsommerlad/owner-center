@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import type { UserRole } from "@/types/admin";
 import { getSession } from "@/server/session";
 import { prisma } from "@/server/db";
-import { adminAccountExists } from "@/server/adminBootstrapCore";
+import { adminAccountExistsForRouting } from "@/server/adminBootstrapCore";
 
 /**
  * Real session data, shaped for the admin UI (AdminHeader etc.). Backed by
@@ -46,7 +46,7 @@ export async function getAdminSession(): Promise<AdminSession | null> {
 export async function requireAdminRole(): Promise<AdminSession> {
   const session = await getAdminSession();
   if (!session) {
-    const hasAdmin = await adminAccountExists(prisma);
+    const hasAdmin = await adminAccountExistsForRouting(prisma);
     redirect(hasAdmin ? "/admin/login" : "/admin/setup");
   }
   if (session.role !== "admin") notFound();
