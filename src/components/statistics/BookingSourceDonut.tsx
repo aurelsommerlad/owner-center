@@ -62,11 +62,11 @@ export function BookingSourceDonut({ sources }: { sources: BookingSourceBreakdow
                   r={RADIUS}
                   fill="none"
                   stroke={CHANNEL_COLORS[row.source]}
-                  strokeWidth={isActive ? STROKE + 6 : STROKE}
+                  strokeWidth={STROKE}
                   strokeDasharray={`${dash} ${gap}`}
                   strokeDashoffset={offset}
                   opacity={isDimmed ? 0.45 : 1}
-                  className="cursor-pointer transition-[stroke-width,opacity] duration-150"
+                  className="cursor-pointer transition-opacity duration-150"
                   onMouseEnter={() => setActiveIndex(index)}
                   onMouseLeave={() => setActiveIndex(null)}
                   onClick={() => setActiveIndex(isActive ? null : index)}
