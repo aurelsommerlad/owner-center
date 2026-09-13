@@ -29,10 +29,19 @@
  * (which a retry fixes); it's the signature of Neon's pooled connection
  * (PgBouncer in transaction mode), which doesn't preserve the session state
  * `pg_advisory_lock` needs - the documented fix is to run migrations over
- * the *direct* (non-pooled) connection instead. Neon's direct endpoint is
- * the same connection string with "-pooler" removed from the hostname, so
- * that's derived here rather than requiring a separate DIRECT_URL env var
- * on Vercel (an explicit DIRECT_URL, if one is ever set, still wins).
+ * the *direct* (non-pooled) connection instead.
+ *
+ * Deriving that direct connection by editing DATABASE_URL's hostname
+ * (stripping "-pooler") did NOT fix it in production - same P1002, so
+ * either that guess produced the wrong host for this project, or Vercel's
+ * Neon integration already provisions the real thing under its own name.
+ * It does: the integration sets PGHOST_UNPOOLED (confirmed present in this
+ * project's Vercel env vars) alongside DATABASE_URL_UNPOOLED /
+ * POSTGRES_URL_NON_POOLING, so those are used directly when present -
+ * ahead of the hostname-editing guess, which stays only as a last-resort
+ * fallback for setups that don't provide any of them. An explicit
+ * DIRECT_URL, if one is ever set, wins over all of it.
+ *
  * Prisma 7's defineConfig() datasource (prisma7.config.ts) has no
  * `directUrl` field to put this in the schema instead, so it's applied by
  * overriding DATABASE_URL for just this subprocess - the Next.js app
@@ -47,21 +56,41 @@ if (!process.env.DATABASE_URL) {
   process.exit(0);
 }
 
-function directConnectionUrl(databaseUrl) {
-  if (process.env.DIRECT_URL) return process.env.DIRECT_URL;
+function directConnectionUrl(databaseUrl, env) {
+  if (env.DIRECT_URL) return { url: env.DIRECT_URL, source: "DIRECT_URL" };
+  if (env.DATABASE_URL_UNPOOLED) return { url: env.DATABASE_URL_UNPOOLED, source: "DATABASE_URL_UNPOOLED" };
+  if (env.POSTGRES_URL_NON_POOLING) return { url: env.POSTGRES_URL_NON_POOLING, source: "POSTGRES_URL_NON_POOLING" };
+
+  // Vercel's Neon integration also exposes the unpooled connection as
+  // separate PG*-style parts rather than one URL - build one from those if
+  // we have everything needed for it.
+  const host = env.PGHOST_UNPOOLED;
+  const user = env.PGUSER ?? env.POSTGRES_USER;
+  const password = env.PGPASSWORD ?? env.POSTGRES_PASSWORD;
+  const database = env.PGDATABASE ?? env.POSTGRES_DATABASE;
+  if (host && user && password && database) {
+    const url = new URL(databaseUrl);
+    const builtUrl = new URL(`postgresql://${host}${url.port ? `:${url.port}` : ""}/${database}`);
+    builtUrl.username = encodeURIComponent(user);
+    builtUrl.password = encodeURIComponent(password);
+    builtUrl.search = url.search;
+    return { url: builtUrl.toString(), source: "PGHOST_UNPOOLED + PG*" };
+  }
+
   try {
     const url = new URL(databaseUrl);
-    if (!url.hostname.includes("-pooler.")) return databaseUrl;
+    if (!url.hostname.includes("-pooler.")) return { url: databaseUrl, source: null };
     url.hostname = url.hostname.replace("-pooler.", ".");
-    return url.toString();
+    return { url: url.toString(), source: "DATABASE_URL with \"-pooler\" stripped (fallback guess)" };
   } catch {
-    return databaseUrl;
+    return { url: databaseUrl, source: null };
   }
 }
 
-const migrateEnv = { ...process.env, DATABASE_URL: directConnectionUrl(process.env.DATABASE_URL) };
-if (migrateEnv.DATABASE_URL !== process.env.DATABASE_URL) {
-  console.log("[build] Using the non-pooled connection for `prisma migrate deploy` (advisory locks need a direct connection).");
+const { url: directUrl, source: directUrlSource } = directConnectionUrl(process.env.DATABASE_URL, process.env);
+const migrateEnv = { ...process.env, DATABASE_URL: directUrl };
+if (directUrlSource) {
+  console.log(`[build] Using the non-pooled connection (from ${directUrlSource}) for \`prisma migrate deploy\` - advisory locks need a direct connection.`);
 }
 
 const MAX_ATTEMPTS = 3;
