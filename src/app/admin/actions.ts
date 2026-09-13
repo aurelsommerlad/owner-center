@@ -412,3 +412,37 @@ export async function removeOwnerFromPropertyAction(propertyId: string, ownerId:
   revalidatePath("/admin/properties");
   return { ok: true, message: `Zugriff von ${owner.name} auf ${property.name} wurde entfernt.` };
 }
+
+/**
+ * "Internes Objekt anlegen" from the /admin/properties apaleo table: creates
+ * a brand-new internal Property already mapped to `apaleoPropertyId` - the
+ * id itself is never taken from the form (it comes from the apaleo row the
+ * admin clicked, passed as its own argument), so it can't be hand-edited
+ * into a typo or a value that wasn't actually offered. Same one-to-one
+ * uniqueness rule as setApaleoPropertyMappingAction, just checked against
+ * "any" existing property since this is always a brand-new row.
+ */
+export async function createPropertyFromApaleoAction(apaleoPropertyId: string, formData: FormData): Promise<ActionResult> {
+  await requireAdminRole();
+
+  const trimmedApaleoId = apaleoPropertyId.trim();
+  if (!trimmedApaleoId) return { ok: false, message: "Keine apaleo Property-ID angegeben." };
+
+  const name = readString(formData, "name");
+  const location = readString(formData, "location");
+  const status = readString(formData, "status") === "inactive" ? "inactive" : "active";
+  if (!name || !location) return { ok: false, message: "Bitte Objektname und Standort angeben." };
+
+  const conflict = await prisma.property.findFirst({ where: { apaleoPropertyId: trimmedApaleoId } });
+  if (conflict) {
+    return { ok: false, message: "Dieses apaleo-Objekt ist bereits einem anderen internen Objekt zugeordnet." };
+  }
+
+  const property = await createProperty({ name, location, status, apaleoPropertyId: trimmedApaleoId });
+
+  revalidatePath("/admin/properties");
+  revalidatePath(`/admin/properties/${property.id}`);
+  revalidatePath("/admin");
+  revalidatePath("/admin/integrations");
+  return { ok: true, message: `${name} wurde angelegt und mit apaleo verknüpft.` };
+}

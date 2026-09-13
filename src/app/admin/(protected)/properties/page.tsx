@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { AdminTable, type AdminTableColumn } from "@/components/admin/AdminTable";
 import { AdminStatusBadge, apaleoMappingStatusBadge, configStatusBadge, propertyStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { PropertyFormModal } from "@/components/admin/PropertyFormModal";
+import { ApaleoPropertyActionCell } from "@/components/admin/ApaleoPropertyActionCell";
 import { loadApaleoMappingOverview, mappingStatusFor } from "@/server/integrations/apaleo/mappingStatus";
 import type { AdminProperty } from "@/types/admin";
 import type { ApaleoPropertySummary } from "@/server/integrations/apaleo/types";
@@ -28,6 +29,9 @@ export default async function AdminPropertiesPage() {
   const internalByApaleoId = new Map(
     properties.filter((property) => property.apaleoPropertyId).map((property) => [property.apaleoPropertyId!, property])
   );
+  const unmappedProperties = properties
+    .filter((property) => !property.apaleoPropertyId)
+    .map((property) => ({ id: property.id, name: property.name, location: property.location }));
 
   const columns: AdminTableColumn<PropertyRow>[] = [
     {
@@ -97,6 +101,18 @@ export default async function AdminPropertiesPage() {
           </Link>
         );
       },
+    },
+    {
+      key: "action",
+      header: "Aktion",
+      render: (row) => (
+        <ApaleoPropertyActionCell
+          apaleoId={row.id}
+          apaleoName={row.name}
+          linkedPropertyId={internalByApaleoId.get(row.id)?.id ?? null}
+          unmappedProperties={unmappedProperties}
+        />
+      ),
     },
   ];
 
