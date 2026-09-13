@@ -91,11 +91,20 @@ export async function setOwnerStatus(id: string, status: AccountStatus): Promise
 
 /**
  * Every dependent row that has to be zero before deleteOwnerPermanently is
- * allowed to run. `propertyAccessCount` counts every OwnerPropertyAccess row
- * regardless of its own status (active or soft-revoked/"inactive" - see
- * accessService, which never hard-deletes these rows either): a revoked
- * row is still a historical record a hard delete must not silently
- * destroy. OwnerInvitation is deliberately not counted separately here - an
+ * allowed to run. `propertyAccessCount` deliberately only counts ACTIVE
+ * OwnerPropertyAccess rows - a revoked/"inactive" one does NOT block: an
+ * earlier version counted every row regardless of status on the theory
+ * that a revoked row is still a "historical record a hard delete must not
+ * silently destroy", but that protected nothing in practice, since
+ * OwnerPropertyAccess.owner is `onDelete: Cascade` (see
+ * prisma/schema.prisma) - deleting the Owner removes that row anyway,
+ * blocked or not. All it did was create a permanent dead end: revoke an
+ * owner's access to a property, and the owner could then never be deleted
+ * at all, with no UI anywhere to remove the now-inactive row either. A
+ * *currently* active access row still blocks (deleting an owner who has
+ * live access to a property today should not happen silently).
+ *
+ * OwnerInvitation is deliberately not counted separately here - an
  * invitation only ever exists for a User that has an OwnerUser under this
  * owner (see createOwnerUser/createInvitationForUser), so a zero
  * ownerUserCount already implies zero invitations for this owner.
@@ -103,7 +112,7 @@ export async function setOwnerStatus(id: string, status: AccountStatus): Promise
 export async function getOwnerDependencySummary(id: string): Promise<OwnerDependencySummary> {
   const [ownerUserCount, propertyAccessCount, statementDocumentCount, generalDocumentCount] = await Promise.all([
     prisma.ownerUser.count({ where: { ownerId: id } }),
-    prisma.ownerPropertyAccess.count({ where: { ownerId: id } }),
+    prisma.ownerPropertyAccess.count({ where: { ownerId: id, status: "active" } }),
     prisma.statementDocument.count({ where: { ownerId: id } }),
     prisma.generalDocument.count({ where: { ownerId: id } }),
   ]);
@@ -144,7 +153,7 @@ export async function deleteOwnerPermanently(id: string): Promise<DeleteOwnerRes
 
     const [ownerUserCount, propertyAccessCount, statementDocumentCount, generalDocumentCount] = await Promise.all([
       tx.ownerUser.count({ where: { ownerId: id } }),
-      tx.ownerPropertyAccess.count({ where: { ownerId: id } }),
+      tx.ownerPropertyAccess.count({ where: { ownerId: id, status: "active" } }),
       tx.statementDocument.count({ where: { ownerId: id } }),
       tx.generalDocument.count({ where: { ownerId: id } }),
     ]);

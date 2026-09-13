@@ -68,11 +68,12 @@ export interface AdminOwnerUser {
  * Every owner-owned row type that has to be checked before a hard delete
  * (src/services/admin/ownerService.ts#deleteOwnerPermanently) is allowed -
  * any of these being non-zero blocks the delete. `propertyAccessCount`
- * deliberately counts EVERY OwnerPropertyAccess row regardless of its own
- * status (active or revoked/"entfernt" - see accessService, which never
- * hard-deletes these rows either): a revoked-but-still-present row is
- * still a historical record that a hard delete must not silently destroy,
- * so it blocks deletion exactly like an active one.
+ * only counts ACTIVE OwnerPropertyAccess rows - a revoked/"inactive" one
+ * does not block, since OwnerPropertyAccess.owner is `onDelete: Cascade`
+ * (see prisma/schema.prisma): deleting the Owner removes that row either
+ * way, so blocking on a merely historical row protects nothing and would
+ * only create a dead end (an owner whose access was ever revoked could
+ * then never be deleted at all).
  */
 export interface OwnerDependencySummary {
   ownerUserCount: number;
