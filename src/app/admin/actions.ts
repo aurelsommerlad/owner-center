@@ -4,14 +4,15 @@ import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { AccountStatus } from "@/types/admin";
 import { requireAdminRole } from "@/lib/adminAuth";
-import { createOwner, updateOwner } from "@/services/admin/ownerService";
+import { createOwner, getOwner, updateOwner } from "@/services/admin/ownerService";
 import { createOwnerUser, updateOwnerUser } from "@/services/admin/ownerUserService";
 import { createProperty, getProperty, updateProperty } from "@/services/admin/propertyService";
-import { grantAccess, setOwnerPropertyAccess, setPropertyOwnerAccess } from "@/services/admin/accessService";
+import { grantAccess, revokeAccess, setOwnerPropertyAccess, setPropertyOwnerAccess } from "@/services/admin/accessService";
 import { testApaleoConnection, type ApaleoConnectionStatus } from "@/server/integrations/apaleo/connectionCheck";
 import { getApaleoProperty } from "@/server/integrations/apaleo/propertyService";
 import { getUnitsForProperty } from "@/server/integrations/apaleo/unitService";
 import { describeApaleoError } from "@/server/integrations/apaleo/errors";
+import { loadApaleoMappingOverview } from "@/server/integrations/apaleo/mappingStatus";
 import { prisma } from "@/server/db";
 
 /**
@@ -162,15 +163,17 @@ export async function createPropertyAction(formData: FormData): Promise<ActionRe
   const location = readString(formData, "location");
   if (!name || !location) return { ok: false, message: "Bitte Objektname und Standort angeben." };
 
-  const apaleoPropertyId = readString(formData, "apaleoPropertyId");
   const statementsDriveFolderId = readString(formData, "statementsDriveFolderId");
   const documentsDriveFolderId = readString(formData, "documentsDriveFolderId");
   const ownerIds = formData.getAll("ownerIds").map(String);
 
+  // apaleoPropertyId is deliberately not set here - it is only ever set via
+  // setApaleoPropertyMappingAction (the dedicated "apaleo-Verknüpfung" card
+  // on /admin/properties/[id]), which enforces the one-to-one uniqueness
+  // rule this quick-create form has no way to check.
   const property = await createProperty({
     name,
     location,
-    apaleoPropertyId: apaleoPropertyId || undefined,
     statementsDriveFolderId: statementsDriveFolderId || undefined,
     documentsDriveFolderId: documentsDriveFolderId || undefined,
   });
@@ -191,15 +194,15 @@ export async function updatePropertyAction(propertyId: string, formData: FormDat
   const location = readString(formData, "location");
   if (!name || !location) return { ok: false, message: "Bitte Objektname und Standort angeben." };
 
-  const apaleoPropertyId = readString(formData, "apaleoPropertyId");
   const statementsDriveFolderId = readString(formData, "statementsDriveFolderId");
   const documentsDriveFolderId = readString(formData, "documentsDriveFolderId");
   const ownerIds = formData.getAll("ownerIds").map(String);
 
+  // apaleoPropertyId is deliberately left untouched here - see
+  // setApaleoPropertyMappingAction.
   await updateProperty(propertyId, {
     name,
     location,
-    apaleoPropertyId: apaleoPropertyId || undefined,
     statementsDriveFolderId: statementsDriveFolderId || undefined,
     documentsDriveFolderId: documentsDriveFolderId || undefined,
   });
@@ -316,4 +319,96 @@ export async function endImpersonationAction(): Promise<void> {
   }
 
   redirect(active ? `/admin/owners/${active.ownerId}` : "/admin/owners");
+}
+
+/**
+ * "Verknüpfung speichern": sets (or clears, for an empty id) a Property's
+ * apaleoPropertyId. The internal Property table stays the leading mapping -
+ * this never derives or auto-guesses an id, it only persists whatever the
+ * admin picked from the (live-apaleo-backed) dropdown on
+ * /admin/properties/[id]. Server-side enforces the one rule that matters:
+ * the same apaleo property can never be attached to two internal
+ * properties at once.
+ */
+export async function setApaleoPropertyMappingAction(
+  propertyId: string,
+  apaleoPropertyId: string
+): Promise<ActionResult> {
+  await requireAdminRole();
+
+  const property = await getProperty(propertyId);
+  if (!property) return { ok: false, message: "Objekt nicht gefunden." };
+
+  const trimmed = apaleoPropertyId.trim();
+  if (trimmed) {
+    const conflict = await prisma.property.findFirst({
+      where: { apaleoPropertyId: trimmed, id: { not: propertyId } },
+    });
+    if (conflict) {
+      return { ok: false, message: "Dieses apaleo-Objekt ist bereits einem anderen internen Objekt zugeordnet." };
+    }
+
+    // Best-effort: if apaleo is reachable right now, confirm the id is real.
+    // If apaleo is unreachable, we simply can't check yet - "Mapping prüfen"
+    // (and the badge on this page) will still catch a bad id afterward.
+    const overview = await loadApaleoMappingOverview();
+    if (overview.available && !overview.byId.has(trimmed)) {
+      return { ok: false, message: "apaleo Property konnte nicht gefunden werden." };
+    }
+  }
+
+  await updateProperty(propertyId, { apaleoPropertyId: trimmed });
+
+  revalidatePath("/admin/properties");
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath("/admin");
+  revalidatePath("/admin/integrations");
+  return { ok: true, message: trimmed ? "Verknüpfung wurde gespeichert." : "Verknüpfung wurde entfernt." };
+}
+
+/**
+ * Grants one owner access to one property - the property-detail-page
+ * counterpart to updateOwnerAccessAction (the owner-detail page's bulk
+ * editor). Both ultimately go through services/admin/accessService.ts
+ * against the same OwnerPropertyAccess table, so neither UI can drift out
+ * of sync with the other.
+ */
+export async function assignOwnerToPropertyAction(propertyId: string, ownerId: string): Promise<ActionResult> {
+  await requireAdminRole();
+
+  const [property, owner] = await Promise.all([getProperty(propertyId), getOwner(ownerId)]);
+  if (!property) return { ok: false, message: "Objekt nicht gefunden." };
+  if (!owner) return { ok: false, message: "Eigentümer nicht gefunden." };
+
+  const existing = await prisma.ownerPropertyAccess.findUnique({
+    where: { ownerId_propertyId: { ownerId, propertyId } },
+  });
+  if (existing?.status === "active") {
+    return { ok: false, message: "Dieser Eigentümer hat bereits Zugriff auf dieses Objekt." };
+  }
+
+  await grantAccess(ownerId, propertyId);
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath(`/admin/owners/${ownerId}`);
+  revalidatePath("/admin/owners");
+  revalidatePath("/admin/properties");
+  return { ok: true, message: `${owner.name} wurde ${property.name} zugeordnet.` };
+}
+
+/** Soft-revokes one owner's access to one property (status -> "inactive", never deleted). */
+export async function removeOwnerFromPropertyAction(propertyId: string, ownerId: string): Promise<ActionResult> {
+  await requireAdminRole();
+
+  const [property, owner] = await Promise.all([getProperty(propertyId), getOwner(ownerId)]);
+  if (!property) return { ok: false, message: "Objekt nicht gefunden." };
+  if (!owner) return { ok: false, message: "Eigentümer nicht gefunden." };
+
+  await revokeAccess(ownerId, propertyId);
+
+  revalidatePath(`/admin/properties/${propertyId}`);
+  revalidatePath(`/admin/owners/${ownerId}`);
+  revalidatePath("/admin/owners");
+  revalidatePath("/admin/properties");
+  return { ok: true, message: `Zugriff von ${owner.name} auf ${property.name} wurde entfernt.` };
 }

@@ -9,12 +9,22 @@ import type { ApaleoConnectionStatus } from "@/server/integrations/apaleo/connec
 
 type LastCheck = ApaleoConnectionStatus["lastCheck"];
 
+export interface ApaleoMappingStats {
+  apaleoPropertiesCount: number;
+  internalPropertiesCount: number;
+  mappedCount: number;
+  openCount: number;
+}
+
 export function ApaleoIntegrationCard({
   configured,
   lastCheck: initialLastCheck,
+  mappingStats,
 }: {
   configured: boolean;
   lastCheck: LastCheck;
+  /** Live property-mapping coverage, `null` when apaleo is unconfigured/unreachable this render. */
+  mappingStats: ApaleoMappingStats | null;
 }) {
   const [lastCheck, setLastCheck] = useState(initialLastCheck);
   const [pending, startTransition] = useTransition();
@@ -64,6 +74,27 @@ export function ApaleoIntegrationCard({
           </p>
         </div>
       </div>
+
+      {mappingStats && (
+        <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line pt-4 sm:grid-cols-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">apaleo Properties</p>
+            <p className="mt-1 text-sm text-ink">{mappingStats.apaleoPropertiesCount}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">Interne Properties</p>
+            <p className="mt-1 text-sm text-ink">{mappingStats.internalPropertiesCount}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">Gemappt</p>
+            <p className="mt-1 text-sm text-ink">{mappingStats.mappedCount}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">Offen</p>
+            <p className="mt-1 text-sm text-ink">{mappingStats.openCount}</p>
+          </div>
+        </div>
+      )}
 
       <div className="mt-4">
         <button

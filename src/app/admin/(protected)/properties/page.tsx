@@ -3,9 +3,11 @@ import { getOwners } from "@/services/admin/ownerService";
 import { getOwnersForProperty, getProperties } from "@/services/admin/propertyService";
 import { Card } from "@/components/ui/Card";
 import { AdminTable, type AdminTableColumn } from "@/components/admin/AdminTable";
-import { AdminStatusBadge, configStatusBadge, propertyStatusBadge } from "@/components/admin/AdminStatusBadge";
+import { AdminStatusBadge, apaleoMappingStatusBadge, configStatusBadge, propertyStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { PropertyFormModal } from "@/components/admin/PropertyFormModal";
+import { loadApaleoMappingOverview, mappingStatusFor } from "@/server/integrations/apaleo/mappingStatus";
 import type { AdminProperty } from "@/types/admin";
+import type { ApaleoPropertySummary } from "@/server/integrations/apaleo/types";
 
 interface PropertyRow {
   property: AdminProperty;
@@ -13,12 +15,18 @@ interface PropertyRow {
 }
 
 export default async function AdminPropertiesPage() {
-  const [properties, owners] = await Promise.all([getProperties(), getOwners()]);
+  const [properties, owners, apaleoOverview] = await Promise.all([getProperties(), getOwners(), loadApaleoMappingOverview()]);
   const rows: PropertyRow[] = await Promise.all(
     properties.map(async (property) => ({
       property,
       ownerNames: (await getOwnersForProperty(property.id)).map((owner) => owner.name),
     }))
+  );
+
+  // Reverse lookup for the apaleo-side table below: which internal property
+  // (if any) currently claims each live apaleo property.
+  const internalByApaleoId = new Map(
+    properties.filter((property) => property.apaleoPropertyId).map((property) => [property.apaleoPropertyId!, property])
   );
 
   const columns: AdminTableColumn<PropertyRow>[] = [
@@ -45,7 +53,7 @@ export default async function AdminPropertiesPage() {
       key: "apaleo",
       header: "apaleo",
       render: (row) => {
-        const badge = configStatusBadge(Boolean(row.property.apaleoPropertyId));
+        const badge = apaleoMappingStatusBadge(mappingStatusFor(row.property.apaleoPropertyId, apaleoOverview));
         return <AdminStatusBadge label={badge.label} tone={badge.tone} />;
       },
     },
@@ -74,6 +82,24 @@ export default async function AdminPropertiesPage() {
     },
   ];
 
+  const apaleoColumns: AdminTableColumn<ApaleoPropertySummary>[] = [
+    { key: "id", header: "apaleo Property-ID", render: (row) => <p className="font-medium text-ink">{row.id}</p> },
+    { key: "name", header: "Name", render: (row) => row.name },
+    {
+      key: "mapping",
+      header: "Mapping-Status",
+      render: (row) => {
+        const internal = internalByApaleoId.get(row.id);
+        if (!internal) return <span className="text-ink-soft">Noch nicht zugeordnet</span>;
+        return (
+          <Link href={`/admin/properties/${internal.id}`} className="text-ink transition-colors hover:text-ink-soft">
+            Zugeordnet · {internal.name}
+          </Link>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -91,6 +117,25 @@ export default async function AdminPropertiesPage() {
       <Card className="p-2 shadow-soft sm:p-3">
         <AdminTable columns={columns} rows={rows} rowKey={(row) => row.property.id} />
       </Card>
+
+      <div>
+        <h2 className="text-sm font-semibold text-ink">apaleo Objekte</h2>
+        <p className="mt-1 text-xs text-ink-soft">
+          {apaleoOverview.available
+            ? `${apaleoOverview.apaleoProperties.length} Objekte live aus apaleo gelesen.`
+            : `apaleo-Daten aktuell nicht verfügbar${apaleoOverview.errorMessage ? ` – ${apaleoOverview.errorMessage}` : ""}.`}
+        </p>
+      </div>
+      {apaleoOverview.available && (
+        <Card className="p-2 shadow-soft sm:p-3">
+          <AdminTable
+            columns={apaleoColumns}
+            rows={apaleoOverview.apaleoProperties}
+            rowKey={(row) => row.id}
+            emptyMessage="Keine apaleo Objekte gefunden."
+          />
+        </Card>
+      )}
     </div>
   );
 }

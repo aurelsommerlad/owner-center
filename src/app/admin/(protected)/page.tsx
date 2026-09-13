@@ -29,6 +29,20 @@ export default async function AdminDashboardPage() {
         <StatTile label="Neue / nicht zugeordnet" value={summary.unassignedDocumentsCount} />
       </div>
 
+      <Link href="/admin/properties" className="block">
+        <Card className="p-5 shadow-none transition-colors hover:border-ink sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-ink">apaleo-Mapping</h2>
+            <span className="text-xs text-ink-soft">Zu den Objekten →</span>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-8 gap-y-1.5 text-sm text-ink-soft">
+            <span>{summary.apaleoMapping.totalProperties} interne Properties</span>
+            <span>{summary.apaleoMapping.connectedCount} mit apaleo verbunden</span>
+            <span>{summary.apaleoMapping.openCount} nicht zugeordnet</span>
+          </div>
+        </Card>
+      </Link>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-5 shadow-none sm:p-6">
           <h2 className="text-sm font-semibold text-ink">Zuletzt hinzugefügt</h2>

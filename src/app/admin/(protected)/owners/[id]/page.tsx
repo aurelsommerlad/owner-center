@@ -4,12 +4,13 @@ import { getOwner, getPropertiesForOwner } from "@/services/admin/ownerService";
 import { getOwnerUsers } from "@/services/admin/ownerUserService";
 import { getProperties } from "@/services/admin/propertyService";
 import { Card } from "@/components/ui/Card";
-import { AdminStatusBadge, accountStatusBadge } from "@/components/admin/AdminStatusBadge";
+import { AdminStatusBadge, accountStatusBadge, apaleoMappingStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { OwnerStatusToggle } from "@/components/admin/OwnerStatusToggle";
 import { ViewAsOwnerButton } from "@/components/admin/ViewAsOwnerButton";
 import { OwnerUserFormModal } from "@/components/admin/OwnerUserFormModal";
 import { OwnerUserStatusToggle } from "@/components/admin/OwnerUserStatusToggle";
 import { EditAccessButton } from "@/components/admin/EditAccessButton";
+import { loadApaleoMappingOverview, mappingStatusFor } from "@/server/integrations/apaleo/mappingStatus";
 import { formatShortDate } from "@/lib/format";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -26,10 +27,11 @@ export default async function AdminOwnerDetailPage({ params }: { params: Promise
   const owner = await getOwner(id);
   if (!owner) notFound();
 
-  const [users, properties, allProperties] = await Promise.all([
+  const [users, properties, allProperties, apaleoOverview] = await Promise.all([
     getOwnerUsers(owner.id),
     getPropertiesForOwner(owner.id),
     getProperties(),
+    loadApaleoMappingOverview(),
   ]);
   const statusBadge = accountStatusBadge(owner.status);
 
@@ -131,13 +133,20 @@ export default async function AdminOwnerDetailPage({ params }: { params: Promise
         </div>
         <div className="mt-3 divide-y divide-line">
           {properties.length === 0 && <p className="py-3 text-sm text-ink-soft">Noch kein Objektzugriff.</p>}
-          {properties.map((property) => (
-            <div key={property.id} className="flex items-center justify-between gap-3 py-3 text-sm">
-              <Link href={`/admin/properties/${property.id}`} className="text-ink transition-colors hover:text-ink-soft">
-                {property.name} · {property.location}
-              </Link>
-            </div>
-          ))}
+          {properties.map((property) => {
+            const apaleoBadge = apaleoMappingStatusBadge(mappingStatusFor(property.apaleoPropertyId, apaleoOverview));
+            return (
+              <div key={property.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+                <Link href={`/admin/properties/${property.id}`} className="text-ink transition-colors hover:text-ink-soft">
+                  {property.name} · {property.location}
+                </Link>
+                <div className="flex items-center gap-2">
+                  <AdminStatusBadge label={apaleoBadge.label} tone={apaleoBadge.tone} />
+                  <AdminStatusBadge label="Zugriff aktiv" tone="positive" />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Card>
     </div>

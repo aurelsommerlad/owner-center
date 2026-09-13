@@ -5,10 +5,17 @@ import { toAdminOwner, toAdminProperty } from "@/lib/adminPermissions";
 import { getUnassignedGeneralDocuments } from "./documentService";
 import { countPublishedInMonth } from "./statementService";
 import { MOCK_TODAY } from "@/lib/config";
+import { loadApaleoMappingOverview, mappingStatusFor } from "@/server/integrations/apaleo/mappingStatus";
 
 export interface AdminDashboardHint {
   id: string;
   message: string;
+}
+
+export interface AdminApaleoMappingSummary {
+  totalProperties: number;
+  connectedCount: number;
+  openCount: number;
 }
 
 export interface AdminDashboardSummary {
@@ -20,6 +27,7 @@ export interface AdminDashboardSummary {
   recentProperties: AdminProperty[];
   recentDocuments: AdminGeneralDocument[];
   hints: AdminDashboardHint[];
+  apaleoMapping: AdminApaleoMappingSummary;
 }
 
 export async function getDashboardSummary(): Promise<AdminDashboardSummary> {
@@ -41,6 +49,8 @@ export async function getDashboardSummary(): Promise<AdminDashboardSummary> {
     hints.push({ id: `doc-${document.id}`, message: `„${document.title}" hat noch keine vollständige Zuordnung.` });
   }
   const allProperties = await prisma.property.findMany();
+  const apaleoOverview = await loadApaleoMappingOverview();
+  let connectedCount = 0;
   for (const property of allProperties) {
     if (!property.statementsDriveFolderId || !property.documentsDriveFolderId) {
       hints.push({ id: `drive-${property.id}`, message: `${property.name}: fehlender Drive-Ordner.` });
@@ -48,6 +58,7 @@ export async function getDashboardSummary(): Promise<AdminDashboardSummary> {
     if (!property.apaleoPropertyId) {
       hints.push({ id: `apaleo-${property.id}`, message: `${property.name}: fehlende apaleo Property-ID.` });
     }
+    if (mappingStatusFor(property.apaleoPropertyId, apaleoOverview) === "connected") connectedCount += 1;
   }
 
   return {
@@ -69,5 +80,10 @@ export async function getDashboardSummary(): Promise<AdminDashboardSummary> {
       createdAt: toDateString(document.createdAt),
     })),
     hints,
+    apaleoMapping: {
+      totalProperties: allProperties.length,
+      connectedCount,
+      openCount: allProperties.length - connectedCount,
+    },
   };
 }

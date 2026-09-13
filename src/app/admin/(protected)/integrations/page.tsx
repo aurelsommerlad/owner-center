@@ -1,14 +1,33 @@
 import { getIntegrations } from "@/services/admin/integrationService";
+import { getProperties } from "@/services/admin/propertyService";
 import { Card } from "@/components/ui/Card";
 import { AdminStatusBadge, integrationStatusBadge } from "@/components/admin/AdminStatusBadge";
-import { ApaleoIntegrationCard } from "@/components/admin/ApaleoIntegrationCard";
+import { ApaleoIntegrationCard, type ApaleoMappingStats } from "@/components/admin/ApaleoIntegrationCard";
 import { getApaleoConnectionStatus } from "@/server/integrations/apaleo/connectionCheck";
+import { loadApaleoMappingOverview, mappingStatusFor } from "@/server/integrations/apaleo/mappingStatus";
 
 export default async function AdminIntegrationsPage() {
-  const [integrations, apaleoStatus] = await Promise.all([getIntegrations(), getApaleoConnectionStatus()]);
+  const [integrations, apaleoStatus, apaleoOverview, internalProperties] = await Promise.all([
+    getIntegrations(),
+    getApaleoConnectionStatus(),
+    loadApaleoMappingOverview(),
+    getProperties(),
+  ]);
   // apaleo is real/functional now (see below) - only the still-mock
   // integrations (Google Drive) go through the generic status-card loop.
   const otherIntegrations = integrations.filter((integration) => integration.id !== "apaleo");
+
+  const mappedCount = internalProperties.filter(
+    (property) => mappingStatusFor(property.apaleoPropertyId, apaleoOverview) === "connected"
+  ).length;
+  const mappingStats: ApaleoMappingStats | null = apaleoOverview.available
+    ? {
+        apaleoPropertiesCount: apaleoOverview.apaleoProperties.length,
+        internalPropertiesCount: internalProperties.length,
+        mappedCount,
+        openCount: internalProperties.length - mappedCount,
+      }
+    : null;
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -20,7 +39,11 @@ export default async function AdminIntegrationsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ApaleoIntegrationCard configured={apaleoStatus.configured} lastCheck={apaleoStatus.lastCheck} />
+        <ApaleoIntegrationCard
+          configured={apaleoStatus.configured}
+          lastCheck={apaleoStatus.lastCheck}
+          mappingStats={mappingStats}
+        />
         {otherIntegrations.map((integration) => {
           const badge = integrationStatusBadge(integration.status);
           return (

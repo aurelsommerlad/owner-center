@@ -1,12 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getOwners } from "@/services/admin/ownerService";
-import { getOwnersForProperty, getProperty } from "@/services/admin/propertyService";
+import { getOwnersForProperty, getProperties, getProperty } from "@/services/admin/propertyService";
 import { Card } from "@/components/ui/Card";
 import { AdminStatusBadge, propertyStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { PropertyFormModal } from "@/components/admin/PropertyFormModal";
-import { ApaleoMappingCard } from "@/components/admin/ApaleoMappingCard";
+import { ApaleoPropertyMappingCard } from "@/components/admin/ApaleoPropertyMappingCard";
+import { PropertyOwnersEditor } from "@/components/admin/PropertyOwnersEditor";
+import { loadApaleoMappingOverview, mappingStatusFor } from "@/server/integrations/apaleo/mappingStatus";
+import { getUnitsForProperty } from "@/server/integrations/apaleo/unitService";
+import { describeApaleoError } from "@/server/integrations/apaleo/errors";
 import { formatShortDate } from "@/lib/format";
+import type { ApaleoUnitSummary } from "@/server/integrations/apaleo/types";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -17,9 +22,9 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-// Property-ID / Drive folder IDs are mock configuration only - a real
-// connection never exists yet, so this status is always "Noch nicht
-// verbunden" regardless of whether a mock value is set. No fake sync state.
+// Google Drive is not part of this step - a real connection never exists
+// yet, so this status is always "Noch nicht verbunden" regardless of
+// whether a mock value is set. No fake sync state.
 function NotConnectedBadge() {
   return <AdminStatusBadge label="Noch nicht verbunden" tone="muted" />;
 }
@@ -29,8 +34,44 @@ export default async function AdminPropertyDetailPage({ params }: { params: Prom
   const property = await getProperty(id);
   if (!property) notFound();
 
-  const [owners, allOwners] = await Promise.all([getOwnersForProperty(property.id), getOwners()]);
+  const [owners, allOwners, allProperties, apaleoOverview] = await Promise.all([
+    getOwnersForProperty(property.id),
+    getOwners(),
+    getProperties(),
+    loadApaleoMappingOverview(),
+  ]);
   const statusBadge = propertyStatusBadge(property.status);
+
+  // Which apaleo properties are still free to pick: not already claimed by
+  // a DIFFERENT internal property (this property's own current id, if any,
+  // stays selectable - that's not a conflict, it's the current mapping).
+  const takenByOthers = new Set(
+    allProperties
+      .filter((other) => other.id !== property.id && other.apaleoPropertyId)
+      .map((other) => other.apaleoPropertyId!)
+  );
+  const apaleoOptions = apaleoOverview.apaleoProperties.filter((option) => !takenByOthers.has(option.id));
+  const mappingStatus = mappingStatusFor(property.apaleoPropertyId, apaleoOverview);
+  const currentApaleoPropertyName = property.apaleoPropertyId
+    ? apaleoOverview.byId.get(property.apaleoPropertyId)?.name
+    : undefined;
+
+  let unitsPreview: ApaleoUnitSummary[] | null = null;
+  let unitsPreviewError: string | null = null;
+  if (property.apaleoPropertyId) {
+    if (!apaleoOverview.available) {
+      unitsPreviewError = `apaleo-Daten aktuell nicht verfügbar${apaleoOverview.errorMessage ? ` – ${apaleoOverview.errorMessage}` : ""}.`;
+    } else {
+      try {
+        const units = await getUnitsForProperty(property.apaleoPropertyId);
+        unitsPreview = units.filter((unit) => unit.isActive);
+      } catch (err) {
+        unitsPreviewError = describeApaleoError(err);
+      }
+    }
+  }
+
+  const availableOwners = allOwners.filter((owner) => !owners.some((current) => current.id === owner.id));
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -65,21 +106,23 @@ export default async function AdminPropertyDetailPage({ params }: { params: Prom
       <Card className="p-5 shadow-soft sm:p-6">
         <h2 className="text-sm font-semibold text-ink">Eigentümer & Zugriffe</h2>
         <p className="mt-1 text-xs text-ink-soft">Welche Eigentümer haben Zugriff auf dieses Objekt?</p>
-        <div className="mt-3 divide-y divide-line">
-          {owners.length === 0 && <p className="py-3 text-sm text-ink-soft">Noch kein Eigentümer zugeordnet.</p>}
-          {owners.map((owner) => (
-            <div key={owner.id} className="flex items-center justify-between gap-3 py-3 text-sm">
-              <Link href={`/admin/owners/${owner.id}`} className="text-ink transition-colors hover:text-ink-soft">
-                {owner.name}
-              </Link>
-              {owner.companyName && <span className="text-xs text-ink-soft">{owner.companyName}</span>}
-            </div>
-          ))}
-        </div>
+        <PropertyOwnersEditor propertyId={property.id} currentOwners={owners} availableOwners={availableOwners} />
       </Card>
 
       {/* apaleo */}
-      <ApaleoMappingCard propertyId={property.id} apaleoPropertyId={property.apaleoPropertyId} />
+      <ApaleoPropertyMappingCard
+        propertyId={property.id}
+        propertyName={property.name}
+        propertyLocation={property.location}
+        currentApaleoPropertyId={property.apaleoPropertyId}
+        currentApaleoPropertyName={currentApaleoPropertyName}
+        mappingStatus={mappingStatus}
+        apaleoOptions={apaleoOptions}
+        apaleoAvailable={apaleoOverview.available}
+        apaleoErrorMessage={apaleoOverview.errorMessage}
+        unitsPreview={unitsPreview}
+        unitsPreviewError={unitsPreviewError}
+      />
 
       {/* Google Drive */}
       <Card className="p-5 shadow-soft sm:p-6">

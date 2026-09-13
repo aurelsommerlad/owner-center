@@ -5,6 +5,7 @@ import type {
   AdminStatementStatus,
   IntegrationStatus,
 } from "@/types/admin";
+import type { ApaleoMappingStatus } from "@/server/integrations/apaleo/mappingStatus";
 
 type AdminStatusTone = "positive" | "strong" | "neutral" | "muted";
 
@@ -65,4 +66,18 @@ export function integrationStatusBadge(status: IntegrationStatus): { label: stri
   if (status === "connected") return { label: "Verbunden", tone: "positive" };
   if (status === "error") return { label: "Fehler", tone: "strong" };
   return { label: "Noch nicht verbunden", tone: "muted" };
+}
+
+/** Per-property apaleo mapping status - shown on the properties list/detail and owner detail pages. */
+export function apaleoMappingStatusBadge(status: ApaleoMappingStatus): { label: string; tone: AdminStatusTone } {
+  switch (status) {
+    case "connected":
+      return { label: "apaleo: Verbunden", tone: "positive" };
+    case "mapping_error":
+      return { label: "apaleo: Mapping fehlerhaft", tone: "strong" };
+    case "unavailable":
+      return { label: "apaleo: Nicht verfügbar", tone: "muted" };
+    case "not_connected":
+      return { label: "apaleo: Nicht zugeordnet", tone: "muted" };
+  }
 }
