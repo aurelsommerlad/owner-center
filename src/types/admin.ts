@@ -19,6 +19,15 @@ export type UserRole = "admin" | "owner";
 export type AccountStatus = "active" | "inactive";
 
 /**
+ * AdminOwnerUser-only status: "invited" means the account exists but the
+ * person has not yet opened their invitation link and set a password - see
+ * OwnerInvitation in prisma/schema.prisma. AdminOwner and OwnerPropertyAccess
+ * never have this third state, which is why this is its own type rather
+ * than widening AccountStatus itself.
+ */
+export type OwnerUserAccountStatus = AccountStatus | "invited";
+
+/**
  * The contract partner / owner company. Deliberately not "one person" and
  * deliberately carries no login credentials of its own - see AdminOwnerUser
  * for the individual logins under it (an owner can have several: a
@@ -45,7 +54,9 @@ export interface AdminOwnerUser {
   firstName: string;
   lastName: string;
   email: string;
-  status: AccountStatus;
+  status: OwnerUserAccountStatus;
+  /** Only set (and only meaningful) while status is "invited" - the most recent invitation's expiry, for the "Eingeladen" vs "Einladung abgelaufen" badge. */
+  invitationExpiresAt?: string;
   /** Fixed to "owner" for now - no per-user detail permissions yet. */
   role: "owner";
   lastLoginAt?: string;

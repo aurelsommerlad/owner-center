@@ -32,6 +32,11 @@ datasource db {
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
+  /// For an owner-role User created via the invitation flow and not yet
+  /// accepted, this is NOT a password hash at all - see
+  /// src/server/passwordCore.ts#NO_PASSWORD_SET_HASH, a sentinel string
+  /// with no ":" separator that verifyPassword() rejects for every input
+  /// without doing any scrypt work. Never a placeholder/dummy password.
   passwordHash String
   role         String
   /// Display name for admin-role users only (shown in the admin header).
@@ -40,8 +45,9 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  sessions  Session[]
-  ownerUser OwnerUser?
+  sessions    Session[]
+  ownerUser   OwnerUser?
+  invitations OwnerInvitation[]
 }
 
 /// A server-validated login session. The browser only ever holds this row's
@@ -111,6 +117,15 @@ model AdminImpersonation {
 /// `status` gates Owner Center access independently of the underlying
 /// User row, so "Nutzer deaktivieren" in admin never has to touch login
 /// credentials themselves.
+///
+/// `status` is "invited" | "active" | "inactive" (a plain String, like every
+/// other status field in this schema - no DB enum). A new owner user starts
+/// "invited": the login gate in src/app/login/actions.ts already only
+/// allows `status === "active"` through, so "invited" is rejected exactly
+/// like "inactive" with no extra gate logic needed - see OwnerInvitation
+/// below for how it becomes "active". Never skip straight to "active"
+/// without going through an accepted OwnerInvitation: the linked User has
+/// no usable password until then (see User.passwordHash).
 model OwnerUser {
   id          String    @id @default(cuid())
   ownerId     String
@@ -253,6 +268,42 @@ model GoogleDriveConnectionCheck {
   rootFolderName String?
   itemCount      Int?
   errorMessage   String?
+}
+
+/// A single-use, time-limited invitation for a new owner-role User to set
+/// their own password (src/server/invitations.ts). One row per invitation
+/// attempt - re-inviting the same user does not reuse or update a row, it
+/// revokes the old open one and creates a new one, so the full history
+/// (including superseded/expired attempts) stays visible for support/audit
+/// purposes rather than being overwritten.
+///
+/// `tokenHash` is the only trace of the invitation token this database ever
+/// holds - the raw token lives only in the emailed/copied link and briefly
+/// in server memory while it's generated and verified; it is never logged.
+/// A token is "open"/usable exactly when `acceptedAt` and `revokedAt` are
+/// both null and `expiresAt` is in the future - see
+/// src/server/invitations.ts#lookupInvitationByToken, the one place that
+/// decides this, so the rule is never duplicated.
+model OwnerInvitation {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash        String    @unique
+  expiresAt        DateTime
+  /// Set exactly once, atomically with the User's real password and the
+  /// owning OwnerUser's status flipping to "active" - see acceptInvitation.
+  acceptedAt       DateTime?
+  /// Set when a newer invitation supersedes this one ("Einladung neu
+  /// erstellen") or an admin otherwise withdraws it - never when accepted.
+  revokedAt        DateTime?
+  /// The admin User.id who triggered this invitation (initial create or
+  /// re-create) - a plain scalar, not a relation, matching
+  /// AdminImpersonation.adminUserId's precedent: this is an audit-only
+  /// reference and shouldn't widen User's relation surface.
+  createdByAdminId String
+  createdAt        DateTime  @default(now())
+
+  @@index([userId])
 }
 
 /// General documents outside the monthly statement cycle (contracts, tax

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AdminModal } from "./AdminModal";
 import { ADMIN_INPUT_CLASS, ADMIN_LABEL_CLASS } from "./adminFormStyles";
-import { useAdminToast } from "./AdminToast";
+import { InviteLinkPanel } from "./InviteLinkPanel";
 import { createOwnerAction } from "@/app/admin/actions";
 import type { AdminProperty } from "@/types/admin";
 
@@ -11,19 +11,24 @@ export function AddOwnerButton({ properties }: { properties: AdminProperty[] }) 
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const showToast = useAdminToast();
+  const [invite, setInvite] = useState<{ email: string; inviteToken: string } | null>(null);
+
+  function handleClose() {
+    setOpen(false);
+    setInvite(null);
+    setError(null);
+  }
 
   async function handleSubmit(formData: FormData) {
     setPending(true);
     setError(null);
     const result = await createOwnerAction(formData);
     setPending(false);
-    if (!result.ok) {
+    if (!result.ok || !result.inviteToken) {
       setError(result.message);
       return;
     }
-    setOpen(false);
-    showToast(result.message);
+    setInvite({ email: String(formData.get("email") ?? ""), inviteToken: result.inviteToken });
   }
 
   return (
@@ -36,7 +41,10 @@ export function AddOwnerButton({ properties }: { properties: AdminProperty[] }) 
         + Eigentümer hinzufügen
       </button>
 
-      <AdminModal open={open} onClose={() => setOpen(false)} title="Eigentümer hinzufügen" widthClassName="max-w-xl">
+      <AdminModal open={open} onClose={handleClose} title="Eigentümer hinzufügen" widthClassName="max-w-xl">
+        {invite ? (
+          <InviteLinkPanel email={invite.email} inviteToken={invite.inviteToken} onDone={handleClose} />
+        ) : (
         <form action={handleSubmit} className="flex flex-col gap-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-soft">Eigentümer</p>
@@ -98,7 +106,7 @@ export function AddOwnerButton({ properties }: { properties: AdminProperty[] }) 
           <div className="flex justify-end gap-2 border-t border-line pt-4">
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={handleClose}
               className="rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-colors hover:border-ink hover:text-ink"
             >
               Abbrechen
@@ -112,6 +120,7 @@ export function AddOwnerButton({ properties }: { properties: AdminProperty[] }) 
             </button>
           </div>
         </form>
+        )}
       </AdminModal>
     </>
   );

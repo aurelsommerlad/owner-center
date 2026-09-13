@@ -4,10 +4,14 @@ import { prisma } from "@/server/db";
 import { toDateString } from "@/server/mapDate";
 import type {
   Owner as DbOwner,
+  OwnerInvitation as DbOwnerInvitation,
   OwnerUser as DbOwnerUser,
   Property as DbProperty,
   User as DbUser,
 } from "@/generated/prisma/client";
+
+/** Just the fields toAdminOwnerUser needs from the user's most recent invitation, if any. */
+type OwnerUserWithLatestInvitation = DbOwnerUser & { user: DbUser & { invitations: DbOwnerInvitation[] } };
 
 /**
  * Central query helpers for the admin Owner<->User<->Property relationships,
@@ -48,7 +52,16 @@ export function toAdminProperty(property: DbProperty): AdminProperty {
   };
 }
 
-export function toAdminOwnerUser(ownerUser: DbOwnerUser & { user: DbUser }): AdminOwnerUser {
+export function toAdminOwnerUser(ownerUser: OwnerUserWithLatestInvitation): AdminOwnerUser {
+  // The most recently created invitation is always the one that matters for
+  // display: re-inviting revokes the previous one, so there is never a case
+  // where an older row should win over a newer one.
+  const latestInvitation = ownerUser.user.invitations[0];
+  const invitationExpiresAt =
+    ownerUser.status === "invited" && latestInvitation && !latestInvitation.acceptedAt && !latestInvitation.revokedAt
+      ? toDateString(latestInvitation.expiresAt)
+      : undefined;
+
   return {
     id: ownerUser.id,
     ownerId: ownerUser.ownerId,
@@ -56,6 +69,7 @@ export function toAdminOwnerUser(ownerUser: DbOwnerUser & { user: DbUser }): Adm
     lastName: ownerUser.lastName,
     email: ownerUser.user.email,
     status: ownerUser.status as AdminOwnerUser["status"],
+    invitationExpiresAt,
     role: "owner",
     lastLoginAt: toDateString(ownerUser.lastLoginAt) ?? undefined,
     createdAt: toDateString(ownerUser.createdAt),
@@ -86,7 +100,7 @@ export async function getOwnersForProperty(propertyId: string): Promise<AdminOwn
 export async function getUsersForOwner(ownerId: string): Promise<AdminOwnerUser[]> {
   const users = await prisma.ownerUser.findMany({
     where: { ownerId },
-    include: { user: true },
+    include: { user: { include: { invitations: { orderBy: { createdAt: "desc" }, take: 1 } } } },
     orderBy: { createdAt: "asc" },
   });
   return users.map(toAdminOwnerUser);

@@ -4,6 +4,7 @@ import type {
   AdminPropertyStatus,
   AdminStatementStatus,
   IntegrationStatus,
+  OwnerUserAccountStatus,
 } from "@/types/admin";
 import type { ApaleoMappingStatus } from "@/server/integrations/apaleo/mappingStatus";
 
@@ -34,6 +35,27 @@ export function AdminStatusBadge({ label, tone = "neutral" }: { label: string; t
 
 export function accountStatusBadge(status: AccountStatus): { label: string; tone: AdminStatusTone } {
   return status === "active" ? { label: "Aktiv", tone: "positive" } : { label: "Inaktiv", tone: "muted" };
+}
+
+/**
+ * AdminOwnerUser's status badge - like accountStatusBadge, plus the
+ * "invited" state, split into "Eingeladen" vs "Einladung abgelaufen" by
+ * comparing `invitationExpiresAt` (only meaningful while status is
+ * "invited" - see AdminOwnerUser) against now. An invited-but-expired user
+ * is still functionally the same as "Eingeladen" (blocked from /login
+ * either way) - the distinction is purely informational, telling the admin
+ * whether "Einladungslink kopieren" would still hand out a working link.
+ */
+export function ownerUserStatusBadge(
+  status: OwnerUserAccountStatus,
+  invitationExpiresAt?: string
+): { label: string; tone: AdminStatusTone } {
+  if (status === "active") return { label: "Aktiv", tone: "positive" };
+  if (status === "inactive") return { label: "Deaktiviert", tone: "muted" };
+  if (invitationExpiresAt && new Date(invitationExpiresAt) < new Date()) {
+    return { label: "Einladung abgelaufen", tone: "strong" };
+  }
+  return { label: "Eingeladen", tone: "neutral" };
 }
 
 export function propertyStatusBadge(status: AdminPropertyStatus): { label: string; tone: AdminStatusTone } {

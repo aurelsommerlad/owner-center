@@ -4,11 +4,17 @@ import { getOwner, getPropertiesForOwner } from "@/services/admin/ownerService";
 import { getOwnerUsers } from "@/services/admin/ownerUserService";
 import { getProperties } from "@/services/admin/propertyService";
 import { Card } from "@/components/ui/Card";
-import { AdminStatusBadge, accountStatusBadge, apaleoMappingStatusBadge } from "@/components/admin/AdminStatusBadge";
+import {
+  AdminStatusBadge,
+  accountStatusBadge,
+  apaleoMappingStatusBadge,
+  ownerUserStatusBadge,
+} from "@/components/admin/AdminStatusBadge";
 import { OwnerStatusToggle } from "@/components/admin/OwnerStatusToggle";
 import { ViewAsOwnerButton } from "@/components/admin/ViewAsOwnerButton";
 import { OwnerUserFormModal } from "@/components/admin/OwnerUserFormModal";
 import { OwnerUserStatusToggle } from "@/components/admin/OwnerUserStatusToggle";
+import { RecreateInvitationButton } from "@/components/admin/RecreateInvitationButton";
 import { EditAccessButton } from "@/components/admin/EditAccessButton";
 import { loadApaleoMappingOverview, mappingStatusFor } from "@/server/integrations/apaleo/mappingStatus";
 import { formatShortDate } from "@/lib/format";
@@ -75,7 +81,8 @@ export default async function AdminOwnerDetailPage({ params }: { params: Promise
           <div>
             <h2 className="text-sm font-semibold text-ink">Nutzer</h2>
             <p className="mt-1 text-xs text-ink-soft">
-              Ein Eigentümer kann mehrere Nutzer/Logins haben - noch keine Einladung per E-Mail.
+              Ein Eigentümer kann mehrere Nutzer/Logins haben. Neue Nutzer erhalten einen Einladungslink, um selbst
+              ein Passwort festzulegen - noch kein automatischer E-Mail-Versand.
             </p>
           </div>
           <OwnerUserFormModal
@@ -87,7 +94,7 @@ export default async function AdminOwnerDetailPage({ params }: { params: Promise
         <div className="mt-3 divide-y divide-line">
           {users.length === 0 && <p className="py-3 text-sm text-ink-soft">Noch keine Nutzer angelegt.</p>}
           {users.map((user) => {
-            const userStatus = accountStatusBadge(user.status);
+            const userStatus = ownerUserStatusBadge(user.status, user.invitationExpiresAt);
             return (
               <div key={user.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
                 <div>
@@ -107,6 +114,14 @@ export default async function AdminOwnerDetailPage({ params }: { params: Promise
                     triggerLabel="Bearbeiten"
                     triggerClassName="text-xs font-medium text-ink-soft transition-colors hover:text-ink"
                   />
+                  {user.status !== "active" && (
+                    <RecreateInvitationButton
+                      ownerUserId={user.id}
+                      ownerId={owner.id}
+                      userName={`${user.firstName} ${user.lastName}`}
+                      userEmail={user.email}
+                    />
+                  )}
                   <OwnerUserStatusToggle
                     userId={user.id}
                     ownerId={owner.id}

@@ -25,14 +25,25 @@ export function verifyPassword(plain: string, stored: string): boolean {
   return timingSafeEqual(candidate, expected);
 }
 
-/** Short, readable temporary password for admin-created owner logins - there
- *  is no invitation-email flow yet, so the admin relays this manually. */
-export function generateTempPassword(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  const bytes = randomBytes(10);
-  let result = "";
-  for (const byte of bytes) {
-    result += alphabet[byte % alphabet.length];
+/**
+ * Placeholder stored in `User.passwordHash` for an owner-role user created
+ * via the invitation flow (src/server/invitations.ts) who has not yet
+ * accepted it. Deliberately not a dummy/generated password: `hashPassword`
+ * always produces a `salt:hash` string, and `verifyPassword` splits on ":"
+ * before doing any scrypt work - this sentinel has no ":" at all, so it
+ * fails that split immediately and `verifyPassword` returns false for every
+ * input without ever reaching scrypt. No password exists for this account
+ * until the invitation is accepted and a real hashPassword() result
+ * replaces this value.
+ */
+export const NO_PASSWORD_SET_HASH = "invitation-pending-no-password-set";
+
+export const MIN_PASSWORD_LENGTH = 10;
+
+/** Returns a user-facing German error, or null if the password is acceptable. Deliberately simple - length only, no arbitrary complexity rules. */
+export function passwordStrengthError(password: string): string | null {
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`;
   }
-  return result;
+  return null;
 }

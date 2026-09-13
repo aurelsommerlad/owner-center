@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import type { AccountStatus } from "@/types/admin";
 import { requireAdminRole } from "@/lib/adminAuth";
 import { createOwner, getOwner, updateOwner } from "@/services/admin/ownerService";
-import { createOwnerUser, updateOwnerUser } from "@/services/admin/ownerUserService";
+import { createOwnerUser, recreateOwnerUserInvitation, updateOwnerUser } from "@/services/admin/ownerUserService";
 import { createProperty, getProperty, updateProperty } from "@/services/admin/propertyService";
 import { grantAccess, revokeAccess, setOwnerPropertyAccess, setPropertyOwnerAccess } from "@/services/admin/accessService";
 import { testApaleoConnection, type ApaleoConnectionStatus } from "@/server/integrations/apaleo/connectionCheck";
@@ -37,12 +37,28 @@ export interface ActionResult {
   message: string;
 }
 
+/**
+ * Result of any action that (re-)issues an owner-user invitation: `ok`
+ * false means the invitation was never created (see `message`); `ok` true
+ * always carries the raw token the admin's browser needs to build and copy
+ * the link. This is the ONLY place the raw token is ever transmitted - it
+ * never touches a log line, and the client component that receives this
+ * builds the full URL itself from `window.location.origin` rather than the
+ * server guessing its own public origin.
+ */
+export interface InvitationActionResult {
+  ok: boolean;
+  message: string;
+  inviteToken?: string;
+  inviteExpiresAt?: string;
+}
+
 function readString(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
 }
 
-export async function createOwnerAction(formData: FormData): Promise<ActionResult> {
-  await requireAdminRole();
+export async function createOwnerAction(formData: FormData): Promise<InvitationActionResult> {
+  const session = await requireAdminRole();
 
   const name = readString(formData, "name");
   const companyName = readString(formData, "companyName");
@@ -58,9 +74,13 @@ export async function createOwnerAction(formData: FormData): Promise<ActionResul
   const propertyIds = formData.getAll("propertyIds").map(String);
 
   const owner = await createOwner({ name, companyName: companyName || undefined });
-  let tempPassword: string;
+  let inviteToken: string;
+  let inviteExpiresAt: string;
   try {
-    ({ tempPassword } = await createOwnerUser({ ownerId: owner.id, firstName, lastName, email }));
+    ({ inviteToken, inviteExpiresAt } = await createOwnerUser(
+      { ownerId: owner.id, firstName, lastName, email },
+      session.userId
+    ));
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Nutzer konnte nicht angelegt werden." };
   }
@@ -71,10 +91,7 @@ export async function createOwnerAction(formData: FormData): Promise<ActionResul
   revalidatePath("/admin/owners");
   revalidatePath("/admin/properties");
   revalidatePath("/admin");
-  return {
-    ok: true,
-    message: `${name} wurde angelegt. Vorläufiges Passwort für ${email}: ${tempPassword}`,
-  };
+  return { ok: true, message: `${name} wurde angelegt. Einladung erstellt.`, inviteToken, inviteExpiresAt };
 }
 
 export async function setOwnerStatusAction(
@@ -91,8 +108,8 @@ export async function setOwnerStatusAction(
   return { ok: true, message: `${ownerName} wurde ${status === "active" ? "aktiviert" : "deaktiviert"}.` };
 }
 
-export async function createOwnerUserAction(formData: FormData): Promise<ActionResult> {
-  await requireAdminRole();
+export async function createOwnerUserAction(formData: FormData): Promise<InvitationActionResult> {
+  const session = await requireAdminRole();
 
   const ownerId = readString(formData, "ownerId");
   const firstName = readString(formData, "firstName");
@@ -101,17 +118,43 @@ export async function createOwnerUserAction(formData: FormData): Promise<ActionR
   if (!ownerId || !firstName || !lastName || !email) {
     return { ok: false, message: "Bitte alle Felder ausfüllen." };
   }
-  let tempPassword: string;
+  let inviteToken: string;
+  let inviteExpiresAt: string;
   try {
-    ({ tempPassword } = await createOwnerUser({ ownerId, firstName, lastName, email }));
+    ({ inviteToken, inviteExpiresAt } = await createOwnerUser({ ownerId, firstName, lastName, email }, session.userId));
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : "Nutzer konnte nicht angelegt werden." };
   }
   revalidatePath(`/admin/owners/${ownerId}`);
   return {
     ok: true,
-    message: `${firstName} ${lastName} wurde hinzugefügt. Vorläufiges Passwort für ${email}: ${tempPassword}`,
+    message: `${firstName} ${lastName} wurde hinzugefügt. Einladung erstellt.`,
+    inviteToken,
+    inviteExpiresAt,
   };
+}
+
+/**
+ * "Einladung neu erstellen" - revokes any still-open invitation for this
+ * owner user and issues a fresh one (see recreateOwnerUserInvitation), so a
+ * lost/expired link or a mistakenly-deactivated invitee both have exactly
+ * one recovery path. The old link stops working the moment this runs.
+ */
+export async function recreateOwnerInvitationAction(
+  ownerUserId: string,
+  ownerId: string
+): Promise<InvitationActionResult> {
+  const session = await requireAdminRole();
+
+  let inviteToken: string;
+  let inviteExpiresAt: string;
+  try {
+    ({ inviteToken, inviteExpiresAt } = await recreateOwnerUserInvitation(ownerUserId, session.userId));
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Einladung konnte nicht erstellt werden." };
+  }
+  revalidatePath(`/admin/owners/${ownerId}`);
+  return { ok: true, message: "Neue Einladung erstellt.", inviteToken, inviteExpiresAt };
 }
 
 export async function updateOwnerUserAction(
@@ -142,7 +185,11 @@ export async function setOwnerUserStatusAction(
 ): Promise<ActionResult> {
   await requireAdminRole();
 
-  await updateOwnerUser(userId, { status });
+  try {
+    await updateOwnerUser(userId, { status });
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Status konnte nicht geändert werden." };
+  }
   revalidatePath(`/admin/owners/${ownerId}`);
   return { ok: true, message: `${userName} wurde ${status === "active" ? "aktiviert" : "deaktiviert"}.` };
 }
