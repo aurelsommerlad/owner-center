@@ -8,12 +8,17 @@ import { hashPassword } from "../src/server/passwordCore";
  * general-document archive - so the existing UI keeps working with the same
  * example data, now served from the real database instead of in-memory
  * arrays. Run via `npm run db:seed` (or `npm run db:reset` to wipe + reseed).
+ *
+ * Deliberately does NOT touch admin accounts: it only ever deletes/recreates
+ * `role: "owner"` Users (and everything that cascades from Owner/Property).
+ * The one admin account is created exactly once by `npm run seed:admin`
+ * (see prisma/seedAdmin.ts) - re-running this demo seed must never wipe or
+ * recreate it, since that is the "no public admin registration" boundary.
  */
 
 const adapter = new PrismaBetterSqlite3({ url: "file:./prisma/dev.db" });
 const prisma = new PrismaClient({ adapter });
 
-const ADMIN_PASSWORD = "admin-2026";
 const OWNER_PASSWORD = "owner-2026";
 
 function d(value: string): Date {
@@ -24,6 +29,9 @@ async function main() {
   console.log("Seeding database...");
 
   // Wipe in FK-safe order so this script is re-runnable (`npm run db:reset`).
+  // Sessions are wiped entirely (harmless - everyone just has to log in
+  // again); Users are wiped only for role "owner", so an already-bootstrapped
+  // admin account survives a reseed untouched.
   await prisma.generalDocument.deleteMany();
   await prisma.statementDocument.deleteMany();
   await prisma.ownerPropertyAccess.deleteMany();
@@ -31,17 +39,7 @@ async function main() {
   await prisma.property.deleteMany();
   await prisma.owner.deleteMany();
   await prisma.session.deleteMany();
-  await prisma.user.deleteMany();
-
-  // --- Admin login -----------------------------------------------------
-  await prisma.user.create({
-    data: {
-      email: "admin@unique-places.example",
-      passwordHash: hashPassword(ADMIN_PASSWORD),
-      role: "admin",
-      name: "UNIQUE PLACES Team",
-    },
-  });
+  await prisma.user.deleteMany({ where: { role: "owner" } });
 
   // --- Properties --------------------------------------------------------
   // property-laeke keeps this exact id: src/data/mock/{units,reservations,
@@ -294,12 +292,13 @@ async function main() {
 
   console.log("Seed complete.");
   console.log("");
-  console.log("Demo logins:");
-  console.log(`  admin@unique-places.example / ${ADMIN_PASSWORD}  (role: admin)`);
+  console.log("Demo owner logins (Owner Center, /login):");
   console.log(`  j.schneider@example.com / ${OWNER_PASSWORD}  (role: owner, LÆKE + ΛLPILΛ)`);
   console.log(`  m.schneider@example.com / ${OWNER_PASSWORD}  (role: owner, LÆKE + ΛLPILΛ)`);
   console.log(`  a.berger@example.com / ${OWNER_PASSWORD}  (role: owner, HØV + ΛLPILΛ)`);
   console.log(`  m.thalberg@example.com / ${OWNER_PASSWORD}  (role: owner, deactivated - login blocked)`);
+  console.log("");
+  console.log("No admin account is created here - run `npm run seed:admin` (see .env.example).");
 }
 
 /** 1-12 */

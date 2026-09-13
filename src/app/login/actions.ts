@@ -15,12 +15,13 @@ function readString(formData: FormData, key: string): string {
 }
 
 /**
- * Verifies credentials against the User table and, on success, creates a
- * real DB-backed session and redirects by role (admin -> /admin, owner ->
- * the existing Owner Center start page). An owner-role login additionally
- * requires both the OwnerUser and its Owner to still be "active" - admin
- * deactivating either blocks sign-in immediately, without touching the
- * password itself.
+ * The Owner Center login, deliberately separate from
+ * src/app/admin/login/actions.ts#adminLoginAction: this action only ever
+ * creates a session for a `role: "owner"` User with an active OwnerUser +
+ * Owner. A correct admin password entered here is rejected with the same
+ * generic message as a wrong password - an admin account can never reach
+ * the Owner Center's session state through this form, regardless of how
+ * correct its credentials are.
  */
 export async function loginAction(formData: FormData): Promise<LoginResult> {
   const email = readString(formData, "email").toLowerCase();
@@ -34,26 +35,22 @@ export async function loginAction(formData: FormData): Promise<LoginResult> {
     where: { email },
     include: { ownerUser: { include: { owner: true } } },
   });
+  const passwordOk = user ? verifyPassword(password, user.passwordHash) : false;
 
-  if (!user || !verifyPassword(password, user.passwordHash)) {
+  if (!user || !passwordOk || user.role !== "owner") {
     return { ok: false, message: "E-Mail oder Passwort ist falsch." };
   }
 
-  if (user.role === "owner") {
-    const ownerUser = user.ownerUser;
-    if (!ownerUser || ownerUser.status !== "active" || ownerUser.owner.status !== "active") {
-      return { ok: false, message: "Dieses Konto ist deaktiviert. Bitte wenden Sie sich an UNIQUE PLACES." };
-    }
+  const ownerUser = user.ownerUser;
+  if (!ownerUser || ownerUser.status !== "active" || ownerUser.owner.status !== "active") {
+    return { ok: false, message: "Dieses Konto ist deaktiviert. Bitte wenden Sie sich an UNIQUE PLACES." };
   }
 
   await createSession(user.id);
+  await prisma.ownerUser.update({
+    where: { id: ownerUser.id },
+    data: { lastLoginAt: new Date() },
+  });
 
-  if (user.role === "owner" && user.ownerUser) {
-    await prisma.ownerUser.update({
-      where: { id: user.ownerUser.id },
-      data: { lastLoginAt: new Date() },
-    });
-  }
-
-  redirect(user.role === "admin" ? "/admin" : "/");
+  redirect("/");
 }
