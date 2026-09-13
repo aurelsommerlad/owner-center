@@ -9,49 +9,68 @@ const SIZE = 216;
 const RADIUS = 78;
 const STROKE = 32;
 const CENTER = SIZE / 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
-const INNER_HIT_RADIUS = RADIUS - STROKE / 2;
-const OUTER_HIT_RADIUS = RADIUS + STROKE / 2;
+const INNER_RADIUS = RADIUS - STROKE / 2;
+const OUTER_RADIUS = RADIUS + STROKE / 2;
 
 interface DonutSegment {
   row: BookingSourceBreakdown;
-  dash: number;
-  gap: number;
-  offset: number;
+  /** Degrees clockwise from straight up (0 = 12 o'clock), matching segmentIndexAtPoint's convention below. */
+  startAngle: number;
+  endAngle: number;
 }
 
-/** Precomputes each wedge's dash length and cumulative rotation offset as a
- *  plain, pure array - kept out of the component body so nothing mutates a
- *  render-scoped variable while building the JSX. */
+/** Precomputes each wedge's [startAngle, endAngle) in degrees as a plain,
+ *  pure array - kept out of the component body so nothing mutates a
+ *  render-scoped variable while building the JSX. Adjacent segments share
+ *  the exact same boundary angle (each one's end is the next one's start,
+ *  both derived from the same running `cumulative`), so the paths drawn
+ *  from these angles meet at identical points with no seam between them. */
 function layoutSegments(sources: BookingSourceBreakdown[]): DonutSegment[] {
   let cumulative = 0;
   return sources.map((row) => {
-    const dash = (row.revenueShare / 100) * CIRCUMFERENCE;
-    const segment: DonutSegment = { row, dash, gap: CIRCUMFERENCE - dash, offset: -cumulative };
-    cumulative += dash;
-    return segment;
+    const startAngle = (cumulative / 100) * 360;
+    cumulative += row.revenueShare;
+    return { row, startAngle, endAngle: (cumulative / 100) * 360 };
   });
+}
+
+function polarPoint(radius: number, angleDegrees: number): { x: number; y: number } {
+  const angleRadians = (angleDegrees * Math.PI) / 180;
+  return { x: CENTER + radius * Math.sin(angleRadians), y: CENTER - radius * Math.cos(angleRadians) };
+}
+
+/** SVG path for one ring wedge (an annular sector) between innerRadius and
+ *  outerRadius, from startAngle to endAngle - drawn as a single filled
+ *  shape rather than a stroked circle arc, so there is no dependency on
+ *  another element's stroke lining up with it at the boundary. */
+function wedgePath(startAngle: number, endAngle: number): string {
+  const sweep = Math.min(endAngle - startAngle, 359.99);
+  const largeArc = sweep > 180 ? 1 : 0;
+  const outerStart = polarPoint(OUTER_RADIUS, startAngle);
+  const outerEnd = polarPoint(OUTER_RADIUS, startAngle + sweep);
+  const innerEnd = polarPoint(INNER_RADIUS, startAngle + sweep);
+  const innerStart = polarPoint(INNER_RADIUS, startAngle);
+  return [
+    `M ${outerStart.x} ${outerStart.y}`,
+    `A ${OUTER_RADIUS} ${OUTER_RADIUS} 0 ${largeArc} 1 ${outerEnd.x} ${outerEnd.y}`,
+    `L ${innerEnd.x} ${innerEnd.y}`,
+    `A ${INNER_RADIUS} ${INNER_RADIUS} 0 ${largeArc} 0 ${innerStart.x} ${innerStart.y}`,
+    "Z",
+  ].join(" ");
 }
 
 /**
  * Which segment (if any) the pointer is over, computed once from angle +
- * distance to the ring's center - rather than relying on each stacked
- * segment circle's own SVG stroke hit-testing. The segments are drawn as 4
- * full circles of identical radius, only made to look like separate wedges
- * via strokeDasharray, so their invisible dash gaps still touch at the
- * segment boundaries; letting the browser pick a hit target there flickers
- * between neighboring segments as the pointer nears (or even sits still on)
- * a boundary. Angle math has exactly one answer per pointer position, so
- * there is nothing left to flicker between.
+ * distance to the ring's center, using the exact same [startAngle, endAngle)
+ * data the wedges are drawn from - so the hit area always matches the
+ * visible shape exactly, with nothing to disagree about at a boundary.
  *
- * Angle 0 is straight up (matching the <g transform="rotate(-90 ...)"> the
- * segments are drawn in) and increases clockwise, matching strokeDashoffset
- * growing clockwise from the top - so it lines up with each segment's
- * cumulative revenueShare in the same order they're drawn.
+ * Angle 0 is straight up and increases clockwise, matching layoutSegments'
+ * / wedgePath's convention above.
  */
 function segmentIndexAtPoint(
   svg: SVGSVGElement,
-  sources: BookingSourceBreakdown[],
+  segments: DonutSegment[],
   clientX: number,
   clientY: number
 ): number | null {
@@ -62,17 +81,11 @@ function segmentIndexAtPoint(
   const dx = localX - CENTER;
   const dy = localY - CENTER;
   const distance = Math.sqrt(dx * dx + dy * dy);
-  if (distance < INNER_HIT_RADIUS || distance > OUTER_HIT_RADIUS) return null;
+  if (distance < INNER_RADIUS || distance > OUTER_RADIUS) return null;
 
   const degrees = (Math.atan2(dx, -dy) * (180 / Math.PI) + 360) % 360;
-  const percent = (degrees / 360) * 100;
-
-  let cumulative = 0;
-  for (let index = 0; index < sources.length; index += 1) {
-    cumulative += sources[index].revenueShare;
-    if (percent < cumulative) return index;
-  }
-  return sources.length > 0 ? sources.length - 1 : null;
+  const index = segments.findIndex(({ startAngle, endAngle }) => degrees >= startAngle && degrees < endAngle);
+  return index === -1 ? null : index;
 }
 
 export function BookingSourceDonut({ sources }: { sources: BookingSourceBreakdown[] }) {
@@ -86,7 +99,7 @@ export function BookingSourceDonut({ sources }: { sources: BookingSourceBreakdow
   function handlePointerMove(event: ReactMouseEvent<SVGSVGElement>) {
     const svg = svgRef.current;
     if (!svg) return;
-    setActiveIndex(segmentIndexAtPoint(svg, sources, event.clientX, event.clientY));
+    setActiveIndex(segmentIndexAtPoint(svg, segments, event.clientX, event.clientY));
   }
 
   function handlePointerLeave() {
@@ -96,7 +109,7 @@ export function BookingSourceDonut({ sources }: { sources: BookingSourceBreakdow
   function handleClick(event: ReactMouseEvent<SVGSVGElement>) {
     const svg = svgRef.current;
     if (!svg) return;
-    const index = segmentIndexAtPoint(svg, sources, event.clientX, event.clientY);
+    const index = segmentIndexAtPoint(svg, segments, event.clientX, event.clientY);
     setActiveIndex((current) => (index !== null && current === index ? null : index));
   }
 
@@ -116,28 +129,19 @@ export function BookingSourceDonut({ sources }: { sources: BookingSourceBreakdow
           onClick={handleClick}
         >
           <circle cx={CENTER} cy={CENTER} r={RADIUS} fill="none" stroke="var(--color-line)" strokeWidth={STROKE} />
-          <g transform={`rotate(-90 ${CENTER} ${CENTER})`}>
-            {segments.map(({ row, dash, gap, offset }, index) => {
-              const isActive = activeIndex === index;
-              const isDimmed = activeIndex !== null && !isActive;
+          {segments.map(({ row, startAngle, endAngle }, index) => {
+            const isDimmed = activeIndex !== null && activeIndex !== index;
 
-              return (
-                <circle
-                  key={row.source}
-                  cx={CENTER}
-                  cy={CENTER}
-                  r={RADIUS}
-                  fill="none"
-                  stroke={CHANNEL_COLORS[row.source]}
-                  strokeWidth={STROKE}
-                  strokeDasharray={`${dash} ${gap}`}
-                  strokeDashoffset={offset}
-                  opacity={isDimmed ? 0.45 : 1}
-                  className="pointer-events-none transition-opacity duration-150"
-                />
-              );
-            })}
-          </g>
+            return (
+              <path
+                key={row.source}
+                d={wedgePath(startAngle, endAngle)}
+                fill={CHANNEL_COLORS[row.source]}
+                opacity={isDimmed ? 0.45 : 1}
+                className="pointer-events-none transition-opacity duration-150"
+              />
+            );
+          })}
         </svg>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">Direktanteil</p>
