@@ -3,7 +3,6 @@ import type { AdminDocumentType, AdminGeneralDocumentCategory, UserRole } from "
 export const USER_ROLE_LABEL: Record<UserRole, string> = {
   admin: "Admin",
   owner: "Eigentümer",
-  owner_user: "Nutzer (Eigentümer)",
 };
 
 export const ADMIN_DOCUMENT_TYPE_LABEL: Record<AdminDocumentType, string> = {

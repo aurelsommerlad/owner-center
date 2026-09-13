@@ -36,9 +36,12 @@ export function accountStatusBadge(status: AccountStatus): { label: string; tone
 }
 
 export function propertyStatusBadge(status: AdminPropertyStatus): { label: string; tone: AdminStatusTone } {
-  if (status === "active") return { label: "Aktiv", tone: "positive" };
-  if (status === "onboarding") return { label: "Onboarding", tone: "neutral" };
-  return { label: "Inaktiv", tone: "muted" };
+  return status === "active" ? { label: "Aktiv", tone: "positive" } : { label: "Inaktiv", tone: "muted" };
+}
+
+/** Very dezent config-status label for apaleo/Drive - no red warning areas, just a quieter tone when unset. */
+export function configStatusBadge(configured: boolean): { label: string; tone: AdminStatusTone } {
+  return configured ? { label: "Konfiguriert", tone: "positive" } : { label: "Nicht konfiguriert", tone: "muted" };
 }
 
 export function statementStatusBadge(status: AdminStatementStatus): { label: string; tone: AdminStatusTone } {

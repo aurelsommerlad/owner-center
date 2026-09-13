@@ -1,34 +1,35 @@
 import type { AdminOwner } from "@/types/admin";
 
+/**
+ * Central mock "table" for owners. Exported as a mutable array on purpose -
+ * services/admin/ownerService.ts's create/update functions push/mutate
+ * directly into this array, which is what makes the Admin CRUD flows
+ * actually work within a session (see that file's module comment for the
+ * seam a later database swap replaces this array with).
+ */
 export const adminOwners: AdminOwner[] = [
   {
     id: "admin-owner-schneider",
     name: "Familie Schneider",
-    company: "Schneider Immobilien GmbH",
-    email: "schneider@example.com",
+    companyName: "Schneider Immobilien GmbH",
     status: "active",
-    role: "owner",
     createdAt: "2024-01-15",
-    lastLoginAt: "2026-09-08",
+    updatedAt: "2024-01-15",
   },
   {
     id: "admin-owner-berger",
     name: "Dr. Anna Berger",
-    company: "Berger Capital Living GmbH",
-    email: "a.berger@example.com",
+    companyName: "Berger Capital Living GmbH",
     status: "active",
-    role: "owner",
     createdAt: "2024-06-02",
-    lastLoginAt: "2026-09-05",
+    updatedAt: "2024-06-02",
   },
   {
     id: "admin-owner-thalberg",
     name: "Michael Thalberg",
-    company: "Thalberg Invest",
-    email: "m.thalberg@example.com",
+    companyName: "Thalberg Invest",
     status: "inactive",
-    role: "owner",
     createdAt: "2025-02-20",
-    lastLoginAt: "2025-11-12",
+    updatedAt: "2025-11-12",
   },
 ];

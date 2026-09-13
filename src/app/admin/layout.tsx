@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { requireAdminRole } from "@/lib/adminAuth";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { AdminToastProvider } from "@/components/admin/AdminToast";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   // Server-side guard for the whole /admin subtree. Every route under here
@@ -12,12 +13,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const session = await requireAdminRole();
 
   return (
-    <div className="flex min-h-screen bg-paper">
-      <AdminSidebar />
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <AdminHeader session={session} />
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-9">{children}</main>
+    <AdminToastProvider>
+      <div className="flex min-h-screen bg-paper">
+        <AdminSidebar />
+        <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+          <AdminHeader session={session} />
+          <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-9">{children}</main>
+        </div>
       </div>
-    </div>
+    </AdminToastProvider>
   );
 }

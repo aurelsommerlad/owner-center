@@ -9,60 +9,70 @@
  */
 
 /**
- * Prepared for later real authentication. "owner" is the company/account
- * level, "owner_user" an individual login under an owner (an owner can have
- * several). No full auth is implemented yet - see lib/adminAuth.ts for the
- * seam a later login system plugs into.
+ * Prepared for later real authentication. Every OwnerUser carries "owner"
+ * today - no per-person detail permissions yet (see AdminOwnerUser). No
+ * full auth is implemented yet - see lib/adminAuth.ts for the seam a later
+ * login system plugs into.
  */
-export type UserRole = "admin" | "owner" | "owner_user";
+export type UserRole = "admin" | "owner";
 
 export type AccountStatus = "active" | "inactive";
 
 /**
- * The company/account that owns one or more properties. Deliberately not
- * "one person" - see AdminOwnerUser for the individual logins under it, and
+ * The contract partner / owner company. Deliberately not "one person" and
+ * deliberately carries no login credentials of its own - see AdminOwnerUser
+ * for the individual logins under it (an owner can have several: a
+ * managing director, a second contact, later maybe a tax advisor), and
  * OwnerPropertyAccess for the (many-to-many) link to properties.
  */
 export interface AdminOwner {
   id: string;
-  /** Primary contact / display name, e.g. "Familie Schneider". */
   name: string;
-  company: string;
-  email: string;
+  companyName?: string;
   status: AccountStatus;
-  /** Account-level role. Individual AdminOwnerUser entries may carry a different role (e.g. "owner_user" for a secondary login). */
-  role: UserRole;
   createdAt: string;
-  /** Most recent login across all of this owner's users, if any. */
-  lastLoginAt: string | null;
+  updatedAt: string;
 }
 
-/** An individual person/login belonging to an AdminOwner. An owner can have several. */
+/**
+ * An individual person with Owner Center access, belonging to exactly one
+ * AdminOwner (an owner can have several such users). This is where email
+ * and login-relevant fields live - never on AdminOwner itself.
+ */
 export interface AdminOwnerUser {
   id: string;
   ownerId: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  role: UserRole;
   status: AccountStatus;
+  /** Fixed to "owner" for now - no per-user detail permissions yet. */
+  role: "owner";
+  lastLoginAt?: string;
   createdAt: string;
-  lastLoginAt: string | null;
+  updatedAt: string;
 }
 
-export type AdminPropertyStatus = "active" | "inactive" | "onboarding";
+export type AdminPropertyStatus = "active" | "inactive";
 
+/**
+ * The connection/permission record for a property. Reservations, guests,
+ * occupancy, units, pricing and availability are NOT modeled here and never
+ * will be - those stay apaleo's domain and are fetched from there once that
+ * integration exists. Admin only owns the identity + access side.
+ */
 export interface AdminProperty {
   id: string;
   name: string;
-  /** Display location, e.g. "Lindau · Bodensee". */
+  /** Display location, e.g. "Lindau". */
   location: string;
   status: AdminPropertyStatus;
-  /** `null` until the property is linked in apaleo. */
-  apaleoPropertyId: string | null;
-  /** `null` until a Drive folder has been set up for this property's statements. */
-  statementsDriveFolderId: string | null;
-  /** `null` until a Drive folder has been set up for this property's general documents. */
-  documentsDriveFolderId: string | null;
+  /** Mock configuration value only - no real apaleo connection. */
+  apaleoPropertyId?: string;
+  /** Mock configuration value only - no real Drive connection. */
+  statementsDriveFolderId?: string;
+  /** Mock configuration value only - no real Drive connection. */
+  documentsDriveFolderId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -72,11 +82,17 @@ export interface AdminProperty {
  * several properties, and (structurally, for later co-ownership /
  * authorized-viewer cases) one property can be linked to several owners.
  * Never collapse this into a single `ownerId` field on Property.
+ *
+ * `status` lets access be revoked without deleting the record (an audit
+ * trail of who was ever granted access to what) - "removing" a property
+ * from an owner in the UI sets this to "inactive" rather than deleting the
+ * row. Every query in lib/adminPermissions.ts only considers "active" rows.
  */
 export interface OwnerPropertyAccess {
   id: string;
   ownerId: string;
   propertyId: string;
+  status: AccountStatus;
   createdAt: string;
 }
 

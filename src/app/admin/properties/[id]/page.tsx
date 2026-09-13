@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getOwners } from "@/services/admin/ownerService";
 import { getOwnersForProperty, getProperty } from "@/services/admin/propertyService";
 import { Card } from "@/components/ui/Card";
 import { AdminStatusBadge, propertyStatusBadge } from "@/components/admin/AdminStatusBadge";
+import { PropertyFormModal } from "@/components/admin/PropertyFormModal";
 import { formatShortDate } from "@/lib/format";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -14,12 +16,19 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+// Property-ID / Drive folder IDs are mock configuration only - a real
+// connection never exists yet, so this status is always "Noch nicht
+// verbunden" regardless of whether a mock value is set. No fake sync state.
+function NotConnectedBadge() {
+  return <AdminStatusBadge label="Noch nicht verbunden" tone="muted" />;
+}
+
 export default async function AdminPropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const property = await getProperty(id);
   if (!property) notFound();
 
-  const owners = await getOwnersForProperty(property.id);
+  const [owners, allOwners] = await Promise.all([getOwnersForProperty(property.id), getOwners()]);
   const statusBadge = propertyStatusBadge(property.status);
 
   return (
@@ -28,47 +37,67 @@ export default async function AdminPropertyDetailPage({ params }: { params: Prom
         <Link href="/admin/properties" className="text-xs font-medium text-ink-soft transition-colors hover:text-ink">
           ← Objekte
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-ink">{property.name}</h1>
-        <p className="mt-1 text-sm text-ink-soft">{property.location}</p>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-ink">{property.name}</h1>
+            <p className="mt-1 text-sm text-ink-soft">{property.location}</p>
+          </div>
+          <PropertyFormModal
+            property={property}
+            owners={allOwners}
+            ownerIds={owners.map((owner) => owner.id)}
+            triggerLabel="Bearbeiten"
+            triggerClassName="rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-colors hover:border-ink hover:text-ink"
+          />
+        </div>
       </div>
 
+      {/* Objekt */}
       <Card className="grid grid-cols-2 gap-x-6 gap-y-5 p-5 shadow-soft sm:p-6 lg:grid-cols-4">
         <Field label="Objektname" value={property.name} />
         <Field label="Standort" value={property.location} />
         <Field label="Status" value={<AdminStatusBadge label={statusBadge.label} tone={statusBadge.tone} />} />
-        <Field
-          label="apaleo Property-ID"
-          value={property.apaleoPropertyId ?? <span className="text-ink-soft">Nicht verknüpft</span>}
-        />
-        <Field
-          label="Eigentümer"
-          value={
-            owners.length > 0 ? (
-              <span className="flex flex-wrap gap-x-1.5">
-                {owners.map((owner, index) => (
-                  <span key={owner.id}>
-                    <Link href={`/admin/owners/${owner.id}`} className="hover:underline">
-                      {owner.name}
-                    </Link>
-                    {index < owners.length - 1 && ","}
-                  </span>
-                ))}
-              </span>
-            ) : (
-              "—"
-            )
-          }
-        />
-        <Field
-          label="Drive-Ordner Abrechnungen"
-          value={property.statementsDriveFolderId ?? <span className="text-ink-soft">Nicht eingerichtet</span>}
-        />
-        <Field
-          label="Drive-Ordner Dokumente"
-          value={property.documentsDriveFolderId ?? <span className="text-ink-soft">Nicht eingerichtet</span>}
-        />
-        <Field label="Erstellt am" value={formatShortDate(property.createdAt)} />
         <Field label="Zuletzt aktualisiert" value={formatShortDate(property.updatedAt)} />
+      </Card>
+
+      {/* Eigentümer & Zugriffe */}
+      <Card className="p-5 shadow-soft sm:p-6">
+        <h2 className="text-sm font-semibold text-ink">Eigentümer & Zugriffe</h2>
+        <p className="mt-1 text-xs text-ink-soft">Welche Eigentümer haben Zugriff auf dieses Objekt?</p>
+        <div className="mt-3 divide-y divide-line">
+          {owners.length === 0 && <p className="py-3 text-sm text-ink-soft">Noch kein Eigentümer zugeordnet.</p>}
+          {owners.map((owner) => (
+            <div key={owner.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+              <Link href={`/admin/owners/${owner.id}`} className="text-ink transition-colors hover:text-ink-soft">
+                {owner.name}
+              </Link>
+              {owner.companyName && <span className="text-xs text-ink-soft">{owner.companyName}</span>}
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* apaleo */}
+      <Card className="p-5 shadow-soft sm:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-sm font-semibold text-ink">apaleo</h2>
+          <NotConnectedBadge />
+        </div>
+        <div className="mt-3">
+          <Field label="Property-ID" value={property.apaleoPropertyId ?? "—"} />
+        </div>
+      </Card>
+
+      {/* Google Drive */}
+      <Card className="p-5 shadow-soft sm:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-sm font-semibold text-ink">Google Drive</h2>
+          <NotConnectedBadge />
+        </div>
+        <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+          <Field label="Abrechnungsordner" value={property.statementsDriveFolderId ?? "—"} />
+          <Field label="Dokumentenordner" value={property.documentsDriveFolderId ?? "—"} />
+        </div>
       </Card>
     </div>
   );
