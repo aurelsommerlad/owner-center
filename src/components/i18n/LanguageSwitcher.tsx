@@ -7,14 +7,14 @@ import type { Locale } from "@/i18n";
 import { useTranslations } from "./LocaleProvider";
 
 /**
- * "DE | EN" - dezent, no flags, no big button. Persists via
- * setLocaleAction() (cookie always, User.locale for a real Owner login)
- * and then refreshes the current route so every Server Component
- * re-renders in the new language - no client-side re-translation needed,
- * this is the one seam that makes the switch actually take effect.
+ * "Sprache" dropdown for the Profil page. Persists via setLocaleAction()
+ * (cookie always, User.locale for a real Owner login) and then refreshes
+ * the current route so every Server Component re-renders in the new
+ * language - no client-side re-translation needed, this is the one seam
+ * that makes the switch actually take effect.
  */
 export function LanguageSwitcher({ className = "" }: { className?: string }) {
-  const { locale } = useTranslations();
+  const { locale, t } = useTranslations();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -27,28 +27,15 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
   }
 
   return (
-    <div className={`flex items-center gap-1.5 text-[11px] font-medium ${className}`}>
-      <button
-        type="button"
-        onClick={() => select("de")}
-        aria-pressed={locale === "de"}
-        disabled={pending}
-        className={`transition-colors ${locale === "de" ? "text-ink" : "text-ink-soft/70 hover:text-ink"}`}
-      >
-        DE
-      </button>
-      <span aria-hidden="true" className="text-ink-soft/30">
-        |
-      </span>
-      <button
-        type="button"
-        onClick={() => select("en")}
-        aria-pressed={locale === "en"}
-        disabled={pending}
-        className={`transition-colors ${locale === "en" ? "text-ink" : "text-ink-soft/70 hover:text-ink"}`}
-      >
-        EN
-      </button>
-    </div>
+    <select
+      value={locale}
+      disabled={pending}
+      onChange={(event) => select(event.target.value as Locale)}
+      aria-label={t("profile.language")}
+      className={`w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none transition-colors focus:border-ink disabled:opacity-50 ${className}`}
+    >
+      <option value="de">{t("language.de")}</option>
+      <option value="en">{t("language.en")}</option>
+    </select>
   );
 }

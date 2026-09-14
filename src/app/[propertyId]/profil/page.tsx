@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { PersonalDataCard } from "@/components/profile/PersonalDataCard";
 import { PasswordChangeCard } from "@/components/profile/PasswordChangeCard";
 import { TeamUsersSection } from "@/components/profile/TeamUsersSection";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { getOwnerLocale } from "@/server/locale";
 import { getDictionary, createTranslator } from "@/i18n";
 
@@ -68,6 +69,14 @@ export default async function ProfilPage({ params }: { params: Promise<{ propert
             <p className="mt-4 text-sm text-ink-soft">{t("profile.notAvailableInPreviewPersonal")}</p>
           </div>
         )}
+      </Card>
+
+      {/* Sprache */}
+      <Card className="p-5 shadow-soft sm:p-6">
+        <h2 className="font-display text-lg italic text-ink">{t("profile.language")}</h2>
+        <div className="mt-4 max-w-xs">
+          <LanguageSwitcher />
+        </div>
       </Card>
 
       {/* Zugang & Sicherheit */}

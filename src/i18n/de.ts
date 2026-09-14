@@ -39,19 +39,18 @@ export const de = {
     statistics: "Statistiken",
     statements: "Abrechnungen",
     documents: "Dokumente",
-    profile: "Profil",
+    profile: "Profil & Einstellungen",
     help: "Hilfe & Kontakt",
     logout: "Abmelden",
     brand: "UNIQUE PLACES",
     brandSubtitleDesktop: "Owner Center",
     brandSubtitleMobile: "Eigentümerportal",
-    signedInAs: "Angemeldet als",
-    /** Neutral fallback role label - shown instead of a name when no specific OwnerUser exists to greet (e.g. an admin's "Als Owner ansehen" preview). */
+    /** Neutral fallback role label - shown instead of a name when no specific OwnerUser exists to identify (e.g. an admin's "Als Owner ansehen" preview). */
     ownerRole: "Eigentümer",
   },
   language: {
-    de: "DE",
-    en: "EN",
+    de: "Deutsch",
+    en: "English",
   },
   login: {
     title: "Anmelden",
@@ -77,11 +76,6 @@ export const de = {
     submit: "Zugang aktivieren",
     submitPending: "Wird gespeichert…",
     passwordsDontMatch: "Die Passwörter stimmen nicht überein.",
-  },
-  greeting: {
-    morning: "Guten Morgen",
-    afternoon: "Guten Tag",
-    evening: "Guten Abend",
   },
   overview: {
     performanceOverview: "Performance im Überblick",
@@ -224,6 +218,7 @@ export const de = {
   profile: {
     title: "Profil",
     subtitle: "Ihre Zugangsdaten und Ihr Team im Überblick.",
+    language: "Sprache",
     personalData: "Persönliche Daten",
     firstName: "Vorname",
     lastName: "Nachname",

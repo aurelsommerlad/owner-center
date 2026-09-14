@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { FOOTER_NAV, LOGOUT_ITEM, MAIN_NAV, navHref, type NavItem } from "./navigation";
 import { logoutAction } from "@/app/actions";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import type { SignedInOwnerIdentity } from "@/server/ownerIdentity";
 
 function NavLink({
@@ -77,19 +76,6 @@ export function Sidebar({
       </nav>
 
       <div className="mt-6 flex flex-col gap-1 border-t border-line pt-4">
-        <div className="px-3.5 pb-2">
-          {identity ? (
-            <>
-              <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft/70">{t("nav.signedInAs")}</p>
-              <p className="mt-0.5 truncate text-sm font-medium text-ink">
-                {identity.firstName} {identity.lastName}
-              </p>
-              <p className="truncate text-xs text-ink-soft">{identity.email}</p>
-            </>
-          ) : (
-            <p className="text-sm font-medium text-ink">{t("nav.ownerRole")}</p>
-          )}
-        </div>
         {FOOTER_NAV.map((item) => (
           <NavLink
             key={item.key}
@@ -99,17 +85,23 @@ export function Sidebar({
             label={t(item.translationKey)}
           />
         ))}
-        <form action={logoutAction}>
-          <button
-            type="submit"
-            className="group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-ink-soft transition-colors hover:bg-paper-dim hover:text-ink"
-          >
-            <LOGOUT_ITEM.icon className="h-[18px] w-[18px] shrink-0 text-ink-soft/70 group-hover:text-ink" />
-            {t(LOGOUT_ITEM.translationKey)}
-          </button>
-        </form>
-        <div className="mt-2 px-3.5">
-          <LanguageSwitcher />
+
+        <div className="mt-3 border-t border-line pt-3">
+          <div className="px-3.5 pb-2">
+            <p className="truncate text-sm font-semibold text-ink">
+              {identity ? `${identity.firstName} ${identity.lastName}` : t("nav.ownerRole")}
+            </p>
+            {identity && <p className="text-xs text-[#74736E]">{t("nav.ownerRole")}</p>}
+          </div>
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-ink-soft transition-colors hover:bg-paper-dim hover:text-ink"
+            >
+              <LOGOUT_ITEM.icon className="h-[18px] w-[18px] shrink-0 text-ink-soft/70 group-hover:text-ink" />
+              {t(LOGOUT_ITEM.translationKey)}
+            </button>
+          </form>
         </div>
       </div>
     </aside>

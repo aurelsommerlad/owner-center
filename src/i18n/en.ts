@@ -36,18 +36,17 @@ export const en: Dictionary = {
     statistics: "Statistics",
     statements: "Statements",
     documents: "Documents",
-    profile: "Profile",
+    profile: "Profile & settings",
     help: "Help & Contact",
     logout: "Log out",
     brand: "UNIQUE PLACES",
     brandSubtitleDesktop: "Owner Center",
     brandSubtitleMobile: "Owner Portal",
-    signedInAs: "Signed in as",
     ownerRole: "Owner",
   },
   language: {
-    de: "DE",
-    en: "EN",
+    de: "Deutsch",
+    en: "English",
   },
   login: {
     title: "Log in",
@@ -73,11 +72,6 @@ export const en: Dictionary = {
     submit: "Activate access",
     submitPending: "Saving…",
     passwordsDontMatch: "The passwords do not match.",
-  },
-  greeting: {
-    morning: "Good morning",
-    afternoon: "Good afternoon",
-    evening: "Good evening",
   },
   overview: {
     performanceOverview: "Performance at a glance",
@@ -220,6 +214,7 @@ export const en: Dictionary = {
   profile: {
     title: "Profile",
     subtitle: "Your access details and your team at a glance.",
+    language: "Language",
     personalData: "Personal details",
     firstName: "First name",
     lastName: "Last name",

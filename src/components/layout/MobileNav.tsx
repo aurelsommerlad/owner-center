@@ -8,7 +8,6 @@ import { CloseIcon, MenuIcon } from "@/components/ui/icons";
 import { FOOTER_NAV, LOGOUT_ITEM, MAIN_NAV, navHref } from "./navigation";
 import { logoutAction } from "@/app/actions";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 
 export function MobileNav({ propertyId }: { propertyId: string }) {
   const [open, setOpen] = useState(false);
@@ -112,9 +111,6 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
                     {t(LOGOUT_ITEM.translationKey)}
                   </button>
                 </form>
-                <div className="px-3.5 pt-2">
-                  <LanguageSwitcher />
-                </div>
               </div>
             </div>
           </div>,

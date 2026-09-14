@@ -4,8 +4,6 @@ interface HeroSectionProps {
   property: Property;
   periodLabel: string;
   subtitle: string;
-  /** Time-of-day dashboard greeting, e.g. "Guten Morgen, Anna" (first name only) - already fully resolved (locale, time zone, name) by the caller. Omitted renders nothing, no reserved space. */
-  greeting?: string;
 }
 
 /**
@@ -19,10 +17,9 @@ function displayPropertyName(name: string): string {
   return name.replace(/\s*by\s+unique\s+places\s*/gi, " ").trim();
 }
 
-export function HeroSection({ property, periodLabel, subtitle, greeting }: HeroSectionProps) {
+export function HeroSection({ property, periodLabel, subtitle }: HeroSectionProps) {
   return (
     <div className="flex flex-col gap-1">
-      {greeting && <p className="text-xl font-normal text-[#74736E]">{greeting}</p>}
       <h1 className="font-display text-3xl italic text-ink">
         {displayPropertyName(property.name)} <span className="text-ink-soft/50">·</span> {periodLabel}
       </h1>
