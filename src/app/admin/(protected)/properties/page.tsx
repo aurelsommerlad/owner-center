@@ -3,10 +3,11 @@ import { getOwners } from "@/services/admin/ownerService";
 import { getOwnersForProperty, getProperties } from "@/services/admin/propertyService";
 import { Card } from "@/components/ui/Card";
 import { AdminTable, type AdminTableColumn } from "@/components/admin/AdminTable";
-import { AdminStatusBadge, apaleoMappingStatusBadge, configStatusBadge, propertyStatusBadge } from "@/components/admin/AdminStatusBadge";
+import { AdminStatusBadge, apaleoMappingStatusBadge, googleDriveMappingStatusBadge, propertyStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { PropertyFormModal } from "@/components/admin/PropertyFormModal";
 import { ApaleoPropertyActionCell } from "@/components/admin/ApaleoPropertyActionCell";
 import { loadApaleoMappingOverview, mappingStatusFor } from "@/server/integrations/apaleo/mappingStatus";
+import { loadGoogleDriveFolderMappingOverview, driveMappingStatusFor } from "@/server/integrations/googleDrive/folderMapping";
 import type { AdminProperty } from "@/types/admin";
 import type { ApaleoPropertySummary } from "@/server/integrations/apaleo/types";
 
@@ -20,10 +21,11 @@ export default async function AdminPropertiesPage() {
   // be silently dropped), so it's safe - and correct, per "Owner
   // verschwindet aus normalen aktiven Auswahlfeldern" - to only offer active
   // owners here.
-  const [properties, owners, apaleoOverview] = await Promise.all([
+  const [properties, owners, apaleoOverview, driveOverview] = await Promise.all([
     getProperties(),
     getOwners({ status: "active" }),
     loadApaleoMappingOverview(),
+    loadGoogleDriveFolderMappingOverview(),
   ]);
   const rows: PropertyRow[] = await Promise.all(
     properties.map(async (property) => ({
@@ -73,9 +75,7 @@ export default async function AdminPropertiesPage() {
       key: "drive",
       header: "Google Drive",
       render: (row) => {
-        const badge = configStatusBadge(
-          Boolean(row.property.statementsDriveFolderId && row.property.documentsDriveFolderId)
-        );
+        const badge = googleDriveMappingStatusBadge(driveMappingStatusFor(row.property.googleDriveFolderId, driveOverview));
         return <AdminStatusBadge label={badge.label} tone={badge.tone} />;
       },
     },
