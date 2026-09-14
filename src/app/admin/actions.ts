@@ -36,6 +36,7 @@ import {
   type StatementDocumentUpdateInput,
 } from "@/services/admin/statementService";
 import { prisma } from "@/server/db";
+import { getAppUrl } from "@/lib/appUrl";
 
 /**
  * Server Actions for the owner/user/property admin flows, backed by the
@@ -61,16 +62,18 @@ export interface ActionResult {
 /**
  * Result of any action that (re-)issues an owner-user invitation: `ok`
  * false means the invitation was never created (see `message`); `ok` true
- * always carries the raw token the admin's browser needs to build and copy
- * the link. This is the ONLY place the raw token is ever transmitted - it
- * never touches a log line, and the client component that receives this
- * builds the full URL itself from `window.location.origin` rather than the
- * server guessing its own public origin.
+ * always carries the raw token AND the ready-to-copy `inviteUrl` built from
+ * it (see lib/appUrl.ts#getAppUrl) - the one place either is ever
+ * transmitted, and it never touches a log line. `inviteToken` alone is kept
+ * for callers that only need it for display logic; the client component
+ * that renders the link always uses `inviteUrl` verbatim rather than
+ * building it itself.
  */
 export interface InvitationActionResult {
   ok: boolean;
   message: string;
   inviteToken?: string;
+  inviteUrl?: string;
   inviteExpiresAt?: string;
 }
 
@@ -112,7 +115,8 @@ export async function createOwnerAction(formData: FormData): Promise<InvitationA
   revalidatePath("/admin/owners");
   revalidatePath("/admin/properties");
   revalidatePath("/admin");
-  return { ok: true, message: `${name} wurde angelegt. Einladung erstellt.`, inviteToken, inviteExpiresAt };
+  const inviteUrl = `${await getAppUrl()}/invite/${inviteToken}`;
+  return { ok: true, message: `${name} wurde angelegt. Einladung erstellt.`, inviteToken, inviteUrl, inviteExpiresAt };
 }
 
 /**
@@ -176,6 +180,7 @@ export async function createOwnerUserAction(formData: FormData): Promise<Invitat
     ok: true,
     message: `${firstName} ${lastName} wurde hinzugefügt. Einladung erstellt.`,
     inviteToken,
+    inviteUrl: `${await getAppUrl()}/invite/${inviteToken}`,
     inviteExpiresAt,
   };
 }
@@ -200,7 +205,13 @@ export async function recreateOwnerInvitationAction(
     return { ok: false, message: error instanceof Error ? error.message : "Einladung konnte nicht erstellt werden." };
   }
   revalidatePath(`/admin/owners/${ownerId}`);
-  return { ok: true, message: "Neue Einladung erstellt.", inviteToken, inviteExpiresAt };
+  return {
+    ok: true,
+    message: "Neue Einladung erstellt.",
+    inviteToken,
+    inviteUrl: `${await getAppUrl()}/invite/${inviteToken}`,
+    inviteExpiresAt,
+  };
 }
 
 export async function updateOwnerUserAction(
@@ -764,6 +775,7 @@ export async function createAdminAccountAction(formData: FormData): Promise<Invi
     ok: true,
     message: `${firstName} ${lastName} wurde eingeladen. Einladung erstellt.`,
     inviteToken,
+    inviteUrl: `${await getAppUrl()}/invite/${inviteToken}`,
     inviteExpiresAt,
   };
 }
@@ -784,7 +796,13 @@ export async function recreateAdminInvitationAction(userId: string): Promise<Inv
     return { ok: false, message: error instanceof Error ? error.message : "Einladung konnte nicht erstellt werden." };
   }
   revalidatePath("/admin/admins");
-  return { ok: true, message: "Neue Einladung erstellt.", inviteToken, inviteExpiresAt };
+  return {
+    ok: true,
+    message: "Neue Einladung erstellt.",
+    inviteToken,
+    inviteUrl: `${await getAppUrl()}/invite/${inviteToken}`,
+    inviteExpiresAt,
+  };
 }
 
 /**

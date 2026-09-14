@@ -21,7 +21,7 @@ export function AdminAccountFormModal({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [invite, setInvite] = useState<{ email: string; inviteToken: string } | null>(null);
+  const [invite, setInvite] = useState<{ email: string; inviteUrl: string } | null>(null);
 
   function handleClose() {
     setOpen(false);
@@ -35,11 +35,11 @@ export function AdminAccountFormModal({
 
     const result = await createAdminAccountAction(formData);
     setPending(false);
-    if (!result.ok || !result.inviteToken) {
+    if (!result.ok || !result.inviteUrl) {
       setError(result.message);
       return;
     }
-    setInvite({ email: String(formData.get("email") ?? ""), inviteToken: result.inviteToken });
+    setInvite({ email: String(formData.get("email") ?? ""), inviteUrl: result.inviteUrl });
   }
 
   return (
@@ -50,7 +50,7 @@ export function AdminAccountFormModal({
 
       <AdminModal open={open} onClose={handleClose} title="Admin einladen">
         {invite ? (
-          <InviteLinkPanel email={invite.email} inviteToken={invite.inviteToken} onDone={handleClose} />
+          <InviteLinkPanel email={invite.email} inviteUrl={invite.inviteUrl} onDone={handleClose} />
         ) : (
           <form action={handleSubmit} className="flex flex-col gap-5">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

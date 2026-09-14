@@ -12,6 +12,7 @@ import {
 } from "@/services/profileService";
 import { getOwnerLocale } from "@/server/locale";
 import { getDictionary, createTranslator } from "@/i18n";
+import { getAppUrl } from "@/lib/appUrl";
 
 /**
  * Server Actions for the Owner Center's "Profil" page. Every action here
@@ -29,6 +30,8 @@ export interface ActionResult {
 
 export interface InviteActionResult extends ActionResult {
   inviteToken?: string;
+  /** Ready-to-copy invitation link, built from inviteToken via lib/appUrl.ts#getAppUrl. */
+  inviteUrl?: string;
   inviteExpiresAt?: string;
 }
 
@@ -117,6 +120,7 @@ export async function inviteTeamUserAction(propertyId: string, formData: FormDat
     ok: true,
     message: t("profile.userInvited", { name: `${firstName} ${lastName}` }),
     inviteToken,
+    inviteUrl: `${await getAppUrl()}/invite/${inviteToken}`,
     inviteExpiresAt,
   };
 }
@@ -147,7 +151,13 @@ export async function recreateTeamInvitationAction(propertyId: string, ownerUser
   }
 
   revalidatePath(`/${propertyId}/profil`);
-  return { ok: true, message: t("profile.newInvitationCreated"), inviteToken, inviteExpiresAt };
+  return {
+    ok: true,
+    message: t("profile.newInvitationCreated"),
+    inviteToken,
+    inviteUrl: `${await getAppUrl()}/invite/${inviteToken}`,
+    inviteExpiresAt,
+  };
 }
 
 /**

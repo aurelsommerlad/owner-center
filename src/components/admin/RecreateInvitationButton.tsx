@@ -25,17 +25,17 @@ export function RecreateInvitationButton({
   userEmail: string;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [invite, setInvite] = useState<{ inviteToken: string } | null>(null);
+  const [invite, setInvite] = useState<{ inviteUrl: string } | null>(null);
   const showToast = useAdminToast();
 
   async function handleConfirm() {
     const result = await recreateOwnerInvitationAction(ownerUserId, ownerId);
     setConfirmOpen(false);
-    if (!result.ok || !result.inviteToken) {
+    if (!result.ok || !result.inviteUrl) {
       showToast(result.message);
       return;
     }
-    setInvite({ inviteToken: result.inviteToken });
+    setInvite({ inviteUrl: result.inviteUrl });
   }
 
   return (
@@ -58,7 +58,7 @@ export function RecreateInvitationButton({
       />
 
       <AdminModal open={Boolean(invite)} onClose={() => setInvite(null)} title="Neue Einladung">
-        {invite && <InviteLinkPanel email={userEmail} inviteToken={invite.inviteToken} onDone={() => setInvite(null)} />}
+        {invite && <InviteLinkPanel email={userEmail} inviteUrl={invite.inviteUrl} onDone={() => setInvite(null)} />}
       </AdminModal>
     </>
   );

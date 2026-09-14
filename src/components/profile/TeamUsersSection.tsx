@@ -21,18 +21,18 @@ export function TeamUsersSection({ propertyId, team }: { propertyId: string; tea
   const [inviting, setInviting] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [invite, setInvite] = useState<{ email: string; inviteToken: string } | null>(null);
+  const [invite, setInvite] = useState<{ email: string; inviteUrl: string } | null>(null);
 
   async function handleSubmit(formData: FormData) {
     setPending(true);
     setError(null);
     const result = await inviteTeamUserAction(propertyId, formData);
     setPending(false);
-    if (!result.ok || !result.inviteToken) {
+    if (!result.ok || !result.inviteUrl) {
       setError(result.message);
       return;
     }
-    setInvite({ email: String(formData.get("email") ?? ""), inviteToken: result.inviteToken });
+    setInvite({ email: String(formData.get("email") ?? ""), inviteUrl: result.inviteUrl });
     setInviting(false);
   }
 
@@ -91,7 +91,7 @@ export function TeamUsersSection({ propertyId, team }: { propertyId: string; tea
 
       {invite && (
         <div className="mt-4 max-w-md rounded-2xl border border-line bg-paper-dim/40 p-4">
-          <InviteLinkDisplay email={invite.email} inviteToken={invite.inviteToken} onDone={() => setInvite(null)} />
+          <InviteLinkDisplay email={invite.email} inviteUrl={invite.inviteUrl} onDone={() => setInvite(null)} />
         </div>
       )}
 

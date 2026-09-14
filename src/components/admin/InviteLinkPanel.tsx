@@ -3,25 +3,26 @@
 import { useState } from "react";
 
 /**
- * The one place the raw invitation token ever exists in the browser: it
- * arrives here as a Server Action's return value and is used only to build
- * a copyable link - never sent anywhere else, never persisted client-side
- * beyond this component's own state. Once this panel is closed there is no
- * way to see the same link again (the server never stores the raw token -
- * see prisma/schema.prisma#OwnerInvitation) - "Einladung neu erstellen" is
+ * The one place the raw invitation link ever exists in the browser:
+ * `inviteUrl` arrives here as a Server Action's return value (already built
+ * server-side from the app's own APP_URL/request host - see
+ * lib/appUrl.ts#getAppUrl) and is only ever displayed/copied - never sent
+ * anywhere else, never persisted client-side beyond this component's own
+ * state. Once this panel is closed there is no way to see the same link
+ * again (the server never stores the raw token - see
+ * prisma/schema.prisma#OwnerInvitation) - "Einladung neu erstellen" is
  * the only recovery path, and it invalidates this link.
  */
 export function InviteLinkPanel({
   email,
-  inviteToken,
+  inviteUrl,
   onDone,
 }: {
   email?: string;
-  inviteToken: string;
+  inviteUrl: string;
   onDone: () => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const inviteUrl = typeof window !== "undefined" ? `${window.location.origin}/invite/${inviteToken}` : "";
 
   async function handleCopy() {
     try {

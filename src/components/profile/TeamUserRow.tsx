@@ -14,7 +14,7 @@ export function TeamUserRow({ propertyId, user }: { propertyId: string; user: Ow
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [invite, setInvite] = useState<{ inviteToken: string } | null>(null);
+  const [invite, setInvite] = useState<{ inviteUrl: string } | null>(null);
 
   const statusBadge = teamUserStatusBadge(user.status, user.invitationExpiresAt, locale);
   const isActivating = user.status === "inactive";
@@ -37,11 +37,11 @@ export function TeamUserRow({ propertyId, user }: { propertyId: string; user: Ow
     setPending(true);
     const result = await recreateTeamInvitationAction(propertyId, user.id);
     setPending(false);
-    if (!result.ok || !result.inviteToken) {
+    if (!result.ok || !result.inviteUrl) {
       flashMessage(result.message);
       return;
     }
-    setInvite({ inviteToken: result.inviteToken });
+    setInvite({ inviteUrl: result.inviteUrl });
   }
 
   return (
@@ -102,7 +102,7 @@ export function TeamUserRow({ propertyId, user }: { propertyId: string; user: Ow
       {message && <p className="mt-1 text-xs text-ink-soft">{message}</p>}
       {invite && (
         <div className="mt-3 max-w-md rounded-2xl border border-line bg-paper-dim/40 p-4">
-          <InviteLinkDisplay inviteToken={invite.inviteToken} onDone={() => setInvite(null)} />
+          <InviteLinkDisplay inviteUrl={invite.inviteUrl} onDone={() => setInvite(null)} />
         </div>
       )}
     </div>

@@ -4,26 +4,26 @@ import { useState } from "react";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 /**
- * The one place a raw invitation token ever exists in the browser: it
- * arrives here as a Server Action's return value and is used only to build
- * a copyable link - never persisted client-side beyond this component's own
- * state, never sent anywhere else. Same shape/behaviour as the admin area's
- * InviteLinkPanel (components/admin/InviteLinkPanel.tsx) - kept as its own
- * small copy on the Owner Center side rather than a cross-folder import, so
- * the two areas' component trees stay independent.
+ * The one place a raw invitation link ever exists in the browser: `inviteUrl`
+ * arrives here as a Server Action's return value (already built server-side
+ * from the app's own APP_URL/request host - see lib/appUrl.ts#getAppUrl) and
+ * is only ever displayed/copied - never persisted client-side beyond this
+ * component's own state, never sent anywhere else. Same shape/behaviour as
+ * the admin area's InviteLinkPanel (components/admin/InviteLinkPanel.tsx) -
+ * kept as its own small copy on the Owner Center side rather than a
+ * cross-folder import, so the two areas' component trees stay independent.
  */
 export function InviteLinkDisplay({
   email,
-  inviteToken,
+  inviteUrl,
   onDone,
 }: {
   email?: string;
-  inviteToken: string;
+  inviteUrl: string;
   onDone: () => void;
 }) {
   const { t } = useTranslations();
   const [copied, setCopied] = useState(false);
-  const inviteUrl = typeof window !== "undefined" ? `${window.location.origin}/invite/${inviteToken}` : "";
 
   async function handleCopy() {
     try {

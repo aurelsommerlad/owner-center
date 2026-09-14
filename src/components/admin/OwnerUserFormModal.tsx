@@ -24,7 +24,7 @@ export function OwnerUserFormModal({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [invite, setInvite] = useState<{ email: string; inviteToken: string } | null>(null);
+  const [invite, setInvite] = useState<{ email: string; inviteUrl: string } | null>(null);
   const showToast = useAdminToast();
   const isEdit = Boolean(user);
 
@@ -52,11 +52,11 @@ export function OwnerUserFormModal({
 
     const result = await createOwnerUserAction(formData);
     setPending(false);
-    if (!result.ok || !result.inviteToken) {
+    if (!result.ok || !result.inviteUrl) {
       setError(result.message);
       return;
     }
-    setInvite({ email: String(formData.get("email") ?? ""), inviteToken: result.inviteToken });
+    setInvite({ email: String(formData.get("email") ?? ""), inviteUrl: result.inviteUrl });
   }
 
   return (
@@ -67,7 +67,7 @@ export function OwnerUserFormModal({
 
       <AdminModal open={open} onClose={handleClose} title={isEdit ? "Nutzer bearbeiten" : "Nutzer hinzufügen"}>
         {invite ? (
-          <InviteLinkPanel email={invite.email} inviteToken={invite.inviteToken} onDone={handleClose} />
+          <InviteLinkPanel email={invite.email} inviteUrl={invite.inviteUrl} onDone={handleClose} />
         ) : (
         <form action={handleSubmit} className="flex flex-col gap-5">
           {!isEdit && <input type="hidden" name="ownerId" value={ownerId} />}
