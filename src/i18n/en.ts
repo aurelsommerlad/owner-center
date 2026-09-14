@@ -50,7 +50,7 @@ export const en: Dictionary = {
   },
   login: {
     title: "Log in",
-    subtitle: "With your Owner Center or internal team credentials.",
+    subtitle: "With your Owner Center credentials.",
     email: "Email",
     emailPlaceholder: "name@example.com",
     password: "Password",

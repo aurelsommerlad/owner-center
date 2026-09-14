@@ -54,7 +54,7 @@ export const de = {
   },
   login: {
     title: "Anmelden",
-    subtitle: "Mit Ihren Zugangsdaten für das Owner Center oder den internen Bereich.",
+    subtitle: "Mit Ihren Zugangsdaten für das Owner Center.",
     email: "E-Mail",
     emailPlaceholder: "name@beispiel.de",
     password: "Passwort",
