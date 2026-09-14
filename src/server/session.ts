@@ -23,6 +23,14 @@ export interface SessionData {
   role: UserRole;
   /** Admin-only display name (see User.name). */
   name: string | null;
+  /**
+   * The signed-in User's own status ("active" | "inactive" | "invited") -
+   * meaningful for role "admin" only (see lib/adminAuth.ts#getAdminSession,
+   * the one place this is read). An owner login's access is governed
+   * exclusively by ownerStatus/ownerUserStatus below instead, as before -
+   * this is never checked for role "owner".
+   */
+  status: string;
   /** Present only for role "owner". */
   ownerId: string | null;
   ownerUserId: string | null;
@@ -78,6 +86,7 @@ export async function getSession(): Promise<SessionData | null> {
     email: user.email,
     role: user.role as UserRole,
     name: user.name,
+    status: user.status,
     ownerId: user.ownerUser?.ownerId ?? null,
     ownerUserId: user.ownerUser?.id ?? null,
     ownerStatus: user.ownerUser?.owner.status ?? null,

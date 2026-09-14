@@ -121,8 +121,65 @@ export async function createInvitedOwnerUser(
   return { ownerUserId: ownerUser.id, userId: loginUser.id, rawToken, expiresAt };
 }
 
+export interface CreateInvitedAdminInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface CreateInvitedAdminResult {
+  userId: string;
+  rawToken: string;
+  expiresAt: Date;
+}
+
+/**
+ * Creates a brand-new admin-role User (status "invited", no usable
+ * password yet - see NO_PASSWORD_SET_HASH) and issues its first invitation
+ * - the admin-invite counterpart to createInvitedOwnerUser above, reusing
+ * the exact same createInvitationForUser mechanics (same token generation,
+ * hashing, 7-day expiry, single OwnerInvitation table - no second invite
+ * mechanism). Unlike OwnerUser, an admin has no separate identity row: the
+ * User row itself IS the admin account, so firstName/lastName are only
+ * ever combined into User.name at creation time (see AdminAccount).
+ *
+ * Never silently upgrades an existing email's role to admin - an email
+ * already in use (as an admin OR an owner login) is refused with a clear
+ * reason instead, so entering someone else's address can never grant them
+ * admin access.
+ */
+export async function createInvitedAdmin(
+  input: CreateInvitedAdminInput,
+  createdByUserId: string
+): Promise<CreateInvitedAdminResult> {
+  const email = input.email.trim().toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    throw new Error(
+      existing.role === "admin"
+        ? `Diese E-Mail-Adresse (${email}) ist bereits als Administrator registriert.`
+        : `Diese E-Mail-Adresse (${email}) ist bereits als Eigentümer-Zugang vergeben und kann nicht als Administrator eingeladen werden.`
+    );
+  }
+
+  const firstName = input.firstName.trim();
+  const lastName = input.lastName.trim();
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash: NO_PASSWORD_SET_HASH,
+      role: "admin",
+      name: `${firstName} ${lastName}`.trim(),
+      status: "invited",
+    },
+  });
+
+  const { rawToken, expiresAt } = await createInvitationForUser(user.id, createdByUserId);
+  return { userId: user.id, rawToken, expiresAt };
+}
+
 export type InvitationLookup =
-  | { status: "valid"; invitationId: string; userId: string; email: string }
+  | { status: "valid"; invitationId: string; userId: string; email: string; role: "owner" | "admin" }
   | { status: "not_found" }
   | { status: "expired" }
   | { status: "revoked" }
@@ -146,29 +203,38 @@ export async function lookupInvitationByToken(rawToken: string): Promise<Invitat
   if (invitation.acceptedAt) return { status: "accepted" };
   if (invitation.revokedAt) return { status: "revoked" };
   if (invitation.expiresAt < new Date()) return { status: "expired" };
-  return { status: "valid", invitationId: invitation.id, userId: invitation.userId, email: invitation.user.email };
+  return {
+    status: "valid",
+    invitationId: invitation.id,
+    userId: invitation.userId,
+    email: invitation.user.email,
+    role: invitation.user.role === "admin" ? "admin" : "owner",
+  };
 }
 
 export type AcceptInvitationResult =
-  | { ok: true }
+  | { ok: true; role: "owner" | "admin" }
   | { ok: false; reason: "not_found" | "expired" | "revoked" | "accepted" };
 
 /**
- * Accepts an invitation atomically: sets the new password hash, flips the
- * owning OwnerUser to "active", and marks the invitation accepted, all in
- * one transaction - either all three happen or none do, so a mid-way
- * failure can never leave a password set but the account still gated (or
- * vice versa). Re-validates the token's status *inside* the transaction
- * (not just trusting an earlier lookup) so two concurrent submits of the
- * same still-open link can't both succeed - Prisma serializes against the
- * unique `tokenHash` row, so the second transaction sees the first one's
- * `acceptedAt` write and is rejected as "accepted".
+ * Accepts an invitation atomically: sets the new password hash, activates
+ * the account (an owner-role invitation flips its OwnerUser to "active";
+ * an admin-role invitation has no OwnerUser at all, so it flips the User's
+ * own `status` to "active" instead - see prisma/schema.prisma#User.status),
+ * and marks the invitation accepted, all in one transaction - either all
+ * three happen or none do, so a mid-way failure can never leave a password
+ * set but the account still gated (or vice versa). Re-validates the
+ * token's status *inside* the transaction (not just trusting an earlier
+ * lookup) so two concurrent submits of the same still-open link can't both
+ * succeed - Prisma serializes against the unique `tokenHash` row, so the
+ * second transaction sees the first one's `acceptedAt` write and is
+ * rejected as "accepted".
  */
 export async function acceptInvitation(rawToken: string, newPasswordHash: string): Promise<AcceptInvitationResult> {
   const tokenHash = hashToken(rawToken);
 
   try {
-    await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx) => {
       const invitation = await tx.ownerInvitation.findUnique({
         where: { tokenHash },
         include: { user: { include: { ownerUser: true } } },
@@ -177,14 +243,24 @@ export async function acceptInvitation(rawToken: string, newPasswordHash: string
       if (invitation.acceptedAt) throw new InvitationRejected("accepted");
       if (invitation.revokedAt) throw new InvitationRejected("revoked");
       if (invitation.expiresAt < new Date()) throw new InvitationRejected("expired");
-      if (!invitation.user.ownerUser) throw new InvitationRejected("not_found");
 
       const now = new Date();
-      await tx.user.update({ where: { id: invitation.userId }, data: { passwordHash: newPasswordHash } });
-      await tx.ownerUser.update({ where: { id: invitation.user.ownerUser.id }, data: { status: "active" } });
+      const isAdmin = invitation.user.role === "admin";
+
+      if (isAdmin) {
+        await tx.user.update({
+          where: { id: invitation.userId },
+          data: { passwordHash: newPasswordHash, status: "active" },
+        });
+      } else {
+        if (!invitation.user.ownerUser) throw new InvitationRejected("not_found");
+        await tx.user.update({ where: { id: invitation.userId }, data: { passwordHash: newPasswordHash } });
+        await tx.ownerUser.update({ where: { id: invitation.user.ownerUser.id }, data: { status: "active" } });
+      }
+
       await tx.ownerInvitation.update({ where: { id: invitation.id }, data: { acceptedAt: now } });
+      return { ok: true as const, role: isAdmin ? ("admin" as const) : ("owner" as const) };
     });
-    return { ok: true };
   } catch (error) {
     if (error instanceof InvitationRejected) return { ok: false, reason: error.reason };
     throw error;

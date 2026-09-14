@@ -1,5 +1,6 @@
 import type {
   AccountStatus,
+  AdminAccountStatus,
   AdminGeneralDocumentStatus,
   AdminPropertyStatus,
   AdminStatementStatus,
@@ -49,6 +50,24 @@ export function accountStatusBadge(status: AccountStatus): { label: string; tone
  */
 export function ownerUserStatusBadge(
   status: OwnerUserAccountStatus,
+  invitationExpiresAt?: string
+): { label: string; tone: AdminStatusTone } {
+  if (status === "active") return { label: "Aktiv", tone: "positive" };
+  if (status === "inactive") return { label: "Deaktiviert", tone: "muted" };
+  if (invitationExpiresAt && new Date(invitationExpiresAt) < new Date()) {
+    return { label: "Einladung abgelaufen", tone: "strong" };
+  }
+  return { label: "Eingeladen", tone: "neutral" };
+}
+
+/**
+ * AdminAccount's status badge - same "invited" vs "Einladung abgelaufen"
+ * split as ownerUserStatusBadge, kept as its own function (rather than
+ * reused) since AdminAccountStatus and OwnerUserAccountStatus are
+ * deliberately distinct types.
+ */
+export function adminAccountStatusBadge(
+  status: AdminAccountStatus,
   invitationExpiresAt?: string
 ): { label: string; tone: AdminStatusTone } {
   if (status === "active") return { label: "Aktiv", tone: "positive" };

@@ -2,7 +2,7 @@
 
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import type { AccountStatus } from "@/types/admin";
+import type { AccountStatus, AdminAccountStatus } from "@/types/admin";
 import { requireAdminRole } from "@/lib/adminAuth";
 import { createOwner, deleteOwnerPermanently, getOwner, updateOwner } from "@/services/admin/ownerService";
 import {
@@ -12,6 +12,12 @@ import {
   updateOwnerUser,
 } from "@/services/admin/ownerUserService";
 import { createProperty, getProperty, updateProperty } from "@/services/admin/propertyService";
+import {
+  createAdminAccount,
+  deleteAdminAccountPermanently,
+  recreateAdminInvitation,
+  setAdminAccountStatus,
+} from "@/services/admin/adminUserService";
 import { grantAccess, revokeAccess, setOwnerPropertyAccess, setPropertyOwnerAccess } from "@/services/admin/accessService";
 import { testApaleoConnection, type ApaleoConnectionStatus } from "@/server/integrations/apaleo/connectionCheck";
 import { getApaleoProperty } from "@/server/integrations/apaleo/propertyService";
@@ -705,4 +711,86 @@ export async function archiveStatementDocumentAction(id: string): Promise<Action
   await archiveStatementDocument(id);
   revalidatePath("/admin/statements");
   return { ok: true, message: "Dokument archiviert." };
+}
+
+/**
+ * "Admin einladen" - the admin-account counterpart to createOwnerUserAction,
+ * reusing createAdminAccount (which itself reuses the exact same invitation
+ * mechanics as owner invites - see src/server/invitations.ts). The admin
+ * role is never taken from `formData`: createAdminAccount always sets
+ * `role: "admin"` server-side (see createInvitedAdmin), so nothing in this
+ * form can ever request a different role.
+ */
+export async function createAdminAccountAction(formData: FormData): Promise<InvitationActionResult> {
+  const session = await requireAdminRole();
+
+  const firstName = readString(formData, "firstName");
+  const lastName = readString(formData, "lastName");
+  const email = readString(formData, "email");
+  if (!firstName || !lastName || !email) {
+    return { ok: false, message: "Bitte alle Felder ausfüllen." };
+  }
+
+  let inviteToken: string;
+  let inviteExpiresAt: string;
+  try {
+    ({ inviteToken, inviteExpiresAt } = await createAdminAccount({ firstName, lastName, email }, session.userId));
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Administrator konnte nicht angelegt werden." };
+  }
+  revalidatePath("/admin/admins");
+  return {
+    ok: true,
+    message: `${firstName} ${lastName} wurde eingeladen. Einladung erstellt.`,
+    inviteToken,
+    inviteExpiresAt,
+  };
+}
+
+/**
+ * "Einladung neu erstellen" for a not-yet-active admin - revokes any still-
+ * open invitation and issues a fresh one, mirroring
+ * recreateOwnerInvitationAction.
+ */
+export async function recreateAdminInvitationAction(userId: string): Promise<InvitationActionResult> {
+  const session = await requireAdminRole();
+
+  let inviteToken: string;
+  let inviteExpiresAt: string;
+  try {
+    ({ inviteToken, inviteExpiresAt } = await recreateAdminInvitation(userId, session.userId));
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Einladung konnte nicht erstellt werden." };
+  }
+  revalidatePath("/admin/admins");
+  return { ok: true, message: "Neue Einladung erstellt.", inviteToken, inviteExpiresAt };
+}
+
+/**
+ * "Deaktivieren"/"Reaktivieren" for an admin account. `session.userId` -
+ * resolved server-side from the acting admin's own session, never a form
+ * field - is what setAdminAccountStatus checks self-deactivation and the
+ * last-active-admin rule against; a client can never pass a different
+ * "acting admin" to bypass either protection.
+ */
+export async function setAdminAccountStatusAction(userId: string, status: AdminAccountStatus): Promise<ActionResult> {
+  const session = await requireAdminRole();
+
+  const result = await setAdminAccountStatus(userId, status, session.userId);
+  if (result.ok) revalidatePath("/admin/admins");
+  return result;
+}
+
+/**
+ * "Endgültig löschen" for an admin account - see
+ * adminUserService.ts#deleteAdminAccountPermanently for the actual
+ * self-delete/last-active-admin safety checks, re-verified there against
+ * the real database rather than trusted from the client.
+ */
+export async function deleteAdminAccountAction(userId: string): Promise<ActionResult> {
+  const session = await requireAdminRole();
+
+  const result = await deleteAdminAccountPermanently(userId, session.userId);
+  if (result.ok) revalidatePath("/admin/admins");
+  return result;
 }

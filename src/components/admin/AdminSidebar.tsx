@@ -5,12 +5,13 @@ import { usePathname } from "next/navigation";
 import { ChevronLeftIcon, LogoutIcon, ProfileIcon } from "@/components/ui/icons";
 import { ADMIN_MAIN_NAV, isAdminNavItemActive } from "./navigation";
 import { logoutAction } from "@/app/actions";
+import type { AdminSession } from "@/lib/adminAuth";
 
 // Mirrors components/layout/Sidebar.tsx exactly (same tokens, spacing,
 // active/hover states) - only the nav items and the wordmark's second line
 // differ, so Admin and Owner Center read as one product.
 
-export function AdminSidebar() {
+export function AdminSidebar({ session }: { session: AdminSession }) {
   const pathname = usePathname();
 
   return (
@@ -56,6 +57,17 @@ export function AdminSidebar() {
           <ProfileIcon className="h-[18px] w-[18px] shrink-0 text-ink-soft/70 group-hover:text-ink" />
           Profil
         </button>
+
+        {/* Real, server-verified identity of the signed-in admin (see
+            requireAdminRole() in the layout) - always the actual admin,
+            never an impersonated owner: AdminImpersonation only affects
+            what Owner Center data getEffectiveOwnerContext() resolves, it
+            never touches this Session/User row. */}
+        <div className="mt-1 border-t border-line px-3.5 pt-3">
+          <p className="truncate text-sm font-medium text-ink">{session.name}</p>
+          <p className="truncate text-xs text-ink-soft">{session.email}</p>
+        </div>
+
         <form action={logoutAction}>
           <button
             type="submit"

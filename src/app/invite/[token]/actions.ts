@@ -57,5 +57,10 @@ export async function acceptInvitationAction(
     return { ok: false, message: t("invite.invalidLink") };
   }
 
-  redirect("/login");
+  // The same /invite/[token] route handles both owner and admin
+  // invitations (see acceptInvitation's role branch) - only the
+  // post-acceptance destination differs, resolved from the invitation
+  // itself (never from client input) so this can't be redirected anywhere
+  // else by tampering with the form.
+  redirect(result.role === "admin" ? "/admin/login" : "/login");
 }

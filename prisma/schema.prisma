@@ -49,6 +49,17 @@ model User {
   /// German-only. Defaults to "de" so every existing row (and the admin
   /// area) keeps its current behavior unchanged.
   locale       String   @default("de")
+  /// "active" | "inactive" | "invited" - meaningful for admin-role rows
+  /// only (see services/admin/adminUserService.ts). An owner-role row's
+  /// access is governed exclusively by OwnerUser.status/Owner.status
+  /// instead, as before - this column exists on every row (one shared
+  /// table) but is never read for an owner login, and always stays
+  /// "active" there.
+  status       String    @default("active")
+  /// Most recent successful login - admin-role rows only (see
+  /// src/app/admin/login/actions.ts). An owner login's most recent login is
+  /// tracked on OwnerUser.lastLoginAt instead, unchanged.
+  lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

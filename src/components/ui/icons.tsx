@@ -82,6 +82,15 @@ export function ProfileIcon(props: IconProps) {
   );
 }
 
+export function ShieldIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3.5 19 6.3v5.4c0 4.6-3 8.1-7 9.8-4-1.7-7-5.2-7-9.8V6.3Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
 export function LogoutIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

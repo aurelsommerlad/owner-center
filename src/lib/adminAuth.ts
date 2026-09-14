@@ -19,6 +19,11 @@ export interface AdminSession {
 export async function getAdminSession(): Promise<AdminSession | null> {
   const session = await getSession();
   if (!session) return null;
+  // A deactivated admin's still-open session must stop working immediately
+  // (mirrors ownerStatus/ownerUserStatus's own immediate-revocation
+  // behavior for owners) - never checked for role "owner", whose status is
+  // always "active" and irrelevant here.
+  if (session.role === "admin" && session.status !== "active") return null;
   return {
     sessionId: session.sessionId,
     userId: session.userId,

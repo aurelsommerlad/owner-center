@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import { DocumentsIcon, OverviewIcon, PlugIcon, ReceiptIcon, UnitsIcon, UsersIcon } from "@/components/ui/icons";
+import { DocumentsIcon, OverviewIcon, PlugIcon, ReceiptIcon, ShieldIcon, UnitsIcon, UsersIcon } from "@/components/ui/icons";
 
 export type AdminNavIcon = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -17,6 +17,7 @@ export const ADMIN_MAIN_NAV: AdminNavItem[] = [
   { key: "statements", label: "Abrechnungen", href: "/admin/statements", icon: ReceiptIcon },
   { key: "documents", label: "Dokumente", href: "/admin/documents", icon: DocumentsIcon },
   { key: "integrations", label: "Integrationen", href: "/admin/integrations", icon: PlugIcon },
+  { key: "admins", label: "Admins", href: "/admin/admins", icon: ShieldIcon },
 ];
 
 export function isAdminNavItemActive(pathname: string, href: string): boolean {

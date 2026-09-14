@@ -25,7 +25,16 @@ import { ownerPortalToday } from "@/server/services/ownerPortal/today";
 import { hadOwnerPortalDataError } from "@/server/services/ownerPortal/errorState";
 import { DataUnavailableNotice } from "@/components/ui/DataUnavailableNotice";
 import { getOwnerLocale } from "@/server/locale";
-import { getDictionary, createTranslator } from "@/i18n";
+import { getDictionary, createTranslator, type TranslationKey } from "@/i18n";
+import { getSignedInOwnerDisplayName } from "@/server/greeting";
+import { timeOfDayInTimeZone, type TimeOfDay } from "@/lib/timezone";
+
+/** Maps a time of day to its dictionary key - the only DE/EN-relevant choice here, and it selects a key, never text. */
+const GREETING_SALUTATION_KEY: Record<TimeOfDay, TranslationKey> = {
+  morning: "greeting.morning",
+  afternoon: "greeting.afternoon",
+  evening: "greeting.evening",
+};
 
 export default async function UebersichtPage({
   params,
@@ -51,6 +60,13 @@ export default async function UebersichtPage({
       ? t("overview.year", { year: todayDate.getUTCFullYear() })
       : `${monthLabel(todayDate.getUTCMonth() + 1, locale)} ${todayDate.getUTCFullYear()}`;
 
+  // `null` for an admin's own session or an "Als Owner ansehen" preview (no
+  // single specific OwnerUser to greet by name there) - falls back to a
+  // neutral, nameless greeting rather than guessing.
+  const ownerDisplayName = await getSignedInOwnerDisplayName();
+  const greetingSalutation = t(GREETING_SALUTATION_KEY[timeOfDayInTimeZone(new Date())]);
+  const greeting = ownerDisplayName ? `${greetingSalutation}, ${ownerDisplayName}` : greetingSalutation;
+
   const [kpis, preview, arrivalsDepartures, todayStatus, unitStatusOverview, statements, documents] =
     await Promise.all([
       getPropertyOverviewKpis(propertyId, period),
@@ -65,7 +81,12 @@ export default async function UebersichtPage({
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
-      <HeroSection property={property} periodLabel={periodLabel} subtitle={t("overview.performanceOverview")} />
+      <HeroSection
+        property={property}
+        periodLabel={periodLabel}
+        subtitle={t("overview.performanceOverview")}
+        greeting={greeting}
+      />
       {dataError && <DataUnavailableNotice text={t("common.dataUnavailable")} />}
 
       <div className="flex flex-wrap items-center justify-between gap-3">

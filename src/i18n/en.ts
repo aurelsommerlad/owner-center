@@ -72,6 +72,11 @@ export const en: Dictionary = {
     submitPending: "Saving…",
     passwordsDontMatch: "The passwords do not match.",
   },
+  greeting: {
+    morning: "Good morning",
+    afternoon: "Good afternoon",
+    evening: "Good evening",
+  },
   overview: {
     performanceOverview: "Performance at a glance",
     year: "Year {year}",

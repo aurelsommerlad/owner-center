@@ -22,8 +22,8 @@ function readString(formData: FormData, key: string): string {
  * can never reach /admin by authenticating through this form, regardless of
  * how correct their credentials are. There is no public admin
  * registration; the only way an admin account is created is the
- * `npm run seed:admin` bootstrap (see prisma/seedAdmin.ts) or another
- * already-logged-in admin (not built yet - out of scope for this step).
+ * `npm run seed:admin` bootstrap (see prisma/seedAdmin.ts) or an invitation
+ * from another already-logged-in admin (see services/admin/adminUserService.ts).
  */
 export async function adminLoginAction(formData: FormData): Promise<LoginResult> {
   const email = readString(formData, "email").toLowerCase();
@@ -36,10 +36,13 @@ export async function adminLoginAction(formData: FormData): Promise<LoginResult>
   const user = await prisma.user.findUnique({ where: { email } });
   const passwordOk = user ? verifyPassword(password, user.passwordHash) : false;
 
-  if (!user || !passwordOk || user.role !== "admin") {
+  // Same generic message for a wrong password, a non-admin, AND a
+  // deactivated/still-invited admin - never reveals which case it was.
+  if (!user || !passwordOk || user.role !== "admin" || user.status !== "active") {
     return { ok: false, message: "E-Mail oder Passwort ist falsch." };
   }
 
+  await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   await createSession(user.id);
   redirect("/admin");
 }

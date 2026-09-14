@@ -19,6 +19,15 @@ export type UserRole = "admin" | "owner";
 export type AccountStatus = "active" | "inactive";
 
 /**
+ * AdminAccount-only status: "invited" mirrors OwnerUserAccountStatus's own
+ * third state (account exists, no password set yet - see NO_PASSWORD_SET_HASH
+ * and User.status in prisma/schema.prisma). Kept as its own type rather than
+ * reusing OwnerUserAccountStatus so the two account kinds never accidentally
+ * share a type just because their string values happen to match.
+ */
+export type AdminAccountStatus = AccountStatus | "invited";
+
+/**
  * AdminOwnerUser-only status: "invited" means the account exists but the
  * person has not yet opened their invitation link and set a password - see
  * OwnerInvitation in prisma/schema.prisma. AdminOwner and OwnerPropertyAccess
@@ -201,6 +210,23 @@ export interface AdminGeneralDocument {
   fileName: string;
   status: AdminGeneralDocumentStatus;
   publishedAt: string | null;
+  createdAt: string;
+}
+
+/**
+ * An admin login itself - unlike AdminOwnerUser, there is no separate
+ * wrapper table: the `User` row (role "admin") IS the account, so this has
+ * no ownerId/firstName+lastName split, just the combined `name` already
+ * stored on User (see src/server/invitations.ts#createInvitedAdmin).
+ */
+export interface AdminAccount {
+  id: string;
+  name: string;
+  email: string;
+  status: AdminAccountStatus;
+  /** Only set (and only meaningful) while status is "invited" - mirrors AdminOwnerUser.invitationExpiresAt. */
+  invitationExpiresAt?: string;
+  lastLoginAt?: string;
   createdAt: string;
 }
 

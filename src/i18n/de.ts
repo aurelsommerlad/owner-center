@@ -75,6 +75,11 @@ export const de = {
     submitPending: "Wird gespeichert…",
     passwordsDontMatch: "Die Passwörter stimmen nicht überein.",
   },
+  greeting: {
+    morning: "Guten Morgen",
+    afternoon: "Guten Tag",
+    evening: "Guten Abend",
+  },
   overview: {
     performanceOverview: "Performance im Überblick",
     year: "Jahr {year}",
