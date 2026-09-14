@@ -63,12 +63,11 @@ export function recentStatisticsMonths(today: string, windowMonths = 24): Statis
 }
 
 /**
- * Illustrative figures with no live apaleo source in V1 (owner proceeds,
- * booking lead time, cancellation rate are all on the explicit "not
- * required live yet" list) - kept as named, clearly-labelled constants
- * rather than blended silently into otherwise-live numbers.
+ * Illustrative figures with no live apaleo source in V1 (booking lead time
+ * and cancellation rate are both on the explicit "not required live yet"
+ * list) - kept as named, clearly-labelled constants rather than blended
+ * silently into otherwise-live numbers.
  */
-const OWNER_PAYOUT_RATE = 0.65;
 const MOCK_AVG_LEAD_TIME_DAYS: Record<StatisticsPeriod, number> = { month: 32, ytd: 29, year: 27 };
 const MOCK_CANCELLATION_PCT: Record<StatisticsPeriod, number> = { month: 4.8, ytd: 5.2, year: 5.5 };
 
@@ -269,6 +268,8 @@ async function getLivePropertyStatistics(
 
   const current = metricsForRange(currentYearReservations, propertyId, units.length, currentRange);
   const previous = metricsForRange(previousYearReservations, propertyId, units.length, previousRange);
+  const currentOwnerUseNights = nightsOfStatusInRange(currentYearReservations, currentRange, ["owner-use"]);
+  const previousOwnerUseNights = nightsOfStatusInRange(previousYearReservations, previousRange, ["owner-use"]);
 
   const unitStats = await getLiveUnitPerformance(propertyId, currentYearReservations, currentRange);
   const bookingSources = liveBookingSourceBreakdown(currentYearReservations, propertyId, currentRange);
@@ -289,7 +290,7 @@ async function getLivePropertyStatistics(
     bookingsCount: metric(current.bookingsCount, previous.bookingsCount, previousYearAvailable),
     avgStayNights: metric(current.avgStayNights, previous.avgStayNights, previousYearAvailable),
     avgBookingValue: metric(current.avgBookingValue, previous.avgBookingValue, previousYearAvailable),
-    ownerPayout: metric(current.revenue * OWNER_PAYOUT_RATE, previous.revenue * OWNER_PAYOUT_RATE, previousYearAvailable),
+    ownerUseNights: metric(currentOwnerUseNights, previousOwnerUseNights, previousYearAvailable),
     monthlyRevenue: [
       ...monthlyRevenueSeries(currentYearReservations, propertyId, year),
       ...monthlyRevenueSeries(previousYearReservations, propertyId, year - 1),
@@ -392,6 +393,10 @@ async function getMockPropertyStatistics(
 
   const current = metricsFromAggregate(currentAgg);
   const previous = metricsFromAggregate(previousAgg);
+  const [currentOwnerUseNights, previousOwnerUseNights] = await Promise.all([
+    ownerUseNightsForRange(propertyId, year, months),
+    previousYearAvailable ? ownerUseNightsForRange(propertyId, year - 1, months) : Promise.resolve(0),
+  ]);
 
   // Unit-level performance is always reported for a single month, even when
   // the page itself is on YTD/Jahr - the current mock month when nothing
@@ -412,11 +417,7 @@ async function getMockPropertyStatistics(
     bookingsCount: metric(currentAgg.bookings, previousAgg.bookings, previousYearAvailable),
     avgStayNights: metric(current.avgStay, previous.avgStay, previousYearAvailable),
     avgBookingValue: metric(current.avgBookingValue, previous.avgBookingValue, previousYearAvailable),
-    ownerPayout: metric(
-      currentAgg.revenue * OWNER_PAYOUT_RATE,
-      previousAgg.revenue * OWNER_PAYOUT_RATE,
-      previousYearAvailable
-    ),
+    ownerUseNights: metric(currentOwnerUseNights, previousOwnerUseNights, previousYearAvailable),
     monthlyRevenue: MONTHLY_SERIES_2026.map((point) => ({
       month: point.month,
       year: REPORTING_YEAR,
@@ -480,4 +481,20 @@ async function getMockUnitPerformance(propertyId: string, year: number, month: n
       avgStayNights: calculateAverageStay(unitReservations),
     } satisfies UnitStatistics;
   });
+}
+
+/**
+ * Real owner-use nights (status "owner-use") for the given months of one
+ * year - same day-level mock reservation data and same "outside the mock
+ * window comes back honestly empty" caveat as getMockUnitPerformance above.
+ */
+async function ownerUseNightsForRange(propertyId: string, year: number, months: number[]): Promise<number> {
+  const firstMonth = months[0];
+  const lastMonth = months[months.length - 1];
+  const range: DateRange = {
+    start: isoDate(year, firstMonth, 1),
+    endExclusive: addDays(isoDate(year, lastMonth, 1), daysInMonth(year, lastMonth)),
+  };
+  const reservations = await getReservationsForProperty(propertyId, range);
+  return nightsOfStatusInRange(reservations, range, ["owner-use"]);
 }

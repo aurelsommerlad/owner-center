@@ -217,13 +217,12 @@ export default async function StatistikenPage({
         />
         <KpiCard
           compact
-          label={t("statistics.ownerPayout")}
-          value={formatCurrency(stats.ownerPayout.value, "EUR", 2, locale)}
-          deltaPoints={percentDelta(stats.ownerPayout)}
-          deltaFractionDigits={1}
-          deltaSuffix={locale === "en" ? "%" : " %"}
-          deltaLabel={t("statistics.ownerPayoutVsLastYear")}
-          noComparisonData={!stats.ownerPayout.previousYearAvailable}
+          label={t("statistics.ownerUseNights")}
+          value={`${stats.ownerUseNights.value} ${t("statistics.nights")}`}
+          deltaPoints={pointDelta(stats.ownerUseNights)}
+          deltaFractionDigits={0}
+          deltaLabel={t("statistics.nightsVsLastYear")}
+          noComparisonData={!stats.ownerUseNights.previousYearAvailable}
           noComparisonDataLabel={t("statistics.noComparisonData")}
           locale={locale}
         />

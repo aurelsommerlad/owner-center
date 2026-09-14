@@ -277,8 +277,8 @@ export interface PropertyStatistics {
   bookingsCount: ComparableMetric;
   avgStayNights: ComparableMetric;
   avgBookingValue: ComparableMetric;
-  /** Illustrative mock figure until real owner-statement logic exists. */
-  ownerPayout: ComparableMetric;
+  /** Nights booked with status "owner-use" in the period - a real, apaleo-derived count. */
+  ownerUseNights: ComparableMetric;
   monthlyRevenue: MonthlyRevenuePoint[];
   monthlyOccupancy: MonthlyOccupancyPoint[];
   unitStats: UnitStatistics[];
