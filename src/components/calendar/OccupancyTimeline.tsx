@@ -37,7 +37,7 @@ const TIMING_BAR_STYLE: Record<StayTimingStatus, CSSProperties> = {
 
 const TIMING_TEXT_CLASS: Record<StayTimingStatus, string> = {
   upcoming: "text-[#FAFAF7]",
-  "in-house": "text-ink",
+  "in-house": "text-[#FAFAF7]",
   past: "text-ink-soft",
 };
 
