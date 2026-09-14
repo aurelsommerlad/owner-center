@@ -52,6 +52,16 @@ export function ReceiptIcon(props: IconProps) {
   );
 }
 
+/** A Rechnung (ReceiptIcon) mirrored top-to-bottom - torn edge up top instead of the bottom, standing for its reversal, a Gutschrift. */
+export function CreditNoteIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6 21h12V3l-2.5 1.6L13 3l-2.5 1.6L8 3l-2 1.6V21Z" />
+      <path d="M9 12h6M9 16h6" />
+    </svg>
+  );
+}
+
 export function UnitsIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

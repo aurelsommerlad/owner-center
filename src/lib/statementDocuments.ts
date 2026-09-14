@@ -1,6 +1,8 @@
+import type { ComponentType, SVGProps } from "react";
 import type { StatementDocument, StatementDocumentType } from "@/types";
 import { monthLabel } from "@/lib/dates";
 import { getDictionary, type Locale } from "@/i18n";
+import { CreditNoteIcon, DocumentsIcon, ReceiptIcon } from "@/components/ui/icons";
 
 /**
  * A statement counts as unseen - and is shown as "Neu" - until it has been
@@ -27,6 +29,24 @@ export function statementDocumentTypeLabel(type: StatementDocumentType, locale: 
     other: dict.otherDocument,
   };
   return labels[type];
+}
+
+/**
+ * Per-type icon for a document row - Rechnung and Gutschrift get visually
+ * distinct symbols (ReceiptIcon vs its mirrored counterpart CreditNoteIcon)
+ * so a month with several of each (e.g. a cancellation that produced an
+ * extra Rechnung/Gutschrift pair) stays tellable apart at a glance;
+ * Eigentümerreporting/Belege keep the generic document icon.
+ */
+const DOCUMENT_TYPE_ICON: Record<StatementDocumentType, ComponentType<SVGProps<SVGSVGElement>>> = {
+  owner_report: DocumentsIcon,
+  invoice: ReceiptIcon,
+  credit_note: CreditNoteIcon,
+  other: DocumentsIcon,
+};
+
+export function statementDocumentIcon(type: StatementDocumentType): ComponentType<SVGProps<SVGSVGElement>> {
+  return DOCUMENT_TYPE_ICON[type];
 }
 
 /**
@@ -104,12 +124,20 @@ export function statementMonthGroupLabel(group: { year: number; month: number },
 
 /**
  * "Vollständig" on the owner side, mirroring (but never importing) the
- * admin's own 2/1/1 completeness rule - the owner only ever sees PUBLISHED
+ * admin's own completeness rule - the owner only ever sees PUBLISHED
  * documents to begin with, so this is a presentation-only readout of
  * exactly that same already-fetched set, not a second data source.
+ *
+ * Rechnung/Gutschrift only need to be PRESENT (>=1 each), not exactly one -
+ * a cancellation can legitimately produce a corrected Rechnung or an extra
+ * Gutschrift in the same month, and that's still a complete month, not an
+ * incomplete one (mirrors computeMonthCompleteness's own "===0 is the only
+ * issue" rule for these two types). Eigentümerreporting stays exactly 2 -
+ * that count is never expected to vary, and a deviation there is meant to
+ * surface as "Unvollständig" (see EXPECTED_OWNER_REPORT_DOCUMENT_COUNT).
  */
 export function statementMonthIsComplete(group: StatementMonthGroup): boolean {
-  return group.ownerReportDocuments.length === 2 && group.invoiceDocuments.length === 1 && group.creditNoteDocuments.length === 1;
+  return group.ownerReportDocuments.length === 2 && group.invoiceDocuments.length >= 1 && group.creditNoteDocuments.length >= 1;
 }
 
 export interface StatementMonthProvided {

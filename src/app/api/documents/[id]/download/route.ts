@@ -48,15 +48,21 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return new NextResponse("Das Dokument konnte gerade nicht von Google Drive geladen werden.", { status: 502 });
   }
 
-  const now = new Date();
-  await prisma.statementDocument.update({
-    where: { id: document.id },
-    data: {
-      downloadCount: { increment: 1 },
-      firstDownloadedAt: document.firstDownloadedAt ?? now,
-      lastDownloadedAt: now,
-    },
-  });
+  // An admin "Als Owner ansehen" preview downloading a document to check it
+  // must never look, to the real owner, like the owner downloaded it
+  // themselves - only a real owner download counts (mirrors the same guard
+  // on markStatementDocumentsViewed in app/[propertyId]/abrechnungen/page.tsx).
+  if (!context.isImpersonation) {
+    const now = new Date();
+    await prisma.statementDocument.update({
+      where: { id: document.id },
+      data: {
+        downloadCount: { increment: 1 },
+        firstDownloadedAt: document.firstDownloadedAt ?? now,
+        lastDownloadedAt: now,
+      },
+    });
+  }
 
   // RFC 6266: an ASCII-safe fallback filename plus the real one, UTF-8
   // percent-encoded, so non-Latin file names (e.g. "ΛLPILΛ") survive intact

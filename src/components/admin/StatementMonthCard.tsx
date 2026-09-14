@@ -1,22 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { createElement, useState } from "react";
 import { AdminStatusBadge, statementMonthPublishStatusBadge, statementStatusBadge } from "./AdminStatusBadge";
 import { StatementDocumentReviewModal } from "./StatementDocumentReviewModal";
 import { PublishStatementMonthButton } from "./PublishStatementMonthButton";
 import { ChevronDownIcon } from "@/components/ui/icons";
+import { ADMIN_DOCUMENT_TYPE_ICON } from "@/lib/adminLabels";
 import { monthLabel } from "@/lib/dates";
 import type { AdminProperty, AdminStatementDocument, AdminStatementMonthGroup } from "@/types/admin";
 
-/** One document row inside an expanded category section - filename, status, "Prüfen". */
+/** One document row inside an expanded category section - icon (varies by documentType, see ADMIN_DOCUMENT_TYPE_ICON), filename, status, "Prüfen". */
 function StatementMonthDocumentRow({ document, properties }: { document: AdminStatementDocument; properties: AdminProperty[] }) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const badge = statementStatusBadge(document.adminStatus);
+  const icon = createElement(ADMIN_DOCUMENT_TYPE_ICON[document.documentType], { className: "h-3.5 w-3.5" });
 
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2 py-2">
-        <p className="min-w-0 truncate text-xs text-ink">{document.fileName}</p>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#87977E]/12 text-[#52664E]">
+            {icon}
+          </span>
+          <p className="min-w-0 truncate text-xs text-ink">{document.fileName}</p>
+        </div>
         <div className="flex shrink-0 items-center gap-2">
           <AdminStatusBadge label={badge.label} tone={badge.tone} />
           <button

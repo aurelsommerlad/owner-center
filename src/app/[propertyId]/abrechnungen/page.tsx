@@ -11,6 +11,7 @@ import { StatementYearFilter } from "@/components/statements/StatementYearFilter
 import { StatementMonthAccordion } from "@/components/statements/StatementMonthAccordion";
 import { getOwnerLocale } from "@/server/locale";
 import { getDictionary, createTranslator } from "@/i18n";
+import { requireEffectiveOwnerContext } from "@/server/ownerContext";
 
 export default async function AbrechnungenPage({
   params,
@@ -34,7 +35,14 @@ export default async function AbrechnungenPage({
   const selectedYear = years.includes(requestedYear) ? requestedYear : currentYear;
 
   const documents = await getStatementDocuments(propertyId, selectedYear);
-  await markStatementDocumentsViewed(documents.map((document) => document.id));
+  // An admin "Als Owner ansehen" preview must see exactly what the owner
+  // would see (including "Neu" badges) without itself leaving a mark - only
+  // a real owner visit clears "Neu" (see server/ownerContext.ts and the
+  // matching guard in the download route, api/documents/[id]/download).
+  const context = await requireEffectiveOwnerContext();
+  if (!context.isImpersonation) {
+    await markStatementDocumentsViewed(documents.map((document) => document.id));
+  }
   const monthGroups = groupStatementDocumentsByMonth(documents);
   // At most one month starts expanded: the newest one that still has
   // unseen documents. Everything else stays collapsed.
