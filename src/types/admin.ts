@@ -173,6 +173,14 @@ export interface AdminStatementMonthCompleteness {
 }
 
 /**
+ * Whether a month's documents have actually reached the owner yet -
+ * completeness (above) and publication are two independent questions: a
+ * "Vollständig" month can still be entirely unpublished. See
+ * services/admin/statementService.ts#computePublishStatus.
+ */
+export type AdminStatementMonthPublishStatus = "not_published" | "partially_published" | "published";
+
+/**
  * One property's one statement month, with its documents bucketed by the
  * real Drive folder they were found in (Umsatz-Reporting/Rechnung-Gutschrift/
  * Belege) - see services/admin/statementService.ts#getStatementMonthGroups,
@@ -191,6 +199,7 @@ export interface AdminStatementMonthGroup {
   receiptDocuments: AdminStatementDocument[];
   needsClassificationDocuments: AdminStatementDocument[];
   completeness: AdminStatementMonthCompleteness;
+  publishStatus: AdminStatementMonthPublishStatus;
 }
 
 export interface AdminStatementDocument {

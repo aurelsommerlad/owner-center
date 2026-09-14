@@ -2,6 +2,7 @@ import type {
   AdminStatementDocument,
   AdminStatementMonthCompleteness,
   AdminStatementMonthGroup,
+  AdminStatementMonthPublishStatus,
   AdminStatementStatus,
 } from "@/types/admin";
 import { prisma } from "@/server/db";
@@ -153,6 +154,22 @@ export function computeMonthCompleteness(counts: {
   return { status: issues.length === 0 ? "complete" : "incomplete", issues };
 }
 
+/**
+ * Whether the owner can actually see this month yet - independent of
+ * `computeMonthCompleteness` above: a "Vollständig" month can still be
+ * entirely unpublished, and the admin overview must show that at a glance
+ * (never leave it looking done just because every expected document
+ * exists). Counts every document in the month, needs_classification
+ * included, since an unresolved one is also, by definition, not published.
+ */
+function computePublishStatus(documents: AdminStatementDocument[]): AdminStatementMonthPublishStatus {
+  if (documents.length === 0) return "not_published";
+  const publishedCount = documents.filter((doc) => doc.adminStatus === "published" || doc.adminStatus === "updated").length;
+  if (publishedCount === 0) return "not_published";
+  if (publishedCount === documents.length) return "published";
+  return "partially_published";
+}
+
 function buildMonthGroup(propertyId: string, year: number, month: number, documents: AdminStatementDocument[]): AdminStatementMonthGroup {
   const ownerReportDocuments = documents.filter((doc) => doc.documentType === "owner_report");
   const invoiceDocuments = documents.filter((doc) => doc.documentType === "invoice");
@@ -178,6 +195,7 @@ function buildMonthGroup(propertyId: string, year: number, month: number, docume
       creditNoteCount: creditNoteDocuments.length,
       needsClassificationCount: needsClassificationDocuments.length,
     }),
+    publishStatus: computePublishStatus(documents),
   };
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AdminStatusBadge, statementStatusBadge } from "./AdminStatusBadge";
+import { AdminStatusBadge, statementMonthPublishStatusBadge, statementStatusBadge } from "./AdminStatusBadge";
 import { StatementDocumentReviewModal } from "./StatementDocumentReviewModal";
 import { PublishStatementMonthButton } from "./PublishStatementMonthButton";
 import { ChevronDownIcon } from "@/components/ui/icons";
@@ -65,7 +65,12 @@ function CategorySection({
 /**
  * One property's one statement month - the central unit /admin/statements
  * now renders (spec point 6/7), replacing the old flat per-document list.
- * Collapsed by default; expanding reveals Eigentümerreporting, Rechnung and
+ * The collapsed header shows two independent badges: "Vollständig"/
+ * "Unvollständig" (completeness - are all expected documents there) and
+ * "Veröffentlicht"/"Teilweise veröffentlicht"/"Nicht veröffentlicht"
+ * (publication - has the owner actually seen them) - a complete month can
+ * still be entirely unpublished, and that must be visible without
+ * expanding the card. Expanding reveals Eigentümerreporting, Rechnung and
  * Gutschrift as their own clearly labeled sections (never one merged
  * "Rechnung & Gutschrift" list - each file's real type must be visible at a
  * glance), Belege, and "Monat veröffentlichen" (spec point 8). A
@@ -80,6 +85,7 @@ export function StatementMonthCard({ group, properties }: { group: AdminStatemen
   const receiptCount = group.receiptDocuments.length;
   const totalCount = coreDocumentCount + receiptCount + group.needsClassificationDocuments.length;
   const isComplete = group.completeness.status === "complete";
+  const publishBadge = statementMonthPublishStatusBadge(group.publishStatus);
 
   return (
     <div className="rounded-2xl border border-line p-4 sm:p-5">
@@ -97,9 +103,10 @@ export function StatementMonthCard({ group, properties }: { group: AdminStatemen
             {group.needsClassificationDocuments.length > 0 ? ` · ${group.needsClassificationDocuments.length} zu klassifizieren` : ""}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2.5">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <AdminStatusBadge label={isComplete ? "Vollständig" : "Unvollständig"} tone={isComplete ? "positive" : "strong"} />
-          <ChevronDownIcon className={`h-4 w-4 text-ink-soft transition-transform ${expanded ? "rotate-180" : ""}`} />
+          <AdminStatusBadge label={publishBadge.label} tone={publishBadge.tone} />
+          <ChevronDownIcon className={`h-4 w-4 shrink-0 text-ink-soft transition-transform ${expanded ? "rotate-180" : ""}`} />
         </div>
       </button>
 

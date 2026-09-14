@@ -3,6 +3,7 @@ import type {
   AdminAccountStatus,
   AdminGeneralDocumentStatus,
   AdminPropertyStatus,
+  AdminStatementMonthPublishStatus,
   AdminStatementStatus,
   IntegrationStatus,
   OwnerUserAccountStatus,
@@ -98,6 +99,24 @@ export function statementStatusBadge(status: AdminStatementStatus): { label: str
       return { label: "Aktualisiert", tone: "strong" };
     case "archived":
       return { label: "Archiviert", tone: "muted" };
+  }
+}
+
+/**
+ * Whether a statement month has actually reached the owner - shown
+ * alongside (never instead of) the "Vollständig"/"Unvollständig"
+ * completeness badge on the collapsed month card, since the two are
+ * independent: a complete month can still be entirely unpublished, and
+ * that must be visible without expanding the card.
+ */
+export function statementMonthPublishStatusBadge(status: AdminStatementMonthPublishStatus): { label: string; tone: AdminStatusTone } {
+  switch (status) {
+    case "published":
+      return { label: "Veröffentlicht", tone: "positive" };
+    case "partially_published":
+      return { label: "Teilweise veröffentlicht", tone: "strong" };
+    case "not_published":
+      return { label: "Nicht veröffentlicht", tone: "muted" };
   }
 }
 
