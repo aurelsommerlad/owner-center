@@ -82,16 +82,18 @@ export default async function UebersichtPage({
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
-      <HeroSection
-        property={property}
-        periodLabel={periodLabel}
-        subtitle={t("overview.performanceOverview")}
-        greeting={greeting}
-      />
-      {dataError && <DataUnavailableNotice text={t("common.dataUnavailable")} />}
+      <div className="flex flex-col gap-3">
+        <HeroSection
+          property={property}
+          periodLabel={periodLabel}
+          subtitle={t("overview.performanceOverview")}
+          greeting={greeting}
+        />
+        {dataError && <DataUnavailableNotice text={t("common.dataUnavailable")} />}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <PeriodFilter propertyId={propertyId} period={period} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <PeriodFilter propertyId={propertyId} period={period} />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
