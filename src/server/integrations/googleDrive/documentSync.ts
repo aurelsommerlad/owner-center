@@ -60,31 +60,20 @@ function emptyResult(): GoogleDriveSyncResult {
 }
 
 /**
- * Best-effort classification for a "Rechnung-Gutschrift" file name.
- * Deliberately conservative: only claims a type when exactly one of the two
- * German words appears as its own word in the file name - anything
- * ambiguous (both words, neither, a naming convention this heuristic
- * doesn't recognize) falls back to "other"/needs_classification rather than
- * guessing, per spec. This is the one place in the whole sync that reads
- * meaning from a FILE NAME rather than folder structure - everything else
- * (property, period, owner-report/rechnung-gutschrift category) is derived
- * from where the file actually sits in Drive.
- *
- * Deliberately NOT `\b` (regex word-boundary): `_` counts as a word
- * character, so `\brechnung\b` fails to match real filenames like
- * "Rechnung_R2026-08_ALPILA.pdf" - a very common convention (underscore
- * instead of space as the separator). The lookaround below only requires
- * that no OTHER LETTER sits directly against the word, so a digit,
- * underscore, hyphen, space, or the start/end of the string all count as
- * valid separators, while "Abrechnung" (an actual letter, "b", right before
- * "rechnung") still correctly does not match.
+ * Deterministic classification for a "Rechnung-Gutschrift" file name, per
+ * the verbatim real naming convention: the file name starts with "Rechnung"
+ * -> invoice, or starts with "Gutschrift" -> credit_note, case-insensitive.
+ * Anything else (a naming convention this doesn't recognize) falls back to
+ * "other"/needs_classification rather than guessing, per spec - this is the
+ * one place in the whole sync that reads meaning from a FILE NAME rather
+ * than folder structure; everything else (property, period, owner-report/
+ * rechnung-gutschrift category) is derived from where the file actually
+ * sits in Drive.
  */
 export function classifyInvoiceOrCreditNote(fileName: string): "invoice" | "credit_note" | null {
   const lower = fileName.toLowerCase();
-  const hasRechnung = /(?<![a-zäöüß])rechnung(?![a-zäöüß])/.test(lower);
-  const hasGutschrift = /(?<![a-zäöüß])gutschrift(?![a-zäöüß])/.test(lower);
-  if (hasRechnung && !hasGutschrift) return "invoice";
-  if (hasGutschrift && !hasRechnung) return "credit_note";
+  if (lower.startsWith("rechnung")) return "invoice";
+  if (lower.startsWith("gutschrift")) return "credit_note";
   return null;
 }
 
@@ -97,6 +86,16 @@ interface UpsertInput {
   fileName: string;
   driveFileId: string;
   driveModifiedAt: Date;
+  /**
+   * Only true for a file currently sitting in "Rechnung-Gutschrift" (see
+   * syncCategoryFiles's `fixedType === null` branch) - the one category
+   * whose classification is derived from the file NAME rather than being
+   * fixed by folder alone, and therefore the only one an earlier, buggier
+   * classification heuristic could have gotten wrong on a previous sync.
+   * "Umsatz-Reporting"/"Belege" files always get the same fixed type by
+   * construction, so they never need or get this correction.
+   */
+  allowRetypeOnUpdate: boolean;
 }
 
 type UpsertOutcome = "created" | "updated" | "unchanged";
@@ -106,11 +105,20 @@ type UpsertOutcome = "created" | "updated" | "unchanged";
  * `driveFileId` is the upsert key (see the @unique constraint on it) - this
  * is what makes repeated syncs idempotent.
  *
- * On UPDATE, property/year/month/documentType are deliberately NEVER
- * touched, even if the file has since moved to a different Drive folder:
- * once a document exists, its property/period/type are admin-owned (via the
- * "Prüfen" review, see services/admin/statementService.ts#updateStatementDocumentFields)
- * and must never be silently reverted by a later sync.
+ * On UPDATE, property/year/month are deliberately NEVER touched, even if
+ * the file has since moved to a different Drive folder: once a document
+ * exists, its property/period are admin-owned (via the "Prüfen" review, see
+ * services/admin/statementService.ts#updateStatementDocumentFields) and
+ * must never be silently reverted by a later sync. `documentType` is the
+ * one exception, and only for a Rechnung-Gutschrift file
+ * (`allowRetypeOnUpdate`): a real, already-synced document was left
+ * "other"/needs_classification by an earlier classification bug, and
+ * re-running the sync is the only way to correct it - see
+ * classifyInvoiceOrCreditNote's own doc comment. This can never touch a
+ * document already visible to the owner ("published"/"updated") - by the
+ * time a document reaches that state its type was necessarily already
+ * resolved (publishStatementDocument refuses to publish anything still at
+ * "needs_classification"), so there is nothing left to correct there.
  *
  * V1 decision for a changed `driveModifiedAt` on an ALREADY PUBLISHED
  * document (spec point 15): never silently re-publish new content without
@@ -125,9 +133,10 @@ type UpsertOutcome = "created" | "updated" | "unchanged";
  * reversible signals rather than a silent content replace.
  *
  * A document that was "archived" (see archiveMissingDocuments below) and
- * reappears in Drive is reactivated to "detected" - back to admin review,
- * never silently re-published even if it had been published before going
- * missing.
+ * reappears in Drive is reactivated using the freshly computed status
+ * (`input.status`) rather than a hardcoded "detected" - back to admin
+ * review either way, never silently re-published even if it had been
+ * published before going missing.
  */
 async function upsertStatementDocument(input: UpsertInput): Promise<{ outcome: UpsertOutcome; finalStatus: string }> {
   const existing = await prisma.statementDocument.findUnique({ where: { driveFileId: input.driveFileId } });
@@ -155,19 +164,21 @@ async function upsertStatementDocument(input: UpsertInput): Promise<{ outcome: U
   const modifiedChanged =
     !existing.driveModifiedAt || existing.driveModifiedAt.getTime() !== input.driveModifiedAt.getTime();
   const wasMissing = existing.adminStatus === "archived";
+  const alreadyOwnerVisible = existing.adminStatus === "published" || existing.adminStatus === "updated";
+  const retype = input.allowRetypeOnUpdate && !alreadyOwnerVisible && existing.documentType !== input.documentType;
 
-  if (!modifiedChanged && !wasMissing) {
+  if (!modifiedChanged && !wasMissing && !retype) {
     return { outcome: "unchanged", finalStatus: existing.adminStatus };
   }
 
-  const alreadyOwnerVisible = existing.adminStatus === "published" || existing.adminStatus === "updated";
-  const nextStatus = alreadyOwnerVisible ? "updated" : wasMissing ? "detected" : existing.adminStatus;
+  const nextStatus = alreadyOwnerVisible ? "updated" : wasMissing || retype ? input.status : existing.adminStatus;
   const now = new Date();
 
   const updated = await prisma.statementDocument.update({
     where: { id: existing.id },
     data: {
       fileName: input.fileName,
+      documentType: retype ? input.documentType : undefined,
       driveModifiedAt: input.driveModifiedAt,
       version: modifiedChanged ? { increment: 1 } : undefined,
       adminStatus: nextStatus,
@@ -247,6 +258,10 @@ async function syncCategoryFiles(options: {
       fileName: file.name,
       driveFileId: file.id,
       driveModifiedAt: new Date(file.modifiedAt),
+      // Only the Rechnung-Gutschrift branch (fixedType === null) ever needs
+      // a later sync to correct a wrong classification - see
+      // upsertStatementDocument's own doc comment.
+      allowRetypeOnUpdate: fixedType === null,
     });
 
     if (outcome === "created") result.documentsCreated += 1;

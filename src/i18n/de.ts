@@ -204,7 +204,6 @@ export const de = {
     redownload: "Erneut herunterladen",
     otherDocuments: "Belege",
     ownerReport: "Eigentümerreporting",
-    invoiceCreditNote: "Rechnung & Gutschrift",
     invoice: "Rechnung",
     creditNote: "Gutschrift",
     otherDocument: "Beleg",

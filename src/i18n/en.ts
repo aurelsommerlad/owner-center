@@ -200,7 +200,6 @@ export const en: Dictionary = {
     redownload: "Download again",
     otherDocuments: "Supporting documents",
     ownerReport: "Owner report",
-    invoiceCreditNote: "Invoice & Credit Note",
     invoice: "Invoice",
     creditNote: "Credit note",
     otherDocument: "Supporting document",

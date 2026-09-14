@@ -30,29 +30,28 @@ export function statementDocumentTypeLabel(type: StatementDocumentType, locale: 
 }
 
 /**
- * The three fachlich defined types always display their fixed label. Only
- * "other" documents show their specific stored `title` (e.g. "Ergänzende
- * Unterlage"), since the generic "Weiteres Dokument"/"Other document" label
- * alone wouldn't distinguish several such documents in the same month -
- * that stored title is document CONTENT, never machine-translated (see
- * this module's callers).
+ * Always the document's own original file name (minus ".pdf") - never the
+ * generic type label. Necessary because "Umsatz-Reporting" regularly holds
+ * TWO owner_report documents in the same month (see StatementMonthGroup),
+ * which the generic label alone could never tell apart; the type label is
+ * shown once, as that group's section heading, instead (see
+ * components/statements/StatementMonthGroup.tsx).
  */
-export function statementDocumentDisplayTitle(document: StatementDocument, locale: Locale = "de"): string {
-  return document.documentType === "other" ? document.title : statementDocumentTypeLabel(document.documentType, locale);
+export function statementDocumentDisplayTitle(document: StatementDocument): string {
+  return document.title;
 }
-
-/** Fixed display order for the two "standard" documents alongside the owner report. */
-const STANDARD_DOCUMENT_ORDER: StatementDocumentType[] = ["invoice", "credit_note"];
 
 export interface StatementMonthGroup {
   year: number;
   month: number;
-  /** The Eigentümerreporting, if this month has one - the month's main document. */
-  ownerReport: StatementDocument | undefined;
-  /** Rechnung and Gutschrift, in that fixed order, whichever of the two exist. */
-  standardDocuments: StatementDocument[];
-  /** Any further ("other") documents for this month, oldest first. */
-  extraDocuments: StatementDocument[];
+  /** The month's Umsatz-Reporting documents - regularly two, both owner_report, distinguished only by their own file name. */
+  ownerReportDocuments: StatementDocument[];
+  /** Regularly one Rechnung. */
+  invoiceDocuments: StatementDocument[];
+  /** Regularly one Gutschrift. */
+  creditNoteDocuments: StatementDocument[];
+  /** Belege - optional, 0-n. */
+  receiptDocuments: StatementDocument[];
   documentCount: number;
   newCount: number;
 }
@@ -69,21 +68,15 @@ export function groupStatementDocumentsByMonth(documents: StatementDocument[]): 
   return Array.from(byMonth.entries())
     .sort(([a], [b]) => b - a)
     .map(([month, monthDocuments]) => {
-      const ownerReport = monthDocuments.find((doc) => doc.documentType === "owner_report");
-      const standardDocuments = STANDARD_DOCUMENT_ORDER.flatMap((type) => {
-        const doc = monthDocuments.find((candidate) => candidate.documentType === type);
-        return doc ? [doc] : [];
-      });
-      const extraDocuments = monthDocuments
-        .filter((doc) => doc.documentType === "other")
-        .sort((a, b) => a.publishedAt.localeCompare(b.publishedAt));
+      const byType = (type: StatementDocumentType) => monthDocuments.filter((doc) => doc.documentType === type);
 
       return {
         year: monthDocuments[0].year,
         month,
-        ownerReport,
-        standardDocuments,
-        extraDocuments,
+        ownerReportDocuments: byType("owner_report"),
+        invoiceDocuments: byType("invoice"),
+        creditNoteDocuments: byType("credit_note"),
+        receiptDocuments: byType("other").sort((a, b) => a.publishedAt.localeCompare(b.publishedAt)),
         documentCount: monthDocuments.length,
         newCount: monthDocuments.filter(isNewStatementDocument).length,
       };

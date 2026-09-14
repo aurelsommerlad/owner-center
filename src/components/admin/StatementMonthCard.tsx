@@ -65,10 +65,13 @@ function CategorySection({
 /**
  * One property's one statement month - the central unit /admin/statements
  * now renders (spec point 6/7), replacing the old flat per-document list.
- * Collapsed by default; expanding reveals the three real Drive categories
- * plus "Monat veröffentlichen" (spec point 8). A "Rechnung-Gutschrift" file
- * still awaiting classification is shown inside that same category, not
- * hidden - so the admin sees exactly why a month is "Unvollständig".
+ * Collapsed by default; expanding reveals Eigentümerreporting, Rechnung and
+ * Gutschrift as their own clearly labeled sections (never one merged
+ * "Rechnung & Gutschrift" list - each file's real type must be visible at a
+ * glance), Belege, and "Monat veröffentlichen" (spec point 8). A
+ * "Rechnung-Gutschrift" file still awaiting classification gets its own
+ * "Zu klassifizieren" section instead of being hidden - so the admin sees
+ * exactly why a month is "Unvollständig".
  */
 export function StatementMonthCard({ group, properties }: { group: AdminStatementMonthGroup; properties: AdminProperty[] }) {
   const [expanded, setExpanded] = useState(false);
@@ -111,11 +114,11 @@ export function StatementMonthCard({ group, properties }: { group: AdminStatemen
           )}
 
           <CategorySection title="Eigentümerreporting" documents={group.ownerReportDocuments} properties={properties} />
-          <CategorySection
-            title="Rechnung & Gutschrift"
-            documents={[...group.invoiceDocuments, ...group.creditNoteDocuments, ...group.needsClassificationDocuments]}
-            properties={properties}
-          />
+          <CategorySection title="Rechnung" documents={group.invoiceDocuments} properties={properties} />
+          <CategorySection title="Gutschrift" documents={group.creditNoteDocuments} properties={properties} />
+          {group.needsClassificationDocuments.length > 0 && (
+            <CategorySection title="Zu klassifizieren" documents={group.needsClassificationDocuments} properties={properties} />
+          )}
           <CategorySection title="Belege" documents={group.receiptDocuments} properties={properties} emptyHint="Keine Belege für diesen Monat." />
 
           <div className="flex justify-end border-t border-line pt-4">

@@ -30,7 +30,7 @@ export function StatementDocumentRow({
   const providedLabel = document.updatedAt
     ? t("statements.updatedOn", { date: formatShortDate(document.updatedAt, locale) })
     : t("statements.providedOn", { date: formatShortDate(document.publishedAt, locale) });
-  const label = statementDocumentDisplayTitle(document, locale);
+  const label = statementDocumentDisplayTitle(document);
 
   return (
     <div className={`flex items-center justify-between gap-4 ${emphasis === "muted" ? "py-2" : "py-3"}`}>

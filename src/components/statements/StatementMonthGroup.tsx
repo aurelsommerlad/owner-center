@@ -10,7 +10,7 @@ export function StatementMonthGroup({
   group: StatementMonthGroupData;
   locale?: Locale;
 }) {
-  const { ownerReport, standardDocuments, extraDocuments, documentCount, newCount } = group;
+  const { ownerReportDocuments, invoiceDocuments, creditNoteDocuments, receiptDocuments, documentCount, newCount } = group;
   const t = createTranslator(getDictionary(locale));
 
   return (
@@ -26,35 +26,46 @@ export function StatementMonthGroup({
         )}
       </div>
 
-      {ownerReport && (
+      {ownerReportDocuments.length > 0 && (
         <div className="mt-1.5">
           <p className="text-[10px] font-medium uppercase tracking-wide text-ink-soft/70">{t("statements.ownerReport")}</p>
           <div className="flex flex-col divide-y divide-line/60">
-            <StatementDocumentRow document={ownerReport} emphasis="primary" locale={locale} />
+            {ownerReportDocuments.map((document) => (
+              <StatementDocumentRow key={document.id} document={document} emphasis="primary" locale={locale} />
+            ))}
           </div>
         </div>
       )}
 
-      {standardDocuments.length > 0 && (
+      {invoiceDocuments.length > 0 && (
         <div className="mt-1.5 border-t border-line/60 pt-2">
-          <p className="text-[10px] font-medium uppercase tracking-wide text-ink-soft/70">
-            {t("statements.invoiceCreditNote")}
-          </p>
+          <p className="text-[10px] font-medium uppercase tracking-wide text-ink-soft/70">{t("statements.invoice")}</p>
           <div className="flex flex-col divide-y divide-line/60">
-            {standardDocuments.map((document) => (
+            {invoiceDocuments.map((document) => (
               <StatementDocumentRow key={document.id} document={document} emphasis="standard" locale={locale} />
             ))}
           </div>
         </div>
       )}
 
-      {extraDocuments.length > 0 && (
+      {creditNoteDocuments.length > 0 && (
+        <div className="mt-1.5 border-t border-line/60 pt-2">
+          <p className="text-[10px] font-medium uppercase tracking-wide text-ink-soft/70">{t("statements.creditNote")}</p>
+          <div className="flex flex-col divide-y divide-line/60">
+            {creditNoteDocuments.map((document) => (
+              <StatementDocumentRow key={document.id} document={document} emphasis="standard" locale={locale} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {receiptDocuments.length > 0 && (
         <div className="mt-1.5 border-t border-line/60 pt-2">
           <p className="text-[10px] font-medium uppercase tracking-wide text-ink-soft/70">
             {t("statements.otherDocuments")}
           </p>
           <div className="flex flex-col">
-            {extraDocuments.map((document) => (
+            {receiptDocuments.map((document) => (
               <StatementDocumentRow key={document.id} document={document} emphasis="muted" locale={locale} />
             ))}
           </div>
