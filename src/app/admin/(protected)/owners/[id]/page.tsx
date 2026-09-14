@@ -118,14 +118,13 @@ export default async function AdminOwnerDetailPage({ params }: { params: Promise
                     triggerLabel="Bearbeiten"
                     triggerClassName="text-xs font-medium text-ink-soft transition-colors hover:text-ink"
                   />
-                  {user.status !== "active" && (
-                    <RecreateInvitationButton
-                      ownerUserId={user.id}
-                      ownerId={owner.id}
-                      userName={`${user.firstName} ${user.lastName}`}
-                      userEmail={user.email}
-                    />
-                  )}
+                  <RecreateInvitationButton
+                    ownerUserId={user.id}
+                    ownerId={owner.id}
+                    userName={`${user.firstName} ${user.lastName}`}
+                    userEmail={user.email}
+                    isActive={user.status === "active"}
+                  />
                   <OwnerUserStatusToggle
                     userId={user.id}
                     ownerId={owner.id}
