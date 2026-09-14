@@ -52,6 +52,20 @@ export async function getStatementDocuments(
   return documents.map(toStatementDocument);
 }
 
+/**
+ * The documents belonging to the most recently published statement month
+ * for this property, across all years - used for the Übersicht page's
+ * "Letzte Abrechnung" preview. Empty when nothing has been published yet.
+ */
+export async function getLatestStatementMonthDocuments(propertyId: string): Promise<StatementDocument[]> {
+  const years = await getStatementDocumentYears(propertyId);
+  if (years.length === 0) return [];
+  const documents = await getStatementDocuments(propertyId, years[0]);
+  if (documents.length === 0) return [];
+  const newestMonth = documents[0].month;
+  return documents.filter((document) => document.month === newestMonth);
+}
+
 /** Years that have at least one published statement for this property, newest first. */
 export async function getStatementDocumentYears(propertyId: string): Promise<number[]> {
   const documents = await prisma.statementDocument.findMany({

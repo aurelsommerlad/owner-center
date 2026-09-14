@@ -8,7 +8,8 @@ import {
   getUnitStatusOverview,
   type OverviewPeriod,
 } from "@/services/overviewService";
-import { getLatestStatements } from "@/services/statementService";
+import { getLatestStatementMonthDocuments } from "@/services/statementDocumentService";
+import { groupStatementDocumentsByMonth } from "@/lib/statementDocuments";
 import { getDocumentsForProperty } from "@/services/documentService";
 import { HeroSection } from "@/components/overview/HeroSection";
 import { KpiCard } from "@/components/overview/KpiCard";
@@ -51,17 +52,18 @@ export default async function UebersichtPage({
       ? t("overview.year", { year: todayDate.getUTCFullYear() })
       : `${monthLabel(todayDate.getUTCMonth() + 1, locale)} ${todayDate.getUTCFullYear()}`;
 
-  const [kpis, preview, arrivalsDepartures, todayStatus, unitStatusOverview, statements, documents] =
+  const [kpis, preview, arrivalsDepartures, todayStatus, unitStatusOverview, latestStatementDocuments, documents] =
     await Promise.all([
       getPropertyOverviewKpis(propertyId, period),
       getOccupancyPreview(propertyId),
       getArrivalsDeparturesSummary(propertyId),
       getTodayStatus(propertyId),
       getUnitStatusOverview(propertyId),
-      getLatestStatements(propertyId, 1),
+      getLatestStatementMonthDocuments(propertyId),
       getDocumentsForProperty(propertyId),
     ]);
   const dataError = hadOwnerPortalDataError();
+  const latestStatementGroup = groupStatementDocumentsByMonth(latestStatementDocuments)[0] ?? null;
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
@@ -145,7 +147,7 @@ export default async function UebersichtPage({
       <UnitStatusOverviewCard overview={unitStatusOverview} propertyId={propertyId} locale={locale} />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <RecentStatements statements={statements} propertyId={propertyId} locale={locale} />
+        <RecentStatements group={latestStatementGroup} propertyId={propertyId} locale={locale} />
         <DocumentsPreview documents={documents.slice(0, 4)} propertyId={propertyId} locale={locale} />
       </div>
     </div>

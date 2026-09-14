@@ -1,31 +1,30 @@
 import Link from "next/link";
-import type { OwnerStatement, StatementStatus } from "@/types";
+import type { StatementMonthGroup } from "@/lib/statementDocuments";
+import { statementMonthGroupLabel, statementMonthIsComplete } from "@/lib/statementDocuments";
+import { StatementDocumentRow } from "@/components/statements/StatementDocumentRow";
 import { Card } from "@/components/ui/Card";
-import { ArrowRightIcon, DownloadIcon } from "@/components/ui/icons";
-import { formatCurrency } from "@/lib/format";
+import { ArrowRightIcon } from "@/components/ui/icons";
 import { getDictionary, createTranslator, type Locale } from "@/i18n";
 
-const STATUS_CLASS: Record<StatementStatus, string> = {
-  ready: "bg-ink text-paper",
-  processing: "border border-line text-ink-soft",
-  paid: "bg-status-owner/15 text-status-owner",
-};
-
+/**
+ * The newest published statement month, as a compact preview - the same
+ * per-document rows (Neu status, download button, downloaded-on date) as
+ * the Abrechnungen page, so the two stay visually and behaviorally in
+ * sync. `group` is `null` when nothing has been published yet.
+ */
 export function RecentStatements({
-  statements,
+  group,
   propertyId,
   locale = "de",
 }: {
-  statements: OwnerStatement[];
+  group: StatementMonthGroup | null;
   propertyId: string;
   locale?: Locale;
 }) {
   const t = createTranslator(getDictionary(locale));
-  const statusLabel: Record<StatementStatus, string> = {
-    ready: t("overview.statementReady"),
-    processing: t("overview.statementProcessing"),
-    paid: t("overview.statementPaid"),
-  };
+  const coreDocuments = group
+    ? [...group.ownerReportDocuments, ...group.invoiceDocuments, ...group.creditNoteDocuments]
+    : [];
 
   return (
     <Card className="p-5 shadow-none sm:p-6">
@@ -40,33 +39,28 @@ export function RecentStatements({
         </Link>
       </div>
 
-      <div className="mt-2 divide-y divide-line">
-        {statements.map((statement) => (
-          <div key={statement.id} className="flex items-center justify-between gap-3 py-3">
-            <div>
-              <p className="text-sm font-medium text-ink">{statement.label}</p>
-              <p className="mt-0.5 text-sm text-ink-soft">
-                {formatCurrency(statement.payoutAmount, statement.currency, 2, locale)}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <span
-                className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${STATUS_CLASS[statement.status]}`}
-              >
-                {statusLabel[statement.status]}
-              </span>
-              <button
-                type="button"
-                disabled={statement.status !== "ready" && statement.status !== "paid"}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink-soft transition-colors hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label={t("overview.downloadStatement", { label: statement.label })}
-              >
-                <DownloadIcon className="h-4 w-4" />
-              </button>
-            </div>
+      {group ? (
+        <>
+          <p className="mt-2 flex items-center gap-2 text-xs text-ink-soft">
+            <span className="font-medium text-ink">{statementMonthGroupLabel(group, locale)}</span>
+            {statementMonthIsComplete(group) && (
+              <span className="font-medium text-[#52664E]">{t("statements.complete")}</span>
+            )}
+          </p>
+          <div className="mt-1 divide-y divide-line">
+            {coreDocuments.map((document) => (
+              <StatementDocumentRow
+                key={document.id}
+                document={document}
+                locale={locale}
+                primary={document.documentType === "owner_report"}
+              />
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      ) : (
+        <p className="mt-3 text-sm text-ink-soft">{t("overview.noStatementsYet")}</p>
+      )}
     </Card>
   );
 }

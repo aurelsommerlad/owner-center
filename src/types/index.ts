@@ -119,22 +119,6 @@ export interface Reservation {
   channel?: BookingSourceId;
 }
 
-export type StatementStatus = "ready" | "processing" | "paid";
-
-export interface OwnerStatement {
-  id: string;
-  propertyId: string;
-  /** 1-12 */
-  month: number;
-  year: number;
-  /** Display label, e.g. "August 2026". */
-  label: string;
-  payoutAmount: number;
-  currency: string;
-  status: StatementStatus;
-  fileName: string;
-}
-
 /**
  * The kind of statement-archive document. Three are fachlich defined every
  * month may have (Eigentümerreporting, Rechnung, Gutschrift); "other" covers
@@ -149,9 +133,8 @@ export type StatementDocumentType = "owner_report" | "invoice" | "credit_note" |
  * A statement-archive PDF, as it will eventually be synced in from the
  * "Owner Center / Eigentümer / {Property} / Abrechnungen / {year} / {month}"
  * Google Drive folder. Deliberately a document-archive record only - no
- * payout/financial fields - since V1 neither computes nor reads owner
- * payouts from these PDFs (see OwnerStatement for the separate payout
- * status shown on the Übersicht page, which this type does not replace).
+ * payout/financial fields, since V1 neither computes nor reads owner
+ * payouts from these PDFs.
  *
  * A month is not limited to the three main documents: Eigentümerreporting,
  * Rechnung and Gutschrift are the ones fachlich defined, but a month may
