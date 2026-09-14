@@ -19,6 +19,8 @@ import { getUnitsForProperty } from "@/server/integrations/apaleo/unitService";
 import { describeApaleoError } from "@/server/integrations/apaleo/errors";
 import { loadApaleoMappingOverview } from "@/server/integrations/apaleo/mappingStatus";
 import { testGoogleDriveConnection, type GoogleDriveConnectionStatus } from "@/server/integrations/googleDrive/connectionCheck";
+import { assertFolderIsDirectRootChild } from "@/server/integrations/googleDrive/folderService";
+import { describeGoogleDriveError } from "@/server/integrations/googleDrive/errors";
 import { prisma } from "@/server/db";
 
 /**
@@ -475,6 +477,56 @@ export async function setApaleoPropertyMappingAction(
   revalidatePath("/admin");
   revalidatePath("/admin/integrations");
   return { ok: true, message: trimmed ? "Verknüpfung wurde gespeichert." : "Verknüpfung wurde entfernt." };
+}
+
+/**
+ * "Google Drive" card's "Zuordnung speichern" on /admin/properties/[id] -
+ * the ONLY place Property.googleDriveFolderId is ever written. Mirrors
+ * setApaleoPropertyMappingAction's shape (uniqueness check, then save), but
+ * adds the one check that mapping doesn't need: re-verifying the submitted
+ * id against LIVE Drive metadata via assertFolderIsDirectRootChild, so a
+ * manipulated request (e.g. calling this action directly with an id that
+ * never appeared in the admin's own dropdown) can never connect a Property
+ * to a folder outside the configured root - the id from the dropdown is
+ * never trusted on its own, no matter how it reached this action.
+ */
+export async function setGoogleDriveFolderMappingAction(
+  propertyId: string,
+  googleDriveFolderId: string
+): Promise<ActionResult> {
+  await requireAdminRole();
+
+  const property = await getProperty(propertyId);
+  if (!property) return { ok: false, message: "Objekt nicht gefunden." };
+
+  const trimmed = googleDriveFolderId.trim();
+  if (trimmed) {
+    const conflict = await prisma.property.findFirst({
+      where: { googleDriveFolderId: trimmed, id: { not: propertyId } },
+    });
+    if (conflict) {
+      return { ok: false, message: "Dieser Google-Drive-Ordner ist bereits einem anderen internen Objekt zugeordnet." };
+    }
+
+    let folder;
+    try {
+      folder = await assertFolderIsDirectRootChild(trimmed);
+    } catch (err) {
+      return { ok: false, message: describeGoogleDriveError(err) };
+    }
+    if (!folder) {
+      return {
+        ok: false,
+        message: "Dieser Ordner liegt nicht direkt im konfigurierten Google-Drive-Root-Ordner oder wurde nicht gefunden.",
+      };
+    }
+  }
+
+  await updateProperty(propertyId, { googleDriveFolderId: trimmed });
+
+  revalidatePath("/admin/properties");
+  revalidatePath(`/admin/properties/${propertyId}`);
+  return { ok: true, message: trimmed ? "Zuordnung wurde gespeichert." : "Zuordnung wurde entfernt." };
 }
 
 /**

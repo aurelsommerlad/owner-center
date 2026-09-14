@@ -47,6 +47,7 @@ export function toAdminProperty(property: DbProperty): AdminProperty {
     apaleoPropertyId: property.apaleoPropertyId ?? undefined,
     statementsDriveFolderId: property.statementsDriveFolderId ?? undefined,
     documentsDriveFolderId: property.documentsDriveFolderId ?? undefined,
+    googleDriveFolderId: property.googleDriveFolderId ?? undefined,
     createdAt: toDateString(property.createdAt),
     updatedAt: toDateString(property.updatedAt),
   };

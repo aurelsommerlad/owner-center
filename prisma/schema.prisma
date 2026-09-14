@@ -173,6 +173,16 @@ model Property {
   statementsDriveFolderId String?
   /// Mock configuration value only - no real Drive connection.
   documentsDriveFolderId  String?
+  /// The leading/authoritative link to Google Drive: the id of this
+  /// property's document folder, always a direct child of the configured
+  /// GOOGLE_DRIVE_ROOT_FOLDER_ID - admin-entered via a folder PICKED from a
+  /// live Drive listing (never freely typed), and re-verified server-side
+  /// against Drive itself on every save (see
+  /// integrations/googleDrive/folderService.ts#assertFolderIsDirectRootChild)
+  /// so a manipulated id can never point outside the root folder. Never
+  /// auto-matched by name - see the same rule already established for
+  /// apaleoPropertyId above.
+  googleDriveFolderId     String?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 

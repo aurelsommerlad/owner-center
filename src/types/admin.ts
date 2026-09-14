@@ -102,6 +102,14 @@ export interface AdminProperty {
   statementsDriveFolderId?: string;
   /** Mock configuration value only - no real Drive connection. */
   documentsDriveFolderId?: string;
+  /**
+   * The real Google Drive mapping: this property's document folder id,
+   * always a direct child of the configured root folder - see
+   * src/server/integrations/googleDrive/folderService.ts. Admin-entered by
+   * picking from a live Drive listing, never freely typed, and re-verified
+   * server-side on every save.
+   */
+  googleDriveFolderId?: string;
   createdAt: string;
   updatedAt: string;
 }

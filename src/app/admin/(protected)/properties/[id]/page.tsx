@@ -6,10 +6,12 @@ import { Card } from "@/components/ui/Card";
 import { AdminStatusBadge, propertyStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { PropertyFormModal } from "@/components/admin/PropertyFormModal";
 import { ApaleoPropertyMappingCard } from "@/components/admin/ApaleoPropertyMappingCard";
+import { GoogleDriveFolderMappingCard } from "@/components/admin/GoogleDriveFolderMappingCard";
 import { PropertyOwnersEditor } from "@/components/admin/PropertyOwnersEditor";
 import { loadApaleoMappingOverview, mappingStatusFor } from "@/server/integrations/apaleo/mappingStatus";
 import { getUnitsForProperty } from "@/server/integrations/apaleo/unitService";
 import { describeApaleoError } from "@/server/integrations/apaleo/errors";
+import { loadGoogleDriveFolderMappingOverview, driveMappingStatusFor } from "@/server/integrations/googleDrive/folderMapping";
 import { formatShortDate } from "@/lib/format";
 import type { ApaleoUnitSummary } from "@/server/integrations/apaleo/types";
 
@@ -22,23 +24,17 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-// Google Drive is not part of this step - a real connection never exists
-// yet, so this status is always "Noch nicht verbunden" regardless of
-// whether a mock value is set. No fake sync state.
-function NotConnectedBadge() {
-  return <AdminStatusBadge label="Noch nicht verbunden" tone="muted" />;
-}
-
 export default async function AdminPropertyDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const property = await getProperty(id);
   if (!property) notFound();
 
-  const [owners, allOwners, allProperties, apaleoOverview] = await Promise.all([
+  const [owners, allOwners, allProperties, apaleoOverview, driveOverview] = await Promise.all([
     getOwnersForProperty(property.id),
     getOwners(),
     getProperties(),
     loadApaleoMappingOverview(),
+    loadGoogleDriveFolderMappingOverview(),
   ]);
   const statusBadge = propertyStatusBadge(property.status);
 
@@ -54,6 +50,21 @@ export default async function AdminPropertyDetailPage({ params }: { params: Prom
   const mappingStatus = mappingStatusFor(property.apaleoPropertyId, apaleoOverview);
   const currentApaleoPropertyName = property.apaleoPropertyId
     ? apaleoOverview.byId.get(property.apaleoPropertyId)?.name
+    : undefined;
+
+  // Same "not claimed by a DIFFERENT internal property" filter as apaleo
+  // above, enforced again server-side in setGoogleDriveFolderMappingAction -
+  // this is only what keeps the dropdown itself free of options that would
+  // just be rejected on save.
+  const takenByOthersDrive = new Set(
+    allProperties
+      .filter((other) => other.id !== property.id && other.googleDriveFolderId)
+      .map((other) => other.googleDriveFolderId!)
+  );
+  const driveFolderOptions = driveOverview.folders.filter((option) => !takenByOthersDrive.has(option.id));
+  const driveMappingStatus = driveMappingStatusFor(property.googleDriveFolderId, driveOverview);
+  const currentDriveFolderName = property.googleDriveFolderId
+    ? driveOverview.byId.get(property.googleDriveFolderId)?.name
     : undefined;
 
   let unitsPreview: ApaleoUnitSummary[] | null = null;
@@ -136,16 +147,15 @@ export default async function AdminPropertyDetailPage({ params }: { params: Prom
       />
 
       {/* Google Drive */}
-      <Card className="p-5 shadow-soft sm:p-6">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-sm font-semibold text-ink">Google Drive</h2>
-          <NotConnectedBadge />
-        </div>
-        <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-          <Field label="Abrechnungsordner" value={property.statementsDriveFolderId ?? "—"} />
-          <Field label="Dokumentenordner" value={property.documentsDriveFolderId ?? "—"} />
-        </div>
-      </Card>
+      <GoogleDriveFolderMappingCard
+        propertyId={property.id}
+        currentFolderId={property.googleDriveFolderId}
+        currentFolderName={currentDriveFolderName}
+        mappingStatus={driveMappingStatus}
+        folderOptions={driveFolderOptions}
+        driveAvailable={driveOverview.available}
+        driveErrorMessage={driveOverview.errorMessage}
+      />
     </div>
   );
 }

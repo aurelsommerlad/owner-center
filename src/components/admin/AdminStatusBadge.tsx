@@ -7,6 +7,7 @@ import type {
   OwnerUserAccountStatus,
 } from "@/types/admin";
 import type { ApaleoMappingStatus } from "@/server/integrations/apaleo/mappingStatus";
+import type { GoogleDriveMappingStatus } from "@/server/integrations/googleDrive/folderMapping";
 
 type AdminStatusTone = "positive" | "strong" | "neutral" | "muted";
 
@@ -101,5 +102,19 @@ export function apaleoMappingStatusBadge(status: ApaleoMappingStatus): { label: 
       return { label: "apaleo: Nicht verfügbar", tone: "muted" };
     case "not_connected":
       return { label: "apaleo: Nicht zugeordnet", tone: "muted" };
+  }
+}
+
+/** Per-property Google Drive folder mapping status - shown on the property detail page's "Google Drive" card. */
+export function googleDriveMappingStatusBadge(status: GoogleDriveMappingStatus): { label: string; tone: AdminStatusTone } {
+  switch (status) {
+    case "connected":
+      return { label: "Drive: Verbunden", tone: "positive" };
+    case "mapping_error":
+      return { label: "Drive: Mapping fehlerhaft", tone: "strong" };
+    case "unavailable":
+      return { label: "Drive: Nicht verfügbar", tone: "muted" };
+    case "not_connected":
+      return { label: "Drive: Nicht zugeordnet", tone: "muted" };
   }
 }

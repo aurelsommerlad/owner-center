@@ -35,6 +35,8 @@ export interface PropertyInput {
   statementsDriveFolderId?: string;
   /** Mock configuration only - never a real Drive connection. */
   documentsDriveFolderId?: string;
+  /** The real Google Drive folder mapping - see setGoogleDriveFolderMappingAction, the only caller that ever sets this. */
+  googleDriveFolderId?: string;
 }
 
 export async function createProperty(input: PropertyInput): Promise<AdminProperty> {
@@ -46,6 +48,7 @@ export async function createProperty(input: PropertyInput): Promise<AdminPropert
       apaleoPropertyId: input.apaleoPropertyId || undefined,
       statementsDriveFolderId: input.statementsDriveFolderId || undefined,
       documentsDriveFolderId: input.documentsDriveFolderId || undefined,
+      googleDriveFolderId: input.googleDriveFolderId || undefined,
     },
   });
   return toAdminProperty(property);
@@ -64,6 +67,8 @@ export async function updateProperty(id: string, input: Partial<PropertyInput>):
           input.statementsDriveFolderId === undefined ? undefined : input.statementsDriveFolderId || null,
         documentsDriveFolderId:
           input.documentsDriveFolderId === undefined ? undefined : input.documentsDriveFolderId || null,
+        googleDriveFolderId:
+          input.googleDriveFolderId === undefined ? undefined : input.googleDriveFolderId || null,
       },
     })
     .catch(() => null);
