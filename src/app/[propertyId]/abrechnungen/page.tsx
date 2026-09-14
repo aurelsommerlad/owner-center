@@ -6,10 +6,9 @@ import {
   markStatementDocumentsViewed,
 } from "@/services/statementDocumentService";
 import { MOCK_TODAY } from "@/lib/config";
-import { groupStatementDocumentsByMonth, isNewStatementDocument } from "@/lib/statementDocuments";
-import { Card } from "@/components/ui/Card";
+import { groupStatementDocumentsByMonth } from "@/lib/statementDocuments";
 import { StatementYearFilter } from "@/components/statements/StatementYearFilter";
-import { StatementMonthGroup } from "@/components/statements/StatementMonthGroup";
+import { StatementMonthAccordion } from "@/components/statements/StatementMonthAccordion";
 import { getOwnerLocale } from "@/server/locale";
 import { getDictionary, createTranslator } from "@/i18n";
 
@@ -37,7 +36,9 @@ export default async function AbrechnungenPage({
   const documents = await getStatementDocuments(propertyId, selectedYear);
   await markStatementDocumentsViewed(documents.map((document) => document.id));
   const monthGroups = groupStatementDocumentsByMonth(documents);
-  const newCount = documents.filter(isNewStatementDocument).length;
+  // At most one month starts expanded: the newest one that still has
+  // unseen documents. Everything else stays collapsed.
+  const defaultOpenGroup = monthGroups.find((group) => group.newCount > 0);
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -48,28 +49,20 @@ export default async function AbrechnungenPage({
 
       <StatementYearFilter propertyId={propertyId} years={years} selectedYear={selectedYear} />
 
-      <Card className="p-5 shadow-none sm:p-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-display text-lg italic text-ink">
-            {t("statements.heading", { year: selectedYear })}
-          </h2>
-          <span className="text-xs text-ink-soft">
-            {documents.length}{" "}
-            {documents.length === 1 ? t("statements.documentSingular") : t("statements.documentsPlural")}
-            {newCount > 0 ? ` · ${t("statements.newSuffix", { count: newCount })}` : ""}
-          </span>
+      {monthGroups.length === 0 ? (
+        <p className="text-sm text-ink-soft">{t("statements.empty", { year: selectedYear })}</p>
+      ) : (
+        <div className="flex flex-col divide-y divide-line">
+          {monthGroups.map((group) => (
+            <StatementMonthAccordion
+              key={`${group.year}-${group.month}`}
+              group={group}
+              locale={locale}
+              defaultOpen={group === defaultOpenGroup}
+            />
+          ))}
         </div>
-
-        {monthGroups.length === 0 ? (
-          <p className="mt-6 text-sm text-ink-soft">{t("statements.empty", { year: selectedYear })}</p>
-        ) : (
-          <div className="mt-1 divide-y divide-line">
-            {monthGroups.map((group) => (
-              <StatementMonthGroup key={`${group.year}-${group.month}`} group={group} locale={locale} />
-            ))}
-          </div>
-        )}
-      </Card>
+      )}
     </div>
   );
 }

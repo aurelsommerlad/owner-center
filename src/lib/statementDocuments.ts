@@ -13,10 +13,6 @@ export function isNewStatementDocument(document: StatementDocument): boolean {
   return !document.firstViewedAt || document.firstViewedAt < referenceDate;
 }
 
-export function isDownloadedStatementDocument(document: StatementDocument): boolean {
-  return document.downloadCount > 0 && document.lastDownloadedAt !== null;
-}
-
 /** Locale-aware label for the three fachlich defined document types, via the shared dictionary (see @/i18n) - not a second, separately-maintained label map. */
 export function statementDocumentTypeLabel(type: StatementDocumentType, locale: Locale = "de"): string {
   const dict = getDictionary(locale).statements;
@@ -30,15 +26,30 @@ export function statementDocumentTypeLabel(type: StatementDocumentType, locale: 
 }
 
 /**
- * Always the document's own original file name (minus ".pdf") - never the
- * generic type label. Necessary because "Umsatz-Reporting" regularly holds
- * TWO owner_report documents in the same month (see StatementMonthGroup),
- * which the generic label alone could never tell apart; the type label is
- * shown once, as that group's section heading, instead (see
- * components/statements/StatementMonthGroup.tsx).
+ * A technical file name is never shown 1:1 as the owner-facing label - only
+ * cosmetic, reversible transforms that never lose information: drop a
+ * leading "YYYY-MM" (redundant - the month is already the accordion's own
+ * heading), turn "_" into a space, trim. The real `fileName` (and the file
+ * streamed on download) is completely untouched - this only ever affects
+ * what's rendered here.
+ */
+function humanizeStatementDocumentTitle(title: string): string {
+  return title
+    .replace(/^\d{4}-(0[1-9]|1[0-2])[\s_]+/, "")
+    .replace(/_/g, " ")
+    .trim();
+}
+
+/**
+ * Always the document's own original file name (humanized for display),
+ * never the generic type label. Necessary because "Umsatz-Reporting"
+ * regularly holds TWO owner_report documents in the same month (see
+ * StatementMonthGroup), which the generic label alone could never tell
+ * apart; the type label is shown once, as that group's section heading,
+ * instead (see components/statements/StatementMonthAccordion.tsx).
  */
 export function statementDocumentDisplayTitle(document: StatementDocument): string {
-  return document.title;
+  return humanizeStatementDocumentTitle(document.title);
 }
 
 export interface StatementMonthGroup {
@@ -85,4 +96,32 @@ export function groupStatementDocumentsByMonth(documents: StatementDocument[]): 
 
 export function statementMonthGroupLabel(group: { year: number; month: number }, locale: Locale = "de"): string {
   return `${monthLabel(group.month, locale)} ${group.year}`;
+}
+
+/**
+ * "Vollständig" on the owner side, mirroring (but never importing) the
+ * admin's own 2/1/1 completeness rule - the owner only ever sees PUBLISHED
+ * documents to begin with, so this is a presentation-only readout of
+ * exactly that same already-fetched set, not a second data source.
+ */
+export function statementMonthIsComplete(group: StatementMonthGroup): boolean {
+  return group.ownerReportDocuments.length === 2 && group.invoiceDocuments.length === 1 && group.creditNoteDocuments.length === 1;
+}
+
+export interface StatementMonthProvided {
+  date: string;
+  /** true when this is an `updatedAt` (a corrected version), false for a first `publishedAt`. */
+  wasUpdated: boolean;
+}
+
+/** The single most recent provide/update date across a month's documents - for the month summary line ("4 Dokumente · bereitgestellt ..."). `null` only for an empty group, which never actually renders. */
+export function statementMonthProvided(group: StatementMonthGroup): StatementMonthProvided | null {
+  const allDocuments = [...group.ownerReportDocuments, ...group.invoiceDocuments, ...group.creditNoteDocuments, ...group.receiptDocuments];
+  let best: StatementMonthProvided | null = null;
+  for (const document of allDocuments) {
+    const wasUpdated = document.updatedAt !== null;
+    const date = document.updatedAt ?? document.publishedAt;
+    if (!best || date > best.date) best = { date, wasUpdated };
+  }
+  return best;
 }
