@@ -30,6 +30,38 @@ import { getReservationsForProperty } from "./reservationService";
  *  page's "month"/"year" that also offers a year-to-date view. */
 export type StatisticsPeriod = "month" | "ytd" | "year";
 
+/** One selectable month in the Statistiken page's month dropdown. */
+export interface StatisticsMonthOption {
+  year: number;
+  /** 1-12 */
+  month: number;
+}
+
+/**
+ * The months offered in the Statistiken page's month dropdown: a trailing
+ * window ending at (and including) the current month, newest first, never
+ * reaching into the future. Deliberately a fixed window rather than a
+ * per-property "earliest apaleo data" lookup (no reliable, cheap signal for
+ * that exists) - `windowMonths` bounds how far back it reaches; the mock
+ * fallback's own fixture data (see data/mock/statisticsSeries.ts) happens to
+ * cover exactly this same two-year span.
+ */
+export function recentStatisticsMonths(today: string, windowMonths = 24): StatisticsMonthOption[] {
+  const todayDate = parseIsoDate(today);
+  let year = todayDate.getUTCFullYear();
+  let month = todayDate.getUTCMonth() + 1;
+
+  return Array.from({ length: windowMonths }, () => {
+    const option = { year, month };
+    month -= 1;
+    if (month === 0) {
+      month = 12;
+      year -= 1;
+    }
+    return option;
+  });
+}
+
 /**
  * Illustrative figures with no live apaleo source in V1 (owner proceeds,
  * booking lead time, cancellation rate are all on the explicit "not
@@ -40,8 +72,8 @@ const OWNER_PAYOUT_RATE = 0.65;
 const MOCK_AVG_LEAD_TIME_DAYS: Record<StatisticsPeriod, number> = { month: 32, ytd: 29, year: 27 };
 const MOCK_CANCELLATION_PCT: Record<StatisticsPeriod, number> = { month: 4.8, ytd: 5.2, year: 5.5 };
 
-function metric(value: number, previousYear: number): ComparableMetric {
-  return { value, previousYear };
+function metric(value: number, previousYear: number, previousYearAvailable: boolean): ComparableMetric {
+  return { value, previousYear, previousYearAvailable };
 }
 
 function monthsForPeriod(period: StatisticsPeriod, currentMonth: number): number[] {
@@ -59,11 +91,13 @@ function periodLabelFor(period: StatisticsPeriod, year: number, month: number, l
 export async function getPropertyStatistics(
   propertyId: string,
   period: StatisticsPeriod = "month",
-  locale: Locale = "de"
+  locale: Locale = "de",
+  /** A specific past (or current) month from the dropdown - only meaningful when `period === "month"`; omitted/ignored otherwise, and defaults to the current month when `period === "month"` but nothing was selected. */
+  selectedMonth?: StatisticsMonthOption
 ): Promise<PropertyStatistics> {
   return isApaleoConfigured()
-    ? getLivePropertyStatistics(propertyId, period, locale)
-    : getMockPropertyStatistics(propertyId, period, locale);
+    ? getLivePropertyStatistics(propertyId, period, locale, selectedMonth)
+    : getMockPropertyStatistics(propertyId, period, locale, selectedMonth);
 }
 
 // ---------------------------------------------------------------------------
@@ -78,6 +112,8 @@ interface PeriodMetrics {
   bookingsCount: number;
   avgStayNights: number;
   avgBookingValue: number;
+  /** Whether apaleo returned any reservation (any status) touching this range at all - see ComparableMetric.previousYearAvailable. */
+  hasData: boolean;
 }
 
 /**
@@ -105,6 +141,7 @@ function metricsForRange(reservations: Reservation[], propertyId: string, unitCo
     bookingsCount,
     avgStayNights,
     avgBookingValue: bookingsCount > 0 ? revenue / bookingsCount : 0,
+    hasData: scoped.length > 0,
   };
 }
 
@@ -199,12 +236,15 @@ async function getLiveUnitPerformance(
 async function getLivePropertyStatistics(
   propertyId: string,
   period: StatisticsPeriod,
-  locale: Locale
+  locale: Locale,
+  selectedMonth?: StatisticsMonthOption
 ): Promise<PropertyStatistics> {
   const today = ownerPortalToday();
   const todayDate = parseIsoDate(today);
-  const year = todayDate.getUTCFullYear();
-  const month = todayDate.getUTCMonth() + 1;
+  // Only "month" ever anchors on something other than the current year/month
+  // (a past month picked from the dropdown) - YTD/Jahr always mean "this year".
+  const year = period === "month" && selectedMonth ? selectedMonth.year : todayDate.getUTCFullYear();
+  const month = period === "month" && selectedMonth ? selectedMonth.month : todayDate.getUTCMonth() + 1;
   const months = monthsForPeriod(period, month);
 
   const units = await getUnitsForProperty(propertyId);
@@ -233,18 +273,23 @@ async function getLivePropertyStatistics(
   const unitStats = await getLiveUnitPerformance(propertyId, currentYearReservations, currentRange);
   const bookingSources = liveBookingSourceBreakdown(currentYearReservations, propertyId, currentRange);
 
+  // Every KPI card compares against the same previous-year period, so
+  // whether that comparison is even meaningful is a single, shared signal -
+  // see ComparableMetric.previousYearAvailable.
+  const previousYearAvailable = previous.hasData;
+
   return {
     propertyId,
     periodLabel: periodLabelFor(period, year, month, locale),
     comparisonLabel: getDictionary(locale).statistics.previousYearLabel,
-    occupancyPct: metric(current.occupancyPct, previous.occupancyPct),
-    revenue: metric(current.revenue, previous.revenue),
-    adr: metric(current.adr, previous.adr),
-    revPar: metric(current.revPar, previous.revPar),
-    bookingsCount: metric(current.bookingsCount, previous.bookingsCount),
-    avgStayNights: metric(current.avgStayNights, previous.avgStayNights),
-    avgBookingValue: metric(current.avgBookingValue, previous.avgBookingValue),
-    ownerPayout: metric(current.revenue * OWNER_PAYOUT_RATE, previous.revenue * OWNER_PAYOUT_RATE),
+    occupancyPct: metric(current.occupancyPct, previous.occupancyPct, previousYearAvailable),
+    revenue: metric(current.revenue, previous.revenue, previousYearAvailable),
+    adr: metric(current.adr, previous.adr, previousYearAvailable),
+    revPar: metric(current.revPar, previous.revPar, previousYearAvailable),
+    bookingsCount: metric(current.bookingsCount, previous.bookingsCount, previousYearAvailable),
+    avgStayNights: metric(current.avgStayNights, previous.avgStayNights, previousYearAvailable),
+    avgBookingValue: metric(current.avgBookingValue, previous.avgBookingValue, previousYearAvailable),
+    ownerPayout: metric(current.revenue * OWNER_PAYOUT_RATE, previous.revenue * OWNER_PAYOUT_RATE, previousYearAvailable),
     monthlyRevenue: [
       ...monthlyRevenueSeries(currentYearReservations, propertyId, year),
       ...monthlyRevenueSeries(previousYearReservations, propertyId, year - 1),
@@ -267,6 +312,13 @@ async function getLivePropertyStatistics(
 
 const REPORTING_YEAR = parseIsoDate(ownerPortalToday()).getUTCFullYear();
 const REPORTING_MONTH = parseIsoDate(ownerPortalToday()).getUTCMonth() + 1;
+
+/** The two years the mock fixtures actually cover - `null` outside that range (see ComparableMetric.previousYearAvailable). */
+function mockSeriesForYear(year: number): MonthlyMockPoint[] | null {
+  if (year === REPORTING_YEAR) return MONTHLY_SERIES_2026;
+  if (year === REPORTING_YEAR - 1) return MONTHLY_SERIES_2025;
+  return null;
+}
 
 interface Aggregate {
   revenue: number;
@@ -312,16 +364,25 @@ function metricsFromAggregate(a: Aggregate) {
 async function getMockPropertyStatistics(
   propertyId: string,
   period: StatisticsPeriod,
-  locale: Locale
+  locale: Locale,
+  selectedMonth?: StatisticsMonthOption
 ): Promise<PropertyStatistics> {
-  const months = monthsForPeriod(period, REPORTING_MONTH);
-  const currentAgg = aggregateMonths(MONTHLY_SERIES_2026, REPORTING_YEAR, months);
-  const previousAgg = aggregateMonths(MONTHLY_SERIES_2025, REPORTING_YEAR - 1, months);
+  const year = period === "month" && selectedMonth ? selectedMonth.year : REPORTING_YEAR;
+  const month = period === "month" && selectedMonth ? selectedMonth.month : REPORTING_MONTH;
+  const months = monthsForPeriod(period, month);
+
+  const currentSeries = mockSeriesForYear(year);
+  const previousSeries = mockSeriesForYear(year - 1);
+  const currentAgg = currentSeries ? aggregateMonths(currentSeries, year, months) : EMPTY_AGGREGATE;
+  const previousAgg = previousSeries ? aggregateMonths(previousSeries, year - 1, months) : EMPTY_AGGREGATE;
+  const previousYearAvailable = previousSeries !== null;
 
   // The current month is also driven by real (mock) reservations elsewhere in
   // the app (Übersicht page) - splice that live figure in so both pages agree
   // on September 2026 exactly, instead of two independently-authored numbers.
-  if (period === "month") {
+  // Only applies to the actual "today" mock month - any other month picked
+  // from the dropdown just uses the aggregate series as-is.
+  if (period === "month" && year === REPORTING_YEAR && month === REPORTING_MONTH) {
     const liveKpis = await getPropertyOverviewKpis(propertyId, "month");
     currentAgg.revenue = liveKpis.revenue;
     currentAgg.bookings = liveKpis.bookingsCount;
@@ -332,21 +393,30 @@ async function getMockPropertyStatistics(
   const current = metricsFromAggregate(currentAgg);
   const previous = metricsFromAggregate(previousAgg);
 
-  const unitStats = await getMockUnitPerformance(propertyId);
+  // Unit-level performance is always reported for a single month, even when
+  // the page itself is on YTD/Jahr - the current mock month when nothing
+  // more specific was selected.
+  const unitStatsMonth = period === "month" ? month : REPORTING_MONTH;
+  const unitStatsYear = period === "month" ? year : REPORTING_YEAR;
+  const unitStats = await getMockUnitPerformance(propertyId, unitStatsYear, unitStatsMonth);
   const bookingSources = computeBookingSourceBreakdown(currentAgg.revenue, currentAgg.bookings);
 
   return {
     propertyId,
-    periodLabel: periodLabelFor(period, REPORTING_YEAR, REPORTING_MONTH, locale),
+    periodLabel: periodLabelFor(period, year, month, locale),
     comparisonLabel: getDictionary(locale).statistics.previousYearLabel,
-    occupancyPct: metric(current.occupancy, previous.occupancy),
-    revenue: metric(currentAgg.revenue, previousAgg.revenue),
-    adr: metric(current.adr, previous.adr),
-    revPar: metric(current.revPar, previous.revPar),
-    bookingsCount: metric(currentAgg.bookings, previousAgg.bookings),
-    avgStayNights: metric(current.avgStay, previous.avgStay),
-    avgBookingValue: metric(current.avgBookingValue, previous.avgBookingValue),
-    ownerPayout: metric(currentAgg.revenue * OWNER_PAYOUT_RATE, previousAgg.revenue * OWNER_PAYOUT_RATE),
+    occupancyPct: metric(current.occupancy, previous.occupancy, previousYearAvailable),
+    revenue: metric(currentAgg.revenue, previousAgg.revenue, previousYearAvailable),
+    adr: metric(current.adr, previous.adr, previousYearAvailable),
+    revPar: metric(current.revPar, previous.revPar, previousYearAvailable),
+    bookingsCount: metric(currentAgg.bookings, previousAgg.bookings, previousYearAvailable),
+    avgStayNights: metric(current.avgStay, previous.avgStay, previousYearAvailable),
+    avgBookingValue: metric(current.avgBookingValue, previous.avgBookingValue, previousYearAvailable),
+    ownerPayout: metric(
+      currentAgg.revenue * OWNER_PAYOUT_RATE,
+      previousAgg.revenue * OWNER_PAYOUT_RATE,
+      previousYearAvailable
+    ),
     monthlyRevenue: MONTHLY_SERIES_2026.map((point) => ({
       month: point.month,
       year: REPORTING_YEAR,
@@ -370,7 +440,7 @@ async function getMockPropertyStatistics(
       }))
     ),
     unitStats,
-    unitStatsPeriodLabel: `${monthLabel(REPORTING_MONTH, locale)} ${REPORTING_YEAR}`,
+    unitStatsPeriodLabel: `${monthLabel(unitStatsMonth, locale)} ${unitStatsYear}`,
     bookingSources,
     avgLeadTimeDays: MOCK_AVG_LEAD_TIME_DAYS[period],
     cancellationRatePct: MOCK_CANCELLATION_PCT[period],
@@ -378,16 +448,18 @@ async function getMockPropertyStatistics(
 }
 
 /**
- * Per-unit performance, always reported for the current mock reporting month
- * regardless of the page-level period filter: it is derived from the real
- * day-level reservation mock data, which only covers that window, so a
- * "full year" per-unit breakdown would be mostly empty rather than
- * genuinely informative.
+ * Per-unit performance for one specific month - always a single month
+ * regardless of the page-level period filter (a "full year" per-unit
+ * breakdown would be a wall of mostly-repeated numbers), and derived from
+ * the real day-level reservation mock data, which only covers a window
+ * around the current mock "today" - a month picked from outside that
+ * window legitimately comes back all-zero, the same way a real property's
+ * distant apaleo history would.
  */
-async function getMockUnitPerformance(propertyId: string): Promise<UnitStatistics[]> {
+async function getMockUnitPerformance(propertyId: string, year: number, month: number): Promise<UnitStatistics[]> {
   const units = await getUnitsForProperty(propertyId);
-  const days = daysInMonth(REPORTING_YEAR, REPORTING_MONTH);
-  const monthStart = isoDate(REPORTING_YEAR, REPORTING_MONTH, 1);
+  const days = daysInMonth(year, month);
+  const monthStart = isoDate(year, month, 1);
   const range: DateRange = { start: monthStart, endExclusive: addDays(monthStart, days) };
   const reservations = await getReservationsForProperty(propertyId, range);
 

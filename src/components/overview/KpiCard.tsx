@@ -12,6 +12,14 @@ interface KpiCardProps {
   /** Appended directly after the delta number, e.g. " %". */
   deltaSuffix?: string;
   deltaLabel?: string;
+  /**
+   * Set when the comparison period has no underlying data at all (as
+   * opposed to `deltaPoints` simply being omitted for some other reason) -
+   * renders a dezent "— Keine Vorjahresdaten" in place of a delta, rather
+   * than silently showing nothing, so it never reads as "no change".
+   */
+  noComparisonData?: boolean;
+  noComparisonDataLabel?: string;
   /** Slightly smaller type/padding for secondary KPI rows. */
   compact?: boolean;
   locale?: Locale;
@@ -24,10 +32,13 @@ export function KpiCard({
   deltaFractionDigits = 1,
   deltaSuffix = "",
   deltaLabel,
+  noComparisonData = false,
+  noComparisonDataLabel,
   compact = false,
   locale = "de",
 }: KpiCardProps) {
   const showDelta = typeof deltaPoints === "number" && Number.isFinite(deltaPoints);
+  const showNoComparisonData = !showDelta && noComparisonData;
   const positive = (deltaPoints ?? 0) >= 0;
 
   return (
@@ -46,8 +57,10 @@ export function KpiCard({
             {deltaSuffix}
           </span>
         )}
+        {showNoComparisonData && <span className="whitespace-nowrap text-xs text-ink-soft/60">—</span>}
       </div>
       {showDelta && <p className="mt-0.5 text-[11px] text-ink-soft/70">{deltaLabel}</p>}
+      {showNoComparisonData && <p className="mt-0.5 text-[11px] text-ink-soft/60">{noComparisonDataLabel}</p>}
     </Card>
   );
 }

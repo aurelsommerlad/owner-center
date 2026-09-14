@@ -24,6 +24,14 @@ interface TrendChartProps {
   valueKind: TrendValueKind;
   /** Fix the y-axis ceiling (e.g. 100 for a percentage chart) instead of auto-scaling. */
   fixedMax?: number;
+  /**
+   * 0-11 index of the month currently selected on the page (only meaningful
+   * when that selection falls within `currentYear` - the page omits this
+   * otherwise). Shown as a persistent marker, the same visual language as
+   * the hover state, so the chart still visibly reacts to the month picker
+   * even though its own 12-month line doesn't change within one year.
+   */
+  selectedMonthIndex?: number;
 }
 
 const WIDTH = 760;
@@ -56,9 +64,11 @@ export function TrendChart({
   previousSeries,
   valueKind,
   fixedMax,
+  selectedMonthIndex,
 }: TrendChartProps) {
   const { locale, t } = useTranslations();
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const activeIndex = hoverIndex ?? selectedMonthIndex ?? null;
   const monthShort = Array.from({ length: MONTH_COUNT }, (_, i) => monthShortLabel(i + 1, locale));
   const formatValue = (value: number) =>
     valueKind === "currency" ? formatCurrency(value, "EUR", 0, locale) : formatPercent(value, 0, locale);
@@ -157,20 +167,20 @@ export function TrendChart({
           strokeLinejoin="round"
         />
 
-        {hoverIndex !== null && (
+        {activeIndex !== null && (
           <g className="pointer-events-none">
             <line
-              x1={xFor(hoverIndex)}
-              x2={xFor(hoverIndex)}
+              x1={xFor(activeIndex)}
+              x2={xFor(activeIndex)}
               y1={PADDING_TOP}
               y2={PADDING_TOP + PLOT_HEIGHT}
               stroke="var(--color-ink)"
-              strokeOpacity={0.15}
+              strokeOpacity={hoverIndex !== null ? 0.15 : 0.08}
             />
-            <circle cx={xFor(hoverIndex)} cy={yFor(currentSeries[hoverIndex])} r={3.5} fill="var(--color-ink)" />
+            <circle cx={xFor(activeIndex)} cy={yFor(currentSeries[activeIndex])} r={3.5} fill="var(--color-ink)" />
             <circle
-              cx={xFor(hoverIndex)}
-              cy={yFor(previousSeries[hoverIndex])}
+              cx={xFor(activeIndex)}
+              cy={yFor(previousSeries[activeIndex])}
               r={3.5}
               fill="var(--color-paper)"
               stroke="var(--color-ink)"
@@ -193,14 +203,14 @@ export function TrendChart({
       </svg>
 
       <div className="mt-2 flex h-8 items-center justify-center gap-4 rounded-xl border border-line bg-paper-dim/50 px-3 text-xs">
-        {hoverIndex !== null ? (
+        {activeIndex !== null ? (
           <>
-            <span className="font-medium text-ink">{monthShort[hoverIndex]}</span>
+            <span className="font-medium text-ink">{monthShort[activeIndex]}</span>
             <span className="text-ink-soft">
-              {currentYear}: <span className="text-ink">{formatValue(currentSeries[hoverIndex])}</span>
+              {currentYear}: <span className="text-ink">{formatValue(currentSeries[activeIndex])}</span>
             </span>
             <span className="text-ink-soft">
-              {previousYear}: <span className="text-ink">{formatValue(previousSeries[hoverIndex])}</span>
+              {previousYear}: <span className="text-ink">{formatValue(previousSeries[activeIndex])}</span>
             </span>
           </>
         ) : (

@@ -234,6 +234,15 @@ export interface UnitStatistics {
 export interface ComparableMetric {
   value: number;
   previousYear: number;
+  /**
+   * `false` when the comparison period has no underlying data at all (e.g.
+   * the property has no apaleo history reaching that far back) - `value`
+   * and `previousYear` still carry numbers (0) in that case, but callers
+   * must not compute or display a delta from them, since a real observed
+   * zero and "no data" are not the same thing. See
+   * services/statisticsService.ts for how this is determined.
+   */
+  previousYearAvailable: boolean;
 }
 
 /**

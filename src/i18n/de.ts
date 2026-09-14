@@ -156,6 +156,8 @@ export const de = {
     ownerPayoutVsLastYear: "zum Vorjahr · Richtwert",
     comparisonPeriod: "Vergleichszeitraum:",
     previousYearLabel: "Vorjahr",
+    noComparisonData: "Keine Vorjahresdaten",
+    selectMonth: "Monat wählen",
     revenueTrendTitle: "Buchungsumsatz im Jahresverlauf",
     occupancyTrendTitle: "Auslastung im Jahresverlauf",
     bookingSources: "Buchungsquellen",

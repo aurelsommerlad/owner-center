@@ -152,6 +152,8 @@ export const en: Dictionary = {
     ownerPayoutVsLastYear: "vs. last year · estimate",
     comparisonPeriod: "Comparison period:",
     previousYearLabel: "Previous year",
+    noComparisonData: "No prior-year data",
+    selectMonth: "Select month",
     revenueTrendTitle: "Booking revenue over the year",
     occupancyTrendTitle: "Occupancy over the year",
     bookingSources: "Booking sources",
