@@ -5,7 +5,7 @@
  * each dictionary, since an email/phone number isn't language content.
  */
 export const CONTACT_INFO = {
-  companyDisplayName: "UNIQUE PLACES",
+  companyDisplayName: "UNIQUE PLACES GmbH",
   email: "team@unique-places.com",
   /** Human-readable, exactly as UNIQUE PLACES specified it for display. */
   phoneDisplay: "+49 8382 5041129",
