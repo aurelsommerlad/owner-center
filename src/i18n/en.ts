@@ -42,6 +42,8 @@ export const en: Dictionary = {
     brand: "UNIQUE PLACES",
     brandSubtitleDesktop: "Owner Center",
     brandSubtitleMobile: "Owner Portal",
+    signedInAs: "Signed in as",
+    ownerRole: "Owner",
   },
   language: {
     de: "DE",

@@ -45,6 +45,9 @@ export const de = {
     brand: "UNIQUE PLACES",
     brandSubtitleDesktop: "Owner Center",
     brandSubtitleMobile: "Eigentümerportal",
+    signedInAs: "Angemeldet als",
+    /** Neutral fallback role label - shown instead of a name when no specific OwnerUser exists to greet (e.g. an admin's "Als Owner ansehen" preview). */
+    ownerRole: "Eigentümer",
   },
   language: {
     de: "DE",

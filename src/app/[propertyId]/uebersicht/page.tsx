@@ -26,7 +26,7 @@ import { hadOwnerPortalDataError } from "@/server/services/ownerPortal/errorStat
 import { DataUnavailableNotice } from "@/components/ui/DataUnavailableNotice";
 import { getOwnerLocale } from "@/server/locale";
 import { getDictionary, createTranslator, type TranslationKey } from "@/i18n";
-import { getSignedInOwnerDisplayName } from "@/server/greeting";
+import { getSignedInOwnerIdentity } from "@/server/ownerIdentity";
 import { timeOfDayInTimeZone, type TimeOfDay } from "@/lib/timezone";
 
 /** Maps a time of day to its dictionary key - the only DE/EN-relevant choice here, and it selects a key, never text. */
@@ -62,10 +62,11 @@ export default async function UebersichtPage({
 
   // `null` for an admin's own session or an "Als Owner ansehen" preview (no
   // single specific OwnerUser to greet by name there) - falls back to a
-  // neutral, nameless greeting rather than guessing.
-  const ownerDisplayName = await getSignedInOwnerDisplayName();
+  // neutral, nameless greeting rather than guessing. First name only, never
+  // the Owner/company name and never a formal "Herr/Frau" salutation.
+  const ownerIdentity = await getSignedInOwnerIdentity();
   const greetingSalutation = t(GREETING_SALUTATION_KEY[timeOfDayInTimeZone(new Date())]);
-  const greeting = ownerDisplayName ? `${greetingSalutation}, ${ownerDisplayName}` : greetingSalutation;
+  const greeting = ownerIdentity ? `${greetingSalutation}, ${ownerIdentity.firstName}` : greetingSalutation;
 
   const [kpis, preview, arrivalsDepartures, todayStatus, unitStatusOverview, statements, documents] =
     await Promise.all([

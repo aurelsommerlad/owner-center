@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeftIcon, CloseIcon, LogoutIcon, MenuIcon, ProfileIcon } from "@/components/ui/icons";
+import { CloseIcon, LogoutIcon, MenuIcon, ProfileIcon } from "@/components/ui/icons";
 import { ADMIN_MAIN_NAV, isAdminNavItemActive } from "./navigation";
 import { logoutAction } from "@/app/actions";
 
@@ -86,10 +86,6 @@ export function AdminMobileNav() {
               </nav>
 
               <div className="flex flex-col gap-1 border-t border-line pt-4">
-                <Link href="/" className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] text-ink-soft">
-                  <ChevronLeftIcon className="h-5 w-5 text-ink-soft/70" />
-                  Zurück zum Owner Center
-                </Link>
                 <button type="button" className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[15px] text-ink-soft">
                   <ProfileIcon className="h-5 w-5 text-ink-soft/70" />
                   Profil

@@ -6,6 +6,7 @@ import { FOOTER_NAV, LOGOUT_ITEM, MAIN_NAV, navHref, type NavItem } from "./navi
 import { logoutAction } from "@/app/actions";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import type { SignedInOwnerIdentity } from "@/server/ownerIdentity";
 
 function NavLink({
   item,
@@ -36,7 +37,20 @@ function NavLink({
   );
 }
 
-export function Sidebar({ propertyId }: { propertyId: string }) {
+export function Sidebar({
+  propertyId,
+  identity,
+}: {
+  propertyId: string;
+  /**
+   * The real signed-in owner - resolved server-side (see
+   * server/ownerIdentity.ts) and passed down rather than looked up again
+   * here. `null` for an admin's own session or an "Als Owner ansehen"
+   * preview with no single specific OwnerUser to name - rendered as a
+   * neutral role label rather than a guessed/fabricated name.
+   */
+  identity: SignedInOwnerIdentity | null;
+}) {
   const pathname = usePathname();
   const activeSegment = pathname.split("/")[2] ?? "uebersicht";
   const { t } = useTranslations();
@@ -63,6 +77,19 @@ export function Sidebar({ propertyId }: { propertyId: string }) {
       </nav>
 
       <div className="mt-6 flex flex-col gap-1 border-t border-line pt-4">
+        <div className="px-3.5 pb-2">
+          {identity ? (
+            <>
+              <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft/70">{t("nav.signedInAs")}</p>
+              <p className="mt-0.5 truncate text-sm font-medium text-ink">
+                {identity.firstName} {identity.lastName}
+              </p>
+              <p className="truncate text-xs text-ink-soft">{identity.email}</p>
+            </>
+          ) : (
+            <p className="text-sm font-medium text-ink">{t("nav.ownerRole")}</p>
+          )}
+        </div>
         {FOOTER_NAV.map((item) => (
           <NavLink
             key={item.key}

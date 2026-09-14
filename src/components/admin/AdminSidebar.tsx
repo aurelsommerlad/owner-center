@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeftIcon, LogoutIcon, ProfileIcon } from "@/components/ui/icons";
+import { LogoutIcon, ProfileIcon } from "@/components/ui/icons";
 import { ADMIN_MAIN_NAV, isAdminNavItemActive } from "./navigation";
 import { logoutAction } from "@/app/actions";
 import type { AdminSession } from "@/lib/adminAuth";
@@ -43,13 +43,6 @@ export function AdminSidebar({ session }: { session: AdminSession }) {
       </nav>
 
       <div className="mt-6 flex flex-col gap-1 border-t border-line pt-4">
-        <Link
-          href="/"
-          className="group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm text-ink-soft transition-colors hover:bg-paper-dim hover:text-ink"
-        >
-          <ChevronLeftIcon className="h-[18px] w-[18px] shrink-0 text-ink-soft/70 group-hover:text-ink" />
-          Zurück zum Owner Center
-        </Link>
         <button
           type="button"
           className="group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm text-ink-soft transition-colors hover:bg-paper-dim hover:text-ink"
