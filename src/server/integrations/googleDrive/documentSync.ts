@@ -19,13 +19,20 @@ import type { Property as DbProperty } from "@/generated/prisma/client";
  * put that mapping there in the first place, and this only ever descends
  * from it.
  *
- * "Belege" is never opened, matching the spec exactly - it isn't merely
- * filtered out after listing, it's never even requested from Drive.
+ * "Belege" IS synced (unlike the original V1 plan): every PDF inside it
+ * becomes a `documentType: "other"` StatementDocument with `adminStatus:
+ * "detected"` directly - never "needs_classification", which is reserved
+ * for a "Rechnung-Gutschrift" file the filename heuristic below couldn't
+ * resolve. That distinction (both share `documentType: "other"`) is exactly
+ * what lets statementService.ts#getStatementMonthGroups tell "a receipt,
+ * ready to publish" apart from "still needs an admin's classification call"
+ * without a separate column - see its own doc comment.
  */
 
 const MONTH_FOLDER_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const CATEGORY_OWNER_REPORT = "Umsatz-Reporting";
 const CATEGORY_INVOICE_CREDIT_NOTE = "Rechnung-Gutschrift";
+const CATEGORY_RECEIPTS = "Belege";
 
 export interface GoogleDriveSyncResult {
   propertiesChecked: number;
@@ -62,11 +69,20 @@ function emptyResult(): GoogleDriveSyncResult {
  * meaning from a FILE NAME rather than folder structure - everything else
  * (property, period, owner-report/rechnung-gutschrift category) is derived
  * from where the file actually sits in Drive.
+ *
+ * Deliberately NOT `\b` (regex word-boundary): `_` counts as a word
+ * character, so `\brechnung\b` fails to match real filenames like
+ * "Rechnung_R2026-08_ALPILA.pdf" - a very common convention (underscore
+ * instead of space as the separator). The lookaround below only requires
+ * that no OTHER LETTER sits directly against the word, so a digit,
+ * underscore, hyphen, space, or the start/end of the string all count as
+ * valid separators, while "Abrechnung" (an actual letter, "b", right before
+ * "rechnung") still correctly does not match.
  */
 export function classifyInvoiceOrCreditNote(fileName: string): "invoice" | "credit_note" | null {
   const lower = fileName.toLowerCase();
-  const hasRechnung = /\brechnung\b/.test(lower);
-  const hasGutschrift = /\bgutschrift\b/.test(lower);
+  const hasRechnung = /(?<![a-zäöüß])rechnung(?![a-zäöüß])/.test(lower);
+  const hasGutschrift = /(?<![a-zäöüß])gutschrift(?![a-zäöüß])/.test(lower);
   if (hasRechnung && !hasGutschrift) return "invoice";
   if (hasGutschrift && !hasRechnung) return "credit_note";
   return null;
@@ -190,8 +206,12 @@ async function syncCategoryFiles(options: {
   year: number;
   month: number;
   categoryFolderId: string;
-  /** "owner_report" for an unambiguous category, or `null` for "Rechnung-Gutschrift" (needs per-file classification). */
-  fixedType: "owner_report" | null;
+  /**
+   * "owner_report"/"other" for an unambiguous category (Umsatz-Reporting /
+   * Belege respectively), or `null` for "Rechnung-Gutschrift" (needs
+   * per-file classification).
+   */
+  fixedType: "owner_report" | "other" | null;
   seenDriveFileIds: Set<string>;
   result: GoogleDriveSyncResult;
 }): Promise<void> {
@@ -283,8 +303,18 @@ export async function syncGoogleDriveDocuments(): Promise<GoogleDriveSyncResult>
                 seenDriveFileIds,
                 result,
               });
+            } else if (categoryFolder.name === CATEGORY_RECEIPTS) {
+              await syncCategoryFiles({
+                property,
+                year,
+                month,
+                categoryFolderId: categoryFolder.id,
+                fixedType: "other",
+                seenDriveFileIds,
+                result,
+              });
             }
-            // Any other folder name - "Belege" included - is never opened.
+            // Any other/unrecognized folder name is silently ignored.
           }
         } catch (err) {
           propertySyncOk = false;

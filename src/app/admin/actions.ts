@@ -31,6 +31,7 @@ import { syncGoogleDriveDocuments, type GoogleDriveSyncResult } from "@/server/i
 import {
   archiveStatementDocument,
   publishStatementDocument,
+  publishStatementMonth,
   updateStatementDocumentFields,
   type StatementDocumentUpdateInput,
 } from "@/services/admin/statementService";
@@ -711,6 +712,26 @@ export async function archiveStatementDocumentAction(id: string): Promise<Action
   await archiveStatementDocument(id);
   revalidatePath("/admin/statements");
   return { ok: true, message: "Dokument archiviert." };
+}
+
+/**
+ * "Monat veröffentlichen" (spec point 8) - see
+ * statementService.ts#publishStatementMonth for exactly what gets published
+ * and what's skipped. Never blocked by an incomplete month itself - the
+ * confirmation dialog client-side is where the admin sees and consciously
+ * accepts that warning (see PublishStatementMonthButton).
+ */
+export async function publishStatementMonthAction(propertyId: string, year: number, month: number): Promise<ActionResult> {
+  await requireAdminRole();
+
+  const { publishedCount, skippedCount } = await publishStatementMonth(propertyId, year, month);
+  revalidatePath("/admin/statements");
+
+  if (publishedCount === 0 && skippedCount === 0) {
+    return { ok: true, message: "Für diesen Monat gab es nichts zu veröffentlichen." };
+  }
+  const skippedNote = skippedCount > 0 ? ` ${skippedCount} Dokument(e) warten noch auf Klassifizierung und wurden übersprungen.` : "";
+  return { ok: true, message: `${publishedCount} Dokument(e) veröffentlicht.${skippedNote}` };
 }
 
 /**

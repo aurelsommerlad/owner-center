@@ -9,7 +9,7 @@ export const ADMIN_DOCUMENT_TYPE_LABEL: Record<AdminDocumentType, string> = {
   owner_report: "Eigentümerreporting",
   invoice: "Rechnung",
   credit_note: "Gutschrift",
-  other: "Weiteres Dokument",
+  other: "Beleg",
 };
 
 export const ADMIN_GENERAL_DOCUMENT_CATEGORY_LABEL: Record<AdminGeneralDocumentCategory, string> = {

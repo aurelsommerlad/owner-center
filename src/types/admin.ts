@@ -163,6 +163,36 @@ export type AdminStatementStatus =
   | "updated"
   | "archived";
 
+export type AdminStatementMonthCompletenessStatus = "complete" | "incomplete";
+
+/** Result of services/admin/statementService.ts#computeMonthCompleteness - see there for exactly what's checked. */
+export interface AdminStatementMonthCompleteness {
+  status: AdminStatementMonthCompletenessStatus;
+  /** Concrete reasons, e.g. "Rechnung fehlt" - always empty when status is "complete". */
+  issues: string[];
+}
+
+/**
+ * One property's one statement month, with its documents bucketed by the
+ * real Drive folder they were found in (Umsatz-Reporting/Rechnung-Gutschrift/
+ * Belege) - see services/admin/statementService.ts#getStatementMonthGroups,
+ * the central grouping /admin/statements renders. `needsClassificationDocuments`
+ * are also `documentType: "other"`, like `receiptDocuments` - the two are
+ * told apart by `adminStatus`, never by documentType alone (see
+ * documentSync.ts's own doc comment on why).
+ */
+export interface AdminStatementMonthGroup {
+  propertyId: string;
+  year: number;
+  month: number;
+  ownerReportDocuments: AdminStatementDocument[];
+  invoiceDocuments: AdminStatementDocument[];
+  creditNoteDocuments: AdminStatementDocument[];
+  receiptDocuments: AdminStatementDocument[];
+  needsClassificationDocuments: AdminStatementDocument[];
+  completeness: AdminStatementMonthCompleteness;
+}
+
 export interface AdminStatementDocument {
   id: string;
   /** `undefined` for a Drive-synced document - it belongs to a property, not one owner. See server/permissions.ts#canOwnerAccessProperty for how access is actually derived. */

@@ -2,17 +2,6 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { AdminProperty } from "@/types/admin";
-import { monthLabel } from "@/lib/dates";
-
-const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "draft", label: "Entwurf" },
-  { value: "ready", label: "Bereit" },
-  { value: "detected", label: "Erkannt" },
-  { value: "needs_classification", label: "Zu klassifizieren" },
-  { value: "published", label: "Veröffentlicht" },
-  { value: "updated", label: "Aktualisiert" },
-  { value: "archived", label: "Archiviert" },
-];
 
 // Same <select> chrome as CalendarControls.tsx's unit selector.
 const SELECT_CLASS =
@@ -54,32 +43,6 @@ export function AdminStatementFilters({ properties, years }: { properties: Admin
         {years.map((year) => (
           <option key={year} value={year}>
             {year}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={searchParams.get("monat") ?? "all"}
-        onChange={(event) => setParam("monat", event.target.value)}
-        className={SELECT_CLASS}
-      >
-        <option value="all">Alle Monate</option>
-        {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
-          <option key={month} value={month}>
-            {monthLabel(month)}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={searchParams.get("status") ?? "all"}
-        onChange={(event) => setParam("status", event.target.value)}
-        className={SELECT_CLASS}
-      >
-        <option value="all">Alle Status</option>
-        {STATUS_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
           </option>
         ))}
       </select>
