@@ -21,6 +21,13 @@ import { loadApaleoMappingOverview } from "@/server/integrations/apaleo/mappingS
 import { testGoogleDriveConnection, type GoogleDriveConnectionStatus } from "@/server/integrations/googleDrive/connectionCheck";
 import { assertFolderIsDirectRootChild } from "@/server/integrations/googleDrive/folderService";
 import { describeGoogleDriveError } from "@/server/integrations/googleDrive/errors";
+import { syncGoogleDriveDocuments, type GoogleDriveSyncResult } from "@/server/integrations/googleDrive/documentSync";
+import {
+  archiveStatementDocument,
+  publishStatementDocument,
+  updateStatementDocumentFields,
+  type StatementDocumentUpdateInput,
+} from "@/services/admin/statementService";
 import { prisma } from "@/server/db";
 
 /**
@@ -629,4 +636,73 @@ export async function deleteOwnerAction(ownerId: string): Promise<ActionResult> 
   revalidatePath("/admin/owners");
   revalidatePath("/admin");
   return result;
+}
+
+export interface GoogleDriveSyncActionResult {
+  ok: boolean;
+  message: string;
+  result: GoogleDriveSyncResult;
+}
+
+/**
+ * "Google Drive synchronisieren" on /admin/statements - the ONLY place this
+ * ever runs (no cron, no automation - see documentSync.ts's own doc
+ * comment). `ok` reflects whether the sync ran at all, not whether every
+ * property/month succeeded - per-item failures are isolated and listed in
+ * `result.errors` instead of aborting the whole run (spec point 17).
+ */
+export async function syncGoogleDriveDocumentsAction(): Promise<GoogleDriveSyncActionResult> {
+  await requireAdminRole();
+
+  const result = await syncGoogleDriveDocuments();
+  revalidatePath("/admin/statements");
+
+  const message =
+    `${result.propertiesChecked} Objekte geprüft · ${result.documentsSeen} Dokumente erkannt · ` +
+    `${result.documentsCreated} neu · ${result.documentsUpdated} aktualisiert · ` +
+    `${result.documentsNeedingClassification} benötigt Klassifizierung · ${result.documentsArchived} archiviert · ` +
+    `${result.errors.length} Fehler`;
+
+  return { ok: true, message, result };
+}
+
+/**
+ * "Prüfen" modal's save action on /admin/statements - corrects
+ * property/period/type on a Drive-synced (or manually created) document.
+ * See services/admin/statementService.ts#updateStatementDocumentFields for
+ * exactly which fields this can and cannot touch.
+ */
+export async function updateStatementDocumentAction(
+  id: string,
+  input: StatementDocumentUpdateInput
+): Promise<ActionResult> {
+  await requireAdminRole();
+
+  try {
+    await updateStatementDocumentFields(id, input);
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Dokument konnte nicht aktualisiert werden." };
+  }
+  revalidatePath("/admin/statements");
+  return { ok: true, message: "Dokument aktualisiert." };
+}
+
+export async function publishStatementDocumentAction(id: string): Promise<ActionResult> {
+  await requireAdminRole();
+
+  try {
+    await publishStatementDocument(id);
+  } catch (error) {
+    return { ok: false, message: error instanceof Error ? error.message : "Dokument konnte nicht veröffentlicht werden." };
+  }
+  revalidatePath("/admin/statements");
+  return { ok: true, message: "Dokument veröffentlicht." };
+}
+
+export async function archiveStatementDocumentAction(id: string): Promise<ActionResult> {
+  await requireAdminRole();
+
+  await archiveStatementDocument(id);
+  revalidatePath("/admin/statements");
+  return { ok: true, message: "Dokument archiviert." };
 }

@@ -57,3 +57,47 @@ export async function googleDriveRequest<T>(path: string): Promise<T | null> {
     throw new GoogleDriveError("unknown", `Google Drive API returned an unparseable response for ${path}`);
   }
 }
+
+/**
+ * Fetches a file's raw bytes (`alt=media`) for the protected download route
+ * (see app/api/documents/[id]/download/route.ts) - the one place this
+ * integration ever reads file CONTENT, always streamed straight through to
+ * the browser rather than buffered or cached server-side. Returns the raw
+ * Response (not JSON-parsed, unlike googleDriveRequest above) so the caller
+ * can stream `response.body` directly and read `content-length`/`content-type`
+ * off the real headers.
+ */
+export async function googleDriveDownloadRequest(fileId: string): Promise<Response> {
+  const config = getGoogleDriveConfig();
+  if (!config) throw new GoogleDriveError("not_configured", "Google Drive credentials are not configured");
+
+  const accessToken = await getGoogleDriveAccessToken();
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `${GOOGLE_DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: "no-store",
+      }
+    );
+  } catch {
+    throw new GoogleDriveError("unreachable", "Google Drive API unreachable");
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    throw new GoogleDriveError("auth_error", "Google Drive rejected the request (unauthorized)");
+  }
+  if (response.status === 404) {
+    throw new GoogleDriveError("not_found", `Google Drive file not found: ${fileId}`);
+  }
+  if (response.status === 429) {
+    throw new GoogleDriveError("rate_limited", "Google Drive API rate limit exceeded");
+  }
+  if (!response.ok) {
+    throw new GoogleDriveError("unknown", `Google Drive API returned ${response.status} for file ${fileId}`);
+  }
+
+  return response;
+}

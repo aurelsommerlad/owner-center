@@ -139,13 +139,25 @@ export type AdminDocumentType = "owner_report" | "invoice" | "credit_note" | "ot
 /**
  * The admin-side publication lifecycle for a statement document. Separate
  * from (and upstream of) the owner-facing "Neu"/"Gesehen" status: a
- * document only becomes visible to the owner once it reaches "published".
+ * document only becomes visible to the owner once it reaches "published" or
+ * "updated". "draft"/"ready" are the original manual admin-upload states;
+ * "detected"/"needs_classification"/"archived" come from the Google Drive
+ * sync (see integrations/googleDrive/documentSync.ts) - one shared
+ * vocabulary for both flows rather than two parallel status sets.
  */
-export type AdminStatementStatus = "draft" | "ready" | "published" | "updated";
+export type AdminStatementStatus =
+  | "draft"
+  | "ready"
+  | "detected"
+  | "needs_classification"
+  | "published"
+  | "updated"
+  | "archived";
 
 export interface AdminStatementDocument {
   id: string;
-  ownerId: string;
+  /** `undefined` for a Drive-synced document - it belongs to a property, not one owner. See server/permissions.ts#canOwnerAccessProperty for how access is actually derived. */
+  ownerId: string | undefined;
   propertyId: string;
   /** 1-12 */
   month: number;
@@ -153,8 +165,10 @@ export interface AdminStatementDocument {
   documentType: AdminDocumentType;
   title: string;
   fileName: string;
-  /** Google Drive file id. `null` until the Drive integration is wired up. */
+  /** Google Drive file id. `null` for a document created through the manual admin flow. */
   driveFileId: string | null;
+  /** Drive's own `modifiedTime` for this file as of the last sync. `null` for a manually created document. */
+  driveModifiedAt: string | null;
   version: number;
   adminStatus: AdminStatementStatus;
   /** `null` while still a draft/not yet made available to the owner. */

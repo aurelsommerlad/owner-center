@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation";
 import { getProperty } from "@/services/propertyService";
-import { getStatementDocuments, getStatementDocumentYears } from "@/services/statementDocumentService";
+import {
+  getStatementDocuments,
+  getStatementDocumentYears,
+  markStatementDocumentsViewed,
+} from "@/services/statementDocumentService";
 import { MOCK_TODAY } from "@/lib/config";
 import { groupStatementDocumentsByMonth, isNewStatementDocument } from "@/lib/statementDocuments";
 import { Card } from "@/components/ui/Card";
@@ -31,6 +35,7 @@ export default async function AbrechnungenPage({
   const selectedYear = years.includes(requestedYear) ? requestedYear : currentYear;
 
   const documents = await getStatementDocuments(propertyId, selectedYear);
+  await markStatementDocumentsViewed(documents.map((document) => document.id));
   const monthGroups = groupStatementDocumentsByMonth(documents);
   const newCount = documents.filter(isNewStatementDocument).length;
 

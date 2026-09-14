@@ -19,7 +19,7 @@ import type { StatementDocument as DbStatementDocument } from "@/generated/prism
 function toStatementDocument(document: DbStatementDocument): StatementDocument {
   return {
     id: document.id,
-    ownerId: document.ownerId,
+    ownerId: document.ownerId ?? undefined,
     propertyId: document.propertyId,
     month: document.month,
     year: document.year,
@@ -60,4 +60,21 @@ export async function getStatementDocumentYears(propertyId: string): Promise<num
     distinct: ["year"],
   });
   return documents.map((document) => document.year).sort((a, b) => b - a);
+}
+
+/**
+ * Marks a batch of documents as viewed - "beim ersten Anzeigen des
+ * Dokumenteintrags" (spec point 14) is the row in this list actually
+ * rendering, since there is no separate per-document detail page. Only sets
+ * `firstViewedAt` where it is still null, so it always reflects the FIRST
+ * view since the document's last publish/update (a re-publish clears the
+ * "Neu" signal by producing a fresh row via `updatedAt`, not by resetting
+ * this field - see lib/statementDocuments.ts#isNewStatementDocument).
+ */
+export async function markStatementDocumentsViewed(documentIds: string[]): Promise<void> {
+  if (documentIds.length === 0) return;
+  await prisma.statementDocument.updateMany({
+    where: { id: { in: documentIds }, firstViewedAt: null },
+    data: { firstViewedAt: new Date() },
+  });
 }

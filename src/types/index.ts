@@ -170,7 +170,8 @@ export type StatementDocumentType = "owner_report" | "invoice" | "credit_note" |
  */
 export interface StatementDocument {
   id: string;
-  ownerId: string;
+  /** `undefined` for a Drive-synced document - access is derived from propertyId, never from this. */
+  ownerId: string | undefined;
   propertyId: string;
   /** 1-12 */
   month: number;

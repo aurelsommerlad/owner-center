@@ -7,8 +7,11 @@ import { monthLabel } from "@/lib/dates";
 const STATUS_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "draft", label: "Entwurf" },
   { value: "ready", label: "Bereit" },
+  { value: "detected", label: "Erkannt" },
+  { value: "needs_classification", label: "Zu klassifizieren" },
   { value: "published", label: "Veröffentlicht" },
   { value: "updated", label: "Aktualisiert" },
+  { value: "archived", label: "Archiviert" },
 ];
 
 // Same <select> chrome as CalendarControls.tsx's unit selector.

@@ -80,20 +80,20 @@ export function StatementDocumentRow({
       </div>
 
       {emphasis === "muted" ? (
-        <button
-          type="button"
+        <a
+          href={`/api/documents/${document.id}/download`}
           className="shrink-0 text-[11px] font-medium text-ink-soft underline decoration-ink-soft/40 underline-offset-2 transition-colors hover:text-ink"
         >
           {isDownloaded ? t("statements.redownload") : t("statements.download")}
-        </button>
+        </a>
       ) : (
-        <button
-          type="button"
+        <a
+          href={`/api/documents/${document.id}/download`}
           className="flex shrink-0 items-center gap-1.5 rounded-full border border-line px-3.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-ink hover:text-ink"
         >
           <DownloadIcon className="h-3.5 w-3.5" />
           {isDownloaded ? t("statements.redownload") : t("statements.download")}
-        </button>
+        </a>
       )}
     </div>
   );

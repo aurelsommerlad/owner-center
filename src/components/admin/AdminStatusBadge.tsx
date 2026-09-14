@@ -69,10 +69,16 @@ export function statementStatusBadge(status: AdminStatementStatus): { label: str
       return { label: "Entwurf", tone: "muted" };
     case "ready":
       return { label: "Bereit", tone: "neutral" };
+    case "detected":
+      return { label: "Erkannt", tone: "neutral" };
+    case "needs_classification":
+      return { label: "Zu klassifizieren", tone: "strong" };
     case "published":
       return { label: "Veröffentlicht", tone: "positive" };
     case "updated":
       return { label: "Aktualisiert", tone: "strong" };
+    case "archived":
+      return { label: "Archiviert", tone: "muted" };
   }
 }
 

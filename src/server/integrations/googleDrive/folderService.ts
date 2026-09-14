@@ -20,18 +20,18 @@ import {
  */
 
 /**
- * Direct (non-recursive) child FOLDERS of the configured root folder - the
- * exact set an admin may pick from for a Property's Drive mapping. Plain
- * files, and folders nested deeper than one level (e.g. a property's own
- * "2026-08" month folders), are never returned here - the admin mapping
- * step only ever connects a Property to one of these top-level folders.
+ * Direct (non-recursive) child FOLDERS of any given folder - used both for
+ * the admin Property mapping (children of the root) and, by the document
+ * sync (see documentSync.ts), for a property folder's "YYYY-MM" month
+ * folders and a month folder's category folders ("Umsatz-Reporting" etc.).
+ * Plain files are never returned here.
  */
-export async function listRootPropertyFolders(): Promise<GoogleDriveFolderInfo[]> {
+export async function listChildFolders(parentFolderId: string): Promise<GoogleDriveFolderInfo[]> {
   const config = getGoogleDriveConfig();
   if (!config) throw new GoogleDriveError("not_configured", "Google Drive credentials are not configured");
 
   const query = encodeURIComponent(
-    `'${config.rootFolderId}' in parents and mimeType = '${GOOGLE_DRIVE_FOLDER_MIME_TYPE}' and trashed = false`
+    `'${parentFolderId}' in parents and mimeType = '${GOOGLE_DRIVE_FOLDER_MIME_TYPE}' and trashed = false`
   );
   const results: GoogleDriveFolderInfo[] = [];
   let pageToken: string | undefined;
@@ -49,6 +49,20 @@ export async function listRootPropertyFolders(): Promise<GoogleDriveFolderInfo[]
   } while (pageToken);
 
   return results;
+}
+
+/**
+ * Direct child folders of the configured ROOT folder specifically - the
+ * exact set an admin may pick from for a Property's Drive mapping. Folders
+ * nested deeper than one level (e.g. a property's own "2026-08" month
+ * folders) are never returned here - the admin mapping step only ever
+ * connects a Property to one of these top-level folders.
+ */
+export async function listRootPropertyFolders(): Promise<GoogleDriveFolderInfo[]> {
+  const config = getGoogleDriveConfig();
+  if (!config) throw new GoogleDriveError("not_configured", "Google Drive credentials are not configured");
+
+  return listChildFolders(config.rootFolderId);
 }
 
 /**

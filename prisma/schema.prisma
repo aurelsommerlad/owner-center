@@ -215,15 +215,25 @@ model OwnerPropertyAccess {
 
 /// A statement-archive document (Eigentümerreporting / Rechnung / Gutschrift
 /// / other), synced in from Google Drive once that integration exists.
-/// `adminStatus` is the admin-side publication lifecycle (draft -> ready ->
-/// published/updated) and is separate from - and upstream of - the
-/// owner-facing "Neu"/"Gesehen" status computed from the view/download
-/// fields below: a document only becomes visible to an owner once it is
-/// "published" or "updated" (see statementDocumentService.getStatementDocuments).
+/// `adminStatus` is the admin-side publication lifecycle and is separate
+/// from - and upstream of - the owner-facing "Neu"/"Gesehen" status computed
+/// from the view/download fields below: a document only becomes visible to
+/// an owner once it is "published" or "updated" (see
+/// statementDocumentService.getStatementDocuments). Two lifecycles feed this
+/// same table: the original manual admin-created flow (draft -> ready ->
+/// published/updated) and the Google Drive sync (detected/needs_classification
+/// -> published/updated, or archived) - see
+/// integrations/googleDrive/documentSync.ts. Both share one status
+/// vocabulary rather than a second parallel document model.
 model StatementDocument {
   id           String   @id @default(cuid())
-  ownerId      String
-  owner        Owner    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  /// Nullable because a Drive-synced document belongs to a PROPERTY, not to
+  /// one specific owner - a property can have several active owners (see
+  /// OwnerPropertyAccess), and access is always derived via propertyId, never
+  /// via this field (see server/permissions.ts#canOwnerAccessProperty). Kept
+  /// for the original manual admin-upload flow, which still assigns one.
+  ownerId      String?
+  owner        Owner?   @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   propertyId   String
   property     Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   /// 1-12
@@ -234,12 +244,21 @@ model StatementDocument {
   /// Only shown in the UI for "other" documents - the three fachlich
   /// defined types always display their fixed label instead.
   title        String
+  /// The document's actual Drive file name (e.g. "2026-08 Abrechnung ΛLPILΛ.pdf")
+  /// for a synced document; an admin-chosen display file name otherwise.
   fileName     String
-  /// Google Drive file id. `null` until the Drive integration is wired up.
-  driveFileId  String?
+  /// Google Drive file id - unique so the same Drive file can never be
+  /// imported as two rows (see integrations/googleDrive/documentSync.ts's
+  /// upsert). `null` for a document created through the manual admin flow,
+  /// before the Drive integration existed.
+  driveFileId  String?  @unique
+  /// Drive's own `modifiedTime` for this file, as of the last sync - used to
+  /// detect a real content change vs. an unchanged file on every re-sync.
+  driveModifiedAt DateTime?
   /// Bumped whenever UNIQUE PLACES replaces this document with a corrected version.
   version      Int      @default(1)
-  /// "draft" | "ready" | "published" | "updated"
+  /// "draft" | "ready" (manual flow) | "detected" | "needs_classification"
+  /// (Drive sync, pre-review) | "published" | "updated" | "archived"
   adminStatus  String   @default("draft")
   /// `null` while still a draft/not yet made available to the owner.
   publishedAt  DateTime?
