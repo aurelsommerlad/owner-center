@@ -44,12 +44,13 @@ function toReservation(propertyId: string, raw: ApaleoReservationSummary): Reser
     // classification is what makes owner-use flow correctly everywhere,
     // with no second copy of that exclusion logic.
     status: raw.isOwnerUse ? "owner-use" : "confirmed",
-    // Accommodation-only revenue (see integrations/apaleo/reservationService.ts) -
-    // never city tax, never extras. `null` (apaleo returned no timeSlices to
-    // sum) is treated as 0 rather than guessed from another field. For an
-    // owner-use stay this is already 0 from apaleo itself (the Owner Rate's
-    // -100% pricing rule), never a value we blank out ourselves.
-    accommodationAmount: raw.accommodationGrossAmount ?? 0,
+    // Accommodation-only, net (VAT excluded) revenue (see
+    // integrations/apaleo/reservationService.ts) - never city tax, never
+    // extras, never gross. `null` (apaleo returned no timeSlices to sum) is
+    // treated as 0 rather than guessed from another field. For an owner-use
+    // stay this is already 0 from apaleo itself (the Owner Rate's -100%
+    // pricing rule), never a value we blank out ourselves.
+    accommodationAmount: raw.accommodationNetAmount ?? 0,
     currency: raw.currency,
     // Never the guest's own occupancy/name for an owner-use stay - the UI
     // never reads a name off Reservation at all (see toReservation's return

@@ -99,6 +99,9 @@ export function generateMockReservations(
 
       const weekendUplift = isWeekend(cursor) || isWeekend(addDays(checkOut, -1)) ? 1.08 : 1;
       const rate = Math.round(baseRate * weekendUplift);
+      // Flat mock rate, treated as already net (VAT excluded) - matches the
+      // live apaleo path, which sums `baseAmount.netAmount` (see
+      // Reservation.accommodationAmount and integrations/apaleo/reservationService.ts).
       const accommodationAmount = status === "confirmed" ? rate * nights : 0;
 
       reservations.push({

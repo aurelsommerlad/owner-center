@@ -104,12 +104,14 @@ export interface Reservation {
   checkOut: string;
   status: ReservationStatus;
   /**
-   * Accommodation/overnight revenue only - never Kurtaxe (city tax), never
-   * extras/services, never parking. On live apaleo data this is the sum of
-   * each stay night's `timeSlices[].baseAmount.grossAmount` (see
+   * Accommodation/overnight revenue only, always net (VAT excluded) - never
+   * Kurtaxe (city tax), never extras/services, never parking, never gross.
+   * On live apaleo data this is the sum of each stay night's
+   * `timeSlices[].baseAmount.netAmount` (see
    * server/integrations/apaleo/reservationService.ts) - the one apaleo
-   * field that reliably isolates accommodation charges from everything
-   * else on a folio.
+   * field that reliably isolates accommodation charges, net of tax, from
+   * everything else on a folio. Every KPI derived from this figure
+   * (Übernachtungsumsatz, ADR, RevPAR, Ø Buchungswert) is net as a result.
    */
   accommodationAmount: number;
   currency: string;

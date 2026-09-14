@@ -121,8 +121,8 @@ export interface ApaleoReservationSummary {
   children: number | null;
   channelCode: string | null;
   source: string | null;
-  /** Sum of every timeSlice's `baseAmount.grossAmount` - accommodation only, never city tax/extras. `null` when apaleo returned no timeSlices to sum (never guessed from another field). */
-  accommodationGrossAmount: number | null;
+  /** Sum of every timeSlice's `baseAmount.netAmount` - accommodation only, never city tax/extras, and always net (VAT excluded) so every KPI derived from it (Übernachtungsumsatz, ADR, RevPAR, Ø Buchungswert) is net too. `null` when apaleo returned no timeSlices to sum (never guessed from another field). */
+  accommodationNetAmount: number | null;
   currency: string;
   /** True when the reservation is billed against the "OWNER" rate plan - see reservationService.ts#isOwnerUseReservation for the exact rule and how it's grounded against real apaleo data. */
   isOwnerUse: boolean;

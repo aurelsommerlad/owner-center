@@ -66,9 +66,9 @@ export function toReservationSummary(raw: RawApaleoReservation): ApaleoReservati
   const unitId = raw.unit?.id;
   if (!unitId) return null;
 
-  const accommodationGrossAmount =
+  const accommodationNetAmount =
     raw.timeSlices && raw.timeSlices.length > 0
-      ? raw.timeSlices.reduce((sum, slice) => sum + (slice.baseAmount?.grossAmount ?? 0), 0)
+      ? raw.timeSlices.reduce((sum, slice) => sum + (slice.baseAmount?.netAmount ?? 0), 0)
       : null;
 
   const currency = raw.timeSlices?.find((slice) => slice.baseAmount)?.baseAmount?.currency ?? "EUR";
@@ -87,7 +87,7 @@ export function toReservationSummary(raw: RawApaleoReservation): ApaleoReservati
     channelCode: raw.channelCode ?? null,
     source: raw.source ?? null,
     isOwnerUse: isOwnerUseReservation(raw),
-    accommodationGrossAmount,
+    accommodationNetAmount,
     currency,
   };
 }

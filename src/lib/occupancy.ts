@@ -167,7 +167,7 @@ export function calculateOccupancy(occupiedUnitNights: number, availableUnitNigh
   return Math.round((occupiedUnitNights / availableUnitNights) * 1000) / 10;
 }
 
-/** Buchungsumsatz = sum of accommodation-only revenue across confirmed reservations - never city tax/extras (see Reservation.accommodationAmount). */
+/** Übernachtungsumsatz (netto) = sum of net accommodation-only revenue across confirmed reservations - never city tax/extras, never gross (see Reservation.accommodationAmount). */
 export function calculateBookingRevenue(reservations: Pick<Reservation, "status" | "accommodationAmount">[]): number {
   return reservations
     .filter((reservation) => reservation.status === "confirmed")
@@ -206,12 +206,12 @@ export function reservationTimingStatus(checkIn: string, checkOut: string, today
   return "past";
 }
 
-/** ADR = Accommodation Revenue / belegte Unit-Nächte. */
+/** ADR = net Accommodation Revenue / belegte Unit-Nächte. */
 export function calculateADR(accommodationRevenue: number, occupiedUnitNights: number): number {
   return occupiedUnitNights > 0 ? accommodationRevenue / occupiedUnitNights : 0;
 }
 
-/** RevPAR = Accommodation Revenue / verfügbare Unit-Nächte - mathematically ADR × Belegung, always consistent since both are derived from the same occupied/available unit-night counts. */
+/** RevPAR = net Accommodation Revenue / verfügbare Unit-Nächte - mathematically ADR × Belegung, always consistent since both are derived from the same occupied/available unit-night counts. */
 export function calculateRevPAR(accommodationRevenue: number, availableUnitNights: number): number {
   return availableUnitNights > 0 ? accommodationRevenue / availableUnitNights : 0;
 }
