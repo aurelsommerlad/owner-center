@@ -1,7 +1,8 @@
 import type { CSSProperties } from "react";
 import type { Reservation, ReservationStatus, Unit } from "@/types";
-import { dayOfMonth, formatDateRange, nightsBetween, weekdayLabel } from "@/lib/dates";
+import { dayOfMonth, formatDateRange, isWeekend, nightsBetween, weekdayLabel } from "@/lib/dates";
 import { reservationTimingStatus, type StayTimingStatus } from "@/lib/occupancy";
+import { getDictionary, createTranslator, type Locale } from "@/i18n";
 
 export interface TimelineDay {
   date: string;
@@ -22,29 +23,8 @@ interface OccupancyTimelineProps {
   className?: string;
   /** Shortens the reservation-nights label to "4 N." instead of "4 Nächte" for the compact Übersicht widget. */
   compactLabels?: boolean;
+  locale?: Locale;
 }
-
-/** Calendar-local labels - independent of the shared statusLabel() used elsewhere in the app. */
-const CALENDAR_STATUS_LABEL: Record<ReservationStatus | "free", string> = {
-  confirmed: "Reservierung",
-  blocked: "Blockiert",
-  "owner-use": "Eigennutzung",
-  free: "Frei",
-};
-
-/**
- * A *confirmed* reservation's bar color/label depends on where its stay
- * sits relative to today (see lib/occupancy.ts#reservationTimingStatus) -
- * never on guest name or booking source. Text color is chosen per bucket
- * so it stays readable against that bucket's background: dark ink on the
- * pale "past" bar and the mid-toned "in-house" sage, cream on the darker
- * "upcoming" greige (unchanged from before this change).
- */
-const TIMING_STATUS_LABEL: Record<StayTimingStatus, string> = {
-  past: "Abgereist",
-  "in-house": "Im Haus",
-  upcoming: "Erwartet",
-};
 
 const TIMING_BAR_STYLE: Record<StayTimingStatus, CSSProperties> = {
   // Warm greige, unchanged from the previous single confirmed-reservation color.
@@ -78,11 +58,15 @@ function barVisual(
 }
 
 /** Bar label text - nights for a normal stay, the fixed status label for owner-use, nothing for blocked (kept quiet). */
-function barLabel(reservation: Reservation, compactLabels: boolean): string | null {
-  if (reservation.status === "owner-use") return CALENDAR_STATUS_LABEL["owner-use"];
+function barLabel(
+  reservation: Reservation,
+  compactLabels: boolean,
+  t: ReturnType<typeof createTranslator>
+): string | null {
+  if (reservation.status === "owner-use") return t("calendar.ownerUse");
   if (reservation.status === "blocked") return null;
   const nights = nightsBetween(reservation.checkIn, reservation.checkOut);
-  return compactLabels ? `${nights} N.` : `${nights} ${nights === 1 ? "Nacht" : "Nächte"}`;
+  return compactLabels ? t("calendar.nightsShort", { count: nights }) : `${nights} ${nights === 1 ? t("calendar.night") : t("calendar.nights")}`;
 }
 
 function dateIndex(iso: string, days: TimelineDay[]): number {
@@ -100,9 +84,24 @@ export function OccupancyTimeline({
   unitColumnWidth = 132,
   className = "",
   compactLabels = false,
+  locale = "de",
 }: OccupancyTimelineProps) {
+  const t = createTranslator(getDictionary(locale));
   const gridWidth = days.length * cellWidth;
   const todayIndex = dateIndex(today, days);
+
+  /** Calendar-local labels - independent of the shared statusLabel() used elsewhere in the app. */
+  const calendarStatusLabel: Record<ReservationStatus | "free", string> = {
+    confirmed: t("calendar.reservation"),
+    blocked: t("calendar.blocked"),
+    "owner-use": t("calendar.ownerUse"),
+    free: t("calendar.free"),
+  };
+  const timingStatusLabel: Record<StayTimingStatus, string> = {
+    past: t("calendar.departed"),
+    "in-house": t("calendar.inHouse"),
+    upcoming: t("calendar.expected"),
+  };
 
   // Small fixed inset shaved off both ends of every bar so two stays that
   // meet at the same day's midpoint (one check-out, the next check-in)
@@ -119,7 +118,7 @@ export function OccupancyTimeline({
           <div className="relative flex" style={{ width: gridWidth }}>
             {days.map((day) => {
               const isToday = day.date === today;
-              const weekend = weekdayLabel(day.date) === "Sa" || weekdayLabel(day.date) === "So";
+              const weekend = isWeekend(day.date);
               return (
                 <div
                   key={day.date}
@@ -128,7 +127,7 @@ export function OccupancyTimeline({
                   } ${isToday ? "text-ink" : "text-ink-soft"}`}
                   style={{ width: cellWidth }}
                 >
-                  <span className="uppercase tracking-wide">{weekdayLabel(day.date)}</span>
+                  <span className="uppercase tracking-wide">{weekdayLabel(day.date, locale)}</span>
                   <span
                     className={
                       isToday
@@ -153,14 +152,14 @@ export function OccupancyTimeline({
             >
               <p className="text-sm font-medium text-ink">{row.unit.name}</p>
               <p className="text-xs text-ink-soft">
-                {row.unit.minOccupancy}–{row.unit.maxOccupancy} Personen
+                {row.unit.minOccupancy}–{row.unit.maxOccupancy} {t("calendar.persons")}
               </p>
             </div>
             <div className="relative shrink-0 border-b border-[#E4E0D8]" style={{ width: gridWidth, height: rowHeight }}>
               {/* day separators + weekend shading */}
               <div className="pointer-events-none absolute inset-0 flex">
                 {days.map((day) => {
-                  const weekend = weekdayLabel(day.date) === "Sa" || weekdayLabel(day.date) === "So";
+                  const weekend = isWeekend(day.date);
                   return (
                     <div
                       key={day.date}
@@ -195,7 +194,7 @@ export function OccupancyTimeline({
                 const visualLeft = left + BAR_GAP;
                 const visualWidth = Math.max(rawWidth - BAR_GAP * 2, 4);
 
-                const label = barLabel(reservation, compactLabels);
+                const label = barLabel(reservation, compactLabels, t);
                 const labelFits = label !== null && rawWidth > 56;
                 const visual = barVisual(reservation, today);
                 const nights = nightsBetween(reservation.checkIn, reservation.checkOut);
@@ -203,8 +202,8 @@ export function OccupancyTimeline({
                   reservation.status === "blocked"
                     ? null
                     : reservation.status === "confirmed"
-                      ? TIMING_STATUS_LABEL[reservationTimingStatus(reservation.checkIn, reservation.checkOut, today)]
-                      : CALENDAR_STATUS_LABEL[reservation.status];
+                      ? timingStatusLabel[reservationTimingStatus(reservation.checkIn, reservation.checkOut, today)]
+                      : calendarStatusLabel[reservation.status];
                 // The grid's horizontal scroll container clips vertical overflow too (a CSS
                 // side effect of overflow-x: auto), so a tooltip popping up above the very
                 // first row would be cut off - render it below the bar there instead.
@@ -241,10 +240,10 @@ export function OccupancyTimeline({
                       >
                         <p className="text-xs font-semibold text-ink">{tooltipHeading}</p>
                         <p className="mt-0.5 text-xs text-ink-soft">
-                          {formatDateRange(reservation.checkIn, reservation.checkOut)}
+                          {formatDateRange(reservation.checkIn, reservation.checkOut, locale)}
                         </p>
                         <p className="text-xs text-ink-soft">
-                          {nights} {nights === 1 ? "Nacht" : "Nächte"}
+                          {nights} {nights === 1 ? t("calendar.night") : t("calendar.nights")}
                         </p>
                         {reservation.occupancy && (
                           <p className="mt-0.5 text-xs text-ink-soft">{reservation.occupancy}</p>
@@ -262,14 +261,15 @@ export function OccupancyTimeline({
   );
 }
 
-export function TimelineLegend() {
+export function TimelineLegend({ locale = "de" }: { locale?: Locale }) {
+  const t = createTranslator(getDictionary(locale));
   const entries: Array<{ key: string; label: string; className: string; style?: CSSProperties }> = [
-    { key: "in-house", label: TIMING_STATUS_LABEL["in-house"], className: "", style: TIMING_BAR_STYLE["in-house"] },
-    { key: "past", label: TIMING_STATUS_LABEL.past, className: "", style: TIMING_BAR_STYLE.past },
-    { key: "upcoming", label: TIMING_STATUS_LABEL.upcoming, className: "", style: TIMING_BAR_STYLE.upcoming },
-    { key: "owner-use", label: CALENDAR_STATUS_LABEL["owner-use"], className: "bg-[#52664E]" },
-    { key: "blocked", label: CALENDAR_STATUS_LABEL.blocked, className: "", style: BLOCKED_HATCH_STYLE },
-    { key: "free", label: CALENDAR_STATUS_LABEL.free, className: "border border-[#74736E]/30 bg-transparent" },
+    { key: "in-house", label: t("calendar.inHouse"), className: "", style: TIMING_BAR_STYLE["in-house"] },
+    { key: "past", label: t("calendar.departed"), className: "", style: TIMING_BAR_STYLE.past },
+    { key: "upcoming", label: t("calendar.expected"), className: "", style: TIMING_BAR_STYLE.upcoming },
+    { key: "owner-use", label: t("calendar.ownerUse"), className: "bg-[#52664E]" },
+    { key: "blocked", label: t("calendar.blocked"), className: "", style: BLOCKED_HATCH_STYLE },
+    { key: "free", label: t("calendar.free"), className: "border border-[#74736E]/30 bg-transparent" },
   ];
 
   return (

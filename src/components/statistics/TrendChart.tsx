@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, type PointerEvent } from "react";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatPercent } from "@/lib/format";
+import { monthShortLabel } from "@/lib/dates";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
-const MONTH_SHORT = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+const MONTH_COUNT = 12;
 
 /**
  * What a value on this chart represents. Kept as a plain, serializable
@@ -43,7 +45,7 @@ function niceStep(rough: number): number {
 }
 
 function xFor(index: number) {
-  return PADDING_LEFT + (index / (MONTH_SHORT.length - 1)) * PLOT_WIDTH;
+  return PADDING_LEFT + (index / (MONTH_COUNT - 1)) * PLOT_WIDTH;
 }
 
 export function TrendChart({
@@ -55,9 +57,11 @@ export function TrendChart({
   valueKind,
   fixedMax,
 }: TrendChartProps) {
+  const { locale, t } = useTranslations();
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const monthShort = Array.from({ length: MONTH_COUNT }, (_, i) => monthShortLabel(i + 1, locale));
   const formatValue = (value: number) =>
-    valueKind === "currency" ? formatCurrency(value, "EUR", 0) : `${Math.round(value)} %`;
+    valueKind === "currency" ? formatCurrency(value, "EUR", 0, locale) : formatPercent(value, 0, locale);
 
   const dataMax = Math.max(...currentSeries, ...previousSeries, 1);
   const axisMax = fixedMax ?? niceStep(dataMax / 4) * 4;
@@ -70,7 +74,7 @@ export function TrendChart({
   function handlePointerMove(event: PointerEvent<SVGRectElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
     const ratio = Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1);
-    setHoverIndex(Math.round(ratio * (MONTH_SHORT.length - 1)));
+    setHoverIndex(Math.round(ratio * (MONTH_COUNT - 1)));
   }
 
   return (
@@ -107,7 +111,7 @@ export function TrendChart({
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="mt-3 w-full"
         role="img"
-        aria-label={`${title}: Vergleich ${currentYear} zu ${previousYear}, je Monat Januar bis Dezember`}
+        aria-label={t("statistics.trendChartLabel", { title, currentYear, previousYear })}
       >
         {[0, 1, 2, 3, 4].map((i) => {
           const y = PADDING_TOP + PLOT_HEIGHT * (1 - i / 4);
@@ -128,7 +132,7 @@ export function TrendChart({
           );
         })}
 
-        {MONTH_SHORT.map((label, i) => (
+        {monthShort.map((label, i) => (
           <text key={label} x={xFor(i)} y={HEIGHT - 8} textAnchor="middle" className="fill-ink-soft" fontSize={10}>
             {label}
           </text>
@@ -191,7 +195,7 @@ export function TrendChart({
       <div className="mt-2 flex h-8 items-center justify-center gap-4 rounded-xl border border-line bg-paper-dim/50 px-3 text-xs">
         {hoverIndex !== null ? (
           <>
-            <span className="font-medium text-ink">{MONTH_SHORT[hoverIndex]}</span>
+            <span className="font-medium text-ink">{monthShort[hoverIndex]}</span>
             <span className="text-ink-soft">
               {currentYear}: <span className="text-ink">{formatValue(currentSeries[hoverIndex])}</span>
             </span>
@@ -200,7 +204,7 @@ export function TrendChart({
             </span>
           </>
         ) : (
-          <span className="text-ink-soft/60">Punkt berühren oder überfahren für Details</span>
+          <span className="text-ink-soft/60">{t("statistics.hoverForDetails")}</span>
         )}
       </div>
     </div>

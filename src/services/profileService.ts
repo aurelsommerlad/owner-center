@@ -4,6 +4,7 @@ import { toDateString } from "@/server/mapDate";
 import { hashPassword, verifyPassword, passwordStrengthError, NO_PASSWORD_SET_HASH } from "@/server/password";
 import { createInvitationForUser, createInvitedOwnerUser } from "@/server/invitations";
 import type { OwnerProfile, OwnerTeamUser, OwnerTeamUserStatus } from "@/types";
+import { getDictionary, createTranslator, type Locale } from "@/i18n";
 
 /**
  * Data-access + mutation layer for the Owner Center's "Profil" page: the
@@ -78,16 +79,22 @@ export interface UpdateOwnProfileInput {
 }
 
 /** "Persönliche Daten" -> Speichern. Never touches Owner/company data - see this file's own doc comment. */
-export async function updateOwnProfile(userId: string, ownerUserId: string, input: UpdateOwnProfileInput): Promise<void> {
+export async function updateOwnProfile(
+  userId: string,
+  ownerUserId: string,
+  input: UpdateOwnProfileInput,
+  locale: Locale = "de"
+): Promise<void> {
+  const t = createTranslator(getDictionary(locale));
   const firstName = input.firstName.trim();
   const lastName = input.lastName.trim();
   const email = input.email.trim().toLowerCase();
-  if (!firstName || !lastName) throw new Error("Bitte Vorname und Nachname angeben.");
-  if (!isValidEmail(email)) throw new Error("Bitte eine gültige E-Mail-Adresse angeben.");
+  if (!firstName || !lastName) throw new Error(t("profile.pleaseProvideNames"));
+  if (!isValidEmail(email)) throw new Error(t("profile.invalidEmail"));
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing && existing.id !== userId) {
-    throw new Error(`Diese E-Mail-Adresse (${email}) ist bereits vergeben.`);
+    throw new Error(t("profile.emailAlreadyTaken", { email }));
   }
 
   await prisma.$transaction([
@@ -109,16 +116,22 @@ export interface ChangeOwnPasswordInput {
  * making this change stays alive) - a changed password should end any
  * session that was started with the old one, e.g. on another device.
  */
-export async function changeOwnPassword(userId: string, currentSessionId: string, input: ChangeOwnPasswordInput): Promise<void> {
+export async function changeOwnPassword(
+  userId: string,
+  currentSessionId: string,
+  input: ChangeOwnPasswordInput,
+  locale: Locale = "de"
+): Promise<void> {
+  const t = createTranslator(getDictionary(locale));
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   if (!verifyPassword(input.currentPassword, user.passwordHash)) {
-    throw new Error("Das aktuelle Passwort ist nicht korrekt.");
+    throw new Error(t("profile.currentPasswordIncorrect"));
   }
 
-  const strengthError = passwordStrengthError(input.newPassword);
+  const strengthError = passwordStrengthError(input.newPassword, locale);
   if (strengthError) throw new Error(strengthError);
   if (input.newPassword !== input.newPasswordConfirm) {
-    throw new Error("Die neuen Passwörter stimmen nicht überein.");
+    throw new Error(t("profile.passwordsDontMatch"));
   }
 
   await prisma.$transaction([
@@ -148,13 +161,15 @@ export interface InviteTeamUserInput {
 export async function inviteOwnerTeamUser(
   ownerId: string,
   invitedByUserId: string,
-  input: InviteTeamUserInput
+  input: InviteTeamUserInput,
+  locale: Locale = "de"
 ): Promise<InviteResult> {
+  const t = createTranslator(getDictionary(locale));
   if (!input.firstName.trim() || !input.lastName.trim()) {
-    throw new Error("Bitte Vorname und Nachname angeben.");
+    throw new Error(t("profile.pleaseProvideNames"));
   }
   if (!isValidEmail(input.email.trim())) {
-    throw new Error("Bitte eine gültige E-Mail-Adresse angeben.");
+    throw new Error(t("profile.invalidEmail"));
   }
 
   const { rawToken, expiresAt } = await createInvitedOwnerUser({ ownerId, ...input }, invitedByUserId);
@@ -170,11 +185,13 @@ export async function inviteOwnerTeamUser(
 export async function recreateOwnTeamInvitation(
   ownerId: string,
   ownerUserId: string,
-  requestedByUserId: string
+  requestedByUserId: string,
+  locale: Locale = "de"
 ): Promise<InviteResult> {
+  const t = createTranslator(getDictionary(locale));
   const ownerUser = await prisma.ownerUser.findUnique({ where: { id: ownerUserId } });
   if (!ownerUser || ownerUser.ownerId !== ownerId) {
-    throw new Error("Nutzer nicht gefunden.");
+    throw new Error(t("profile.userNotFound"));
   }
 
   const { rawToken, expiresAt } = await createInvitationForUser(ownerUser.userId, requestedByUserId);
@@ -202,26 +219,24 @@ export interface SetTeamUserStatusResult {
 export async function setOwnTeamUserStatus(
   ownerId: string,
   ownerUserId: string,
-  status: "active" | "inactive"
+  status: "active" | "inactive",
+  locale: Locale = "de"
 ): Promise<SetTeamUserStatusResult> {
+  const t = createTranslator(getDictionary(locale));
   return prisma.$transaction(async (tx) => {
     const ownerUser = await tx.ownerUser.findUnique({ where: { id: ownerUserId }, include: { user: true } });
     if (!ownerUser || ownerUser.ownerId !== ownerId) {
-      throw new Error("Nutzer nicht gefunden.");
+      throw new Error(t("profile.userNotFound"));
     }
 
     if (status === "active" && ownerUser.user.passwordHash === NO_PASSWORD_SET_HASH) {
-      throw new Error(
-        "Dieser Nutzer hat sein Passwort noch nicht gesetzt. Bitte stattdessen die Einladung neu erstellen."
-      );
+      throw new Error(t("profile.passwordNotSetYet"));
     }
 
     if (status === "inactive" && ownerUser.status === "active") {
       const activeCount = await tx.ownerUser.count({ where: { ownerId, status: "active" } });
       if (activeCount <= 1) {
-        throw new Error(
-          "Der letzte aktive Nutzer kann nicht deaktiviert werden, da sonst niemand mehr Zugriff auf das Owner Center hätte."
-        );
+        throw new Error(t("profile.lastActiveUserCannotBeDeactivated"));
       }
     }
 

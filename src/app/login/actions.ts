@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/server/db";
 import { verifyPassword } from "@/server/password";
 import { createSession } from "@/server/session";
+import { getDictionary, createTranslator, type Locale } from "@/i18n";
 
 export interface LoginResult {
   ok: boolean;
@@ -23,12 +24,13 @@ function readString(formData: FormData, key: string): string {
  * the Owner Center's session state through this form, regardless of how
  * correct its credentials are.
  */
-export async function loginAction(formData: FormData): Promise<LoginResult> {
+export async function loginAction(formData: FormData, locale: Locale = "de"): Promise<LoginResult> {
+  const t = createTranslator(getDictionary(locale));
   const email = readString(formData, "email").toLowerCase();
   const password = readString(formData, "password");
 
   if (!email || !password) {
-    return { ok: false, message: "Bitte E-Mail und Passwort eingeben." };
+    return { ok: false, message: t("login.missingFields") };
   }
 
   const user = await prisma.user.findUnique({
@@ -38,12 +40,12 @@ export async function loginAction(formData: FormData): Promise<LoginResult> {
   const passwordOk = user ? verifyPassword(password, user.passwordHash) : false;
 
   if (!user || !passwordOk || user.role !== "owner") {
-    return { ok: false, message: "E-Mail oder Passwort ist falsch." };
+    return { ok: false, message: t("login.genericError") };
   }
 
   const ownerUser = user.ownerUser;
   if (!ownerUser || ownerUser.status !== "active" || ownerUser.owner.status !== "active") {
-    return { ok: false, message: "Dieses Konto ist deaktiviert. Bitte wenden Sie sich an UNIQUE PLACES." };
+    return { ok: false, message: t("login.disabledError") };
   }
 
   await createSession(user.id);

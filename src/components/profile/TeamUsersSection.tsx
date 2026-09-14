@@ -6,6 +6,7 @@ import { TeamUserRow } from "./TeamUserRow";
 import { InviteLinkDisplay } from "./InviteLinkDisplay";
 import { PROFILE_INPUT_CLASS, PROFILE_LABEL_CLASS } from "./formStyles";
 import type { OwnerTeamUser } from "@/types";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 /**
  * "Weitere Nutzer" - the team of OwnerUsers under the signed-in effective
@@ -16,6 +17,7 @@ import type { OwnerTeamUser } from "@/types";
  * already supports throughout the app.
  */
 export function TeamUsersSection({ propertyId, team }: { propertyId: string; team: OwnerTeamUser[] }) {
+  const { t } = useTranslations();
   const [inviting, setInviting] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,11 +40,8 @@ export function TeamUsersSection({ propertyId, team }: { propertyId: string; tea
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
-          <h2 className="font-display text-lg italic text-ink">Weitere Nutzer</h2>
-          <p className="mt-1 text-xs text-ink-soft">
-            Alle Personen mit Zugang zu Ihrem Owner-Center-Konto. Neue Nutzer erhalten einen Einladungslink, um selbst
-            ein Passwort festzulegen - noch kein automatischer E-Mail-Versand.
-          </p>
+          <h2 className="font-display text-lg italic text-ink">{t("profile.additionalUsers")}</h2>
+          <p className="mt-1 text-xs text-ink-soft">{t("profile.additionalUsersSubtitle")}</p>
         </div>
         {!invite && (
           <button
@@ -53,7 +52,7 @@ export function TeamUsersSection({ propertyId, team }: { propertyId: string; tea
             }}
             className="rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper transition-opacity hover:opacity-90"
           >
-            {inviting ? "Abbrechen" : "Nutzer einladen"}
+            {inviting ? t("common.cancel") : t("profile.inviteUser")}
           </button>
         )}
       </div>
@@ -65,15 +64,15 @@ export function TeamUsersSection({ propertyId, team }: { propertyId: string; tea
         >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className={PROFILE_LABEL_CLASS}>Vorname</span>
+              <span className={PROFILE_LABEL_CLASS}>{t("profile.firstName")}</span>
               <input name="firstName" required className={PROFILE_INPUT_CLASS} />
             </label>
             <label className="flex flex-col gap-1.5">
-              <span className={PROFILE_LABEL_CLASS}>Nachname</span>
+              <span className={PROFILE_LABEL_CLASS}>{t("profile.lastName")}</span>
               <input name="lastName" required className={PROFILE_INPUT_CLASS} />
             </label>
             <label className="flex flex-col gap-1.5 sm:col-span-2">
-              <span className={PROFILE_LABEL_CLASS}>E-Mail</span>
+              <span className={PROFILE_LABEL_CLASS}>{t("profile.email")}</span>
               <input type="email" name="email" required className={PROFILE_INPUT_CLASS} />
             </label>
           </div>
@@ -84,7 +83,7 @@ export function TeamUsersSection({ propertyId, team }: { propertyId: string; tea
               disabled={pending}
               className="rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {pending ? "Lädt ein…" : "Einladen"}
+              {pending ? t("profile.inviting") : t("profile.invite")}
             </button>
           </div>
         </form>
@@ -97,7 +96,7 @@ export function TeamUsersSection({ propertyId, team }: { propertyId: string; tea
       )}
 
       <div className="mt-4 divide-y divide-line">
-        {team.length === 0 && <p className="py-3 text-sm text-ink-soft">Noch keine Nutzer.</p>}
+        {team.length === 0 && <p className="py-3 text-sm text-ink-soft">{t("profile.noUsers")}</p>}
         {team.map((user) => (
           <TeamUserRow key={user.id} propertyId={propertyId} user={user} />
         ))}

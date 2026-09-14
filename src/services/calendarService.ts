@@ -12,6 +12,7 @@ import {
 } from "@/lib/occupancy";
 import { getUnitsForProperty } from "./unitService";
 import { getReservationsForProperty } from "./reservationService";
+import type { Locale } from "@/i18n";
 
 export interface CalendarDay {
   date: string;
@@ -41,9 +42,10 @@ export async function getCalendarData(
   propertyId: string,
   view: CalendarViewType,
   anchor: string,
-  unitId?: string
+  unitId?: string,
+  locale: Locale = "de"
 ): Promise<CalendarData> {
-  const calendarWindow = getCalendarWindow(view, anchor);
+  const calendarWindow = getCalendarWindow(view, anchor, locale);
   const { range } = calendarWindow;
 
   const allUnits = await getUnitsForProperty(propertyId);

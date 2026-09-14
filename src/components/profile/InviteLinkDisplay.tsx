@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 /**
  * The one place a raw invitation token ever exists in the browser: it
@@ -20,6 +21,7 @@ export function InviteLinkDisplay({
   inviteToken: string;
   onDone: () => void;
 }) {
+  const { t } = useTranslations();
   const [copied, setCopied] = useState(false);
   const inviteUrl = typeof window !== "undefined" ? `${window.location.origin}/invite/${inviteToken}` : "";
 
@@ -36,28 +38,25 @@ export function InviteLinkDisplay({
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="text-sm font-medium text-ink">Einladung erstellt</p>
-        {email && <p className="mt-1 text-xs text-ink-soft">Für {email}</p>}
+        <p className="text-sm font-medium text-ink">{t("profile.invitationCreated")}</p>
+        {email && <p className="mt-1 text-xs text-ink-soft">{t("profile.forEmail", { email })}</p>}
       </div>
       <div className="break-all rounded-xl border border-line bg-paper px-3.5 py-2.5 text-xs text-ink">{inviteUrl}</div>
-      <p className="text-xs text-ink-soft">
-        Dieser Link ist 7 Tage gültig und kann nur einmal verwendet werden. Er wird hier nur jetzt angezeigt - bei
-        Bedarf später über &bdquo;Einladung neu erstellen&ldquo; ersetzen.
-      </p>
+      <p className="text-xs text-ink-soft">{t("profile.inviteLinkNote")}</p>
       <div className="flex justify-end gap-2">
         <button
           type="button"
           onClick={onDone}
           className="rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-colors hover:border-ink hover:text-ink"
         >
-          Fertig
+          {t("common.done")}
         </button>
         <button
           type="button"
           onClick={handleCopy}
           className="rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper transition-opacity hover:opacity-90"
         >
-          {copied ? "Kopiert!" : "Link kopieren"}
+          {copied ? t("common.linkCopied") : t("common.copyLink")}
         </button>
       </div>
     </div>

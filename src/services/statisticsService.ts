@@ -1,5 +1,6 @@
 import type { BookingSourceBreakdown, ComparableMetric, PropertyStatistics, Reservation, UnitStatistics } from "@/types";
 import { addDays, daysInMonth, isoDate, monthLabel, parseIsoDate } from "@/lib/dates";
+import { createTranslator, getDictionary, type Locale } from "@/i18n";
 import {
   arrivalsInRange,
   calculateADR,
@@ -49,19 +50,20 @@ function monthsForPeriod(period: StatisticsPeriod, currentMonth: number): number
   return Array.from({ length: 12 }, (_, i) => i + 1);
 }
 
-function periodLabelFor(period: StatisticsPeriod, year: number, month: number): string {
-  if (period === "year") return `Jahr ${year}`;
+function periodLabelFor(period: StatisticsPeriod, year: number, month: number, locale: Locale): string {
+  if (period === "year") return createTranslator(getDictionary(locale))("overview.year", { year });
   if (period === "ytd") return `YTD ${year}`;
-  return `${monthLabel(month)} ${year}`;
+  return `${monthLabel(month, locale)} ${year}`;
 }
 
 export async function getPropertyStatistics(
   propertyId: string,
-  period: StatisticsPeriod = "month"
+  period: StatisticsPeriod = "month",
+  locale: Locale = "de"
 ): Promise<PropertyStatistics> {
   return isApaleoConfigured()
-    ? getLivePropertyStatistics(propertyId, period)
-    : getMockPropertyStatistics(propertyId, period);
+    ? getLivePropertyStatistics(propertyId, period, locale)
+    : getMockPropertyStatistics(propertyId, period, locale);
 }
 
 // ---------------------------------------------------------------------------
@@ -194,7 +196,11 @@ async function getLiveUnitPerformance(
   });
 }
 
-async function getLivePropertyStatistics(propertyId: string, period: StatisticsPeriod): Promise<PropertyStatistics> {
+async function getLivePropertyStatistics(
+  propertyId: string,
+  period: StatisticsPeriod,
+  locale: Locale
+): Promise<PropertyStatistics> {
   const today = ownerPortalToday();
   const todayDate = parseIsoDate(today);
   const year = todayDate.getUTCFullYear();
@@ -229,8 +235,8 @@ async function getLivePropertyStatistics(propertyId: string, period: StatisticsP
 
   return {
     propertyId,
-    periodLabel: periodLabelFor(period, year, month),
-    comparisonLabel: "Vorjahr",
+    periodLabel: periodLabelFor(period, year, month, locale),
+    comparisonLabel: getDictionary(locale).statistics.previousYearLabel,
     occupancyPct: metric(current.occupancyPct, previous.occupancyPct),
     revenue: metric(current.revenue, previous.revenue),
     adr: metric(current.adr, previous.adr),
@@ -248,7 +254,7 @@ async function getLivePropertyStatistics(propertyId: string, period: StatisticsP
       ...monthlyOccupancySeries(previousYearReservations, units.length, year - 1),
     ],
     unitStats,
-    unitStatsPeriodLabel: periodLabelFor(period, year, month),
+    unitStatsPeriodLabel: periodLabelFor(period, year, month, locale),
     bookingSources,
     avgLeadTimeDays: MOCK_AVG_LEAD_TIME_DAYS[period],
     cancellationRatePct: MOCK_CANCELLATION_PCT[period],
@@ -303,7 +309,11 @@ function metricsFromAggregate(a: Aggregate) {
   return { adr, revPar, occupancy, avgStay, avgBookingValue };
 }
 
-async function getMockPropertyStatistics(propertyId: string, period: StatisticsPeriod): Promise<PropertyStatistics> {
+async function getMockPropertyStatistics(
+  propertyId: string,
+  period: StatisticsPeriod,
+  locale: Locale
+): Promise<PropertyStatistics> {
   const months = monthsForPeriod(period, REPORTING_MONTH);
   const currentAgg = aggregateMonths(MONTHLY_SERIES_2026, REPORTING_YEAR, months);
   const previousAgg = aggregateMonths(MONTHLY_SERIES_2025, REPORTING_YEAR - 1, months);
@@ -327,8 +337,8 @@ async function getMockPropertyStatistics(propertyId: string, period: StatisticsP
 
   return {
     propertyId,
-    periodLabel: periodLabelFor(period, REPORTING_YEAR, REPORTING_MONTH),
-    comparisonLabel: "Vorjahr",
+    periodLabel: periodLabelFor(period, REPORTING_YEAR, REPORTING_MONTH, locale),
+    comparisonLabel: getDictionary(locale).statistics.previousYearLabel,
     occupancyPct: metric(current.occupancy, previous.occupancy),
     revenue: metric(currentAgg.revenue, previousAgg.revenue),
     adr: metric(current.adr, previous.adr),
@@ -360,7 +370,7 @@ async function getMockPropertyStatistics(propertyId: string, period: StatisticsP
       }))
     ),
     unitStats,
-    unitStatsPeriodLabel: `${monthLabel(REPORTING_MONTH)} ${REPORTING_YEAR}`,
+    unitStatsPeriodLabel: `${monthLabel(REPORTING_MONTH, locale)} ${REPORTING_YEAR}`,
     bookingSources,
     avgLeadTimeDays: MOCK_AVG_LEAD_TIME_DAYS[period],
     cancellationRatePct: MOCK_CANCELLATION_PCT[period],

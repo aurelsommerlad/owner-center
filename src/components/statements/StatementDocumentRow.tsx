@@ -6,28 +6,31 @@ import {
   isNewStatementDocument,
   statementDocumentDisplayTitle,
 } from "@/lib/statementDocuments";
+import { getDictionary, createTranslator, type Locale } from "@/i18n";
 
 type Emphasis = "primary" | "standard" | "muted";
 
 export function StatementDocumentRow({
   document,
   emphasis = "standard",
+  locale = "de",
 }: {
   document: StatementDocument;
   /**
-   * "primary" - the month's Eigentümerreporting. "standard" - Rechnung /
-   * Gutschrift, equally important but not the lead document. "muted" -
-   * further ("other") documents, styled clearly more quietly.
+   * "primary" - the month's owner report. "standard" - invoice / credit
+   * note, equally important but not the lead document. "muted" - further
+   * ("other") documents, styled clearly more quietly.
    */
   emphasis?: Emphasis;
+  locale?: Locale;
 }) {
+  const t = createTranslator(getDictionary(locale));
   const isNew = isNewStatementDocument(document);
   const isDownloaded = isDownloadedStatementDocument(document);
   const providedLabel = document.updatedAt
-    ? `Aktualisiert am ${formatShortDate(document.updatedAt)}`
-    : `Bereitgestellt ${formatShortDate(document.publishedAt)}`;
-  const label = statementDocumentDisplayTitle(document);
-  const downloadLabel = isDownloaded ? "Erneut herunterladen" : "Herunterladen";
+    ? t("statements.updatedOn", { date: formatShortDate(document.updatedAt, locale) })
+    : t("statements.providedOn", { date: formatShortDate(document.publishedAt, locale) });
+  const label = statementDocumentDisplayTitle(document, locale);
 
   return (
     <div className={`flex items-center justify-between gap-4 ${emphasis === "muted" ? "py-2" : "py-3"}`}>
@@ -58,7 +61,7 @@ export function StatementDocumentRow({
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-[#87977E]/12 px-2 py-0.5 text-[11px] font-medium text-[#52664E]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#87977E]" />
-                  Neu
+                  {t("statements.new")}
                 </span>
               </>
             ) : (
@@ -68,7 +71,7 @@ export function StatementDocumentRow({
                   <span aria-hidden="true" className="text-ink-soft/50">
                     ·
                   </span>
-                  <span>Heruntergeladen am {formatShortDate(document.lastDownloadedAt)}</span>
+                  <span>{t("statements.downloadedOn", { date: formatShortDate(document.lastDownloadedAt, locale) })}</span>
                 </>
               )
             )}
@@ -81,7 +84,7 @@ export function StatementDocumentRow({
           type="button"
           className="shrink-0 text-[11px] font-medium text-ink-soft underline decoration-ink-soft/40 underline-offset-2 transition-colors hover:text-ink"
         >
-          {downloadLabel}
+          {isDownloaded ? t("statements.redownload") : t("statements.download")}
         </button>
       ) : (
         <button
@@ -89,7 +92,7 @@ export function StatementDocumentRow({
           className="flex shrink-0 items-center gap-1.5 rounded-full border border-line px-3.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-ink hover:text-ink"
         >
           <DownloadIcon className="h-3.5 w-3.5" />
-          {downloadLabel}
+          {isDownloaded ? t("statements.redownload") : t("statements.download")}
         </button>
       )}
     </div>

@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/Card";
 import { TrendDownIcon, TrendUpIcon } from "@/components/ui/icons";
 import { formatDelta } from "@/lib/format";
+import type { Locale } from "@/i18n";
 
 interface KpiCardProps {
   label: string;
@@ -13,6 +14,7 @@ interface KpiCardProps {
   deltaLabel?: string;
   /** Slightly smaller type/padding for secondary KPI rows. */
   compact?: boolean;
+  locale?: Locale;
 }
 
 export function KpiCard({
@@ -23,6 +25,7 @@ export function KpiCard({
   deltaSuffix = "",
   deltaLabel,
   compact = false,
+  locale = "de",
 }: KpiCardProps) {
   const showDelta = typeof deltaPoints === "number" && Number.isFinite(deltaPoints);
   const positive = (deltaPoints ?? 0) >= 0;
@@ -39,12 +42,12 @@ export function KpiCard({
             ) : (
               <TrendDownIcon className="h-3 w-3 text-status-blocked" />
             )}
-            {formatDelta(deltaPoints ?? 0, deltaFractionDigits)}
+            {formatDelta(deltaPoints ?? 0, deltaFractionDigits, locale)}
             {deltaSuffix}
           </span>
         )}
       </div>
-      {showDelta && <p className="mt-0.5 text-[11px] text-ink-soft/70">{deltaLabel ?? "zum Vorjahr"}</p>}
+      {showDelta && <p className="mt-0.5 text-[11px] text-ink-soft/70">{deltaLabel}</p>}
     </Card>
   );
 }

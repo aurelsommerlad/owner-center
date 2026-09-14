@@ -1,4 +1,16 @@
 /** Date helpers working on ISO "yyyy-MM-dd" strings and UTC-safe Date math. */
+import type { Locale } from "@/i18n";
+
+/**
+ * `locale` defaults to "de" everywhere in this file, so every existing
+ * call site - most importantly every admin-area one (see
+ * src/lib/format.ts's own note on this) - keeps its exact current output
+ * unless it explicitly passes "en". Only Owner Center call sites ever pass
+ * a resolved locale.
+ */
+function intlLocale(locale: Locale): string {
+  return locale === "en" ? "en-US" : "de-DE";
+}
 
 export function isoDate(year: number, month: number, day: number): string {
   const mm = String(month).padStart(2, "0");
@@ -40,32 +52,30 @@ export function isSameOrBefore(a: string, b: string): boolean {
   return a <= b;
 }
 
-const WEEKDAY_LABELS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
-const MONTH_LABELS = [
-  "Januar",
-  "Februar",
-  "März",
-  "April",
-  "Mai",
-  "Juni",
-  "Juli",
-  "August",
-  "September",
-  "Oktober",
-  "November",
-  "Dezember",
-];
-
-export function weekdayLabel(iso: string): string {
-  return WEEKDAY_LABELS[parseIsoDate(iso).getUTCDay()];
+/**
+ * Locale-aware short weekday label ("Mo"/"Mon", ...), via Intl rather than
+ * a hardcoded German array - see this file's own doc comment on why
+ * `locale` always defaults to "de".
+ */
+export function weekdayLabel(iso: string, locale: Locale = "de"): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), { weekday: "short", timeZone: "UTC" }).format(parseIsoDate(iso));
 }
 
 export function dayOfMonth(iso: string): number {
   return parseIsoDate(iso).getUTCDate();
 }
 
-export function monthLabel(month: number): string {
-  return MONTH_LABELS[month - 1];
+export function monthLabel(month: number, locale: Locale = "de"): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), { month: "long", timeZone: "UTC" }).format(
+    new Date(Date.UTC(2000, month - 1, 1))
+  );
+}
+
+/** Locale-aware short month label ("Jan"/"Jan", "Mär"/"Mar", ...), for compact axis labels like the Statistiken trend chart. */
+export function monthShortLabel(month: number, locale: Locale = "de"): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), { month: "short", timeZone: "UTC" }).format(
+    new Date(Date.UTC(2000, month - 1, 1))
+  );
 }
 
 /** Short "dd.MM." label without year, e.g. for compact arrival/departure lists. */
@@ -76,24 +86,37 @@ export function formatDayMonth(iso: string): string {
   return `${day}.${month}.`;
 }
 
-/** Long "9. September" label, e.g. for "Heute, 9. September". */
-export function formatLongDayMonth(iso: string): string {
-  return `${dayOfMonth(iso)}. ${monthLabel(parseIsoDate(iso).getUTCMonth() + 1)}`;
+/** Long "9. September"/"September 9" label, e.g. for "Heute, 9. September"/"Today, September 9". */
+export function formatLongDayMonth(iso: string, locale: Locale = "de"): string {
+  const month = monthLabel(parseIsoDate(iso).getUTCMonth() + 1, locale);
+  return locale === "en" ? `${month} ${dayOfMonth(iso)}` : `${dayOfMonth(iso)}. ${month}`;
 }
 
 /**
- * "10.–14. September 2026" style range for a reservation tooltip. Falls back
- * to naming both months when the stay crosses one.
+ * "10.–14. September 2026" / "September 10–14, 2026" style range for a
+ * reservation tooltip. Falls back to naming both months when the stay
+ * crosses one.
  */
-export function formatDateRange(checkIn: string, checkOut: string): string {
+export function formatDateRange(checkIn: string, checkOut: string, locale: Locale = "de"): string {
   const start = parseIsoDate(checkIn);
   const end = parseIsoDate(checkOut);
   const sameMonth = start.getUTCFullYear() === end.getUTCFullYear() && start.getUTCMonth() === end.getUTCMonth();
-  if (sameMonth) {
-    return `${start.getUTCDate()}.–${end.getUTCDate()}. ${monthLabel(end.getUTCMonth() + 1)} ${end.getUTCFullYear()}`;
+
+  if (locale === "en") {
+    const endMonth = monthLabel(end.getUTCMonth() + 1, locale);
+    if (sameMonth) {
+      return `${endMonth} ${start.getUTCDate()}–${end.getUTCDate()}, ${end.getUTCFullYear()}`;
+    }
+    const startMonth = monthLabel(start.getUTCMonth() + 1, locale);
+    return `${startMonth} ${start.getUTCDate()} – ${endMonth} ${end.getUTCDate()}, ${end.getUTCFullYear()}`;
   }
-  return `${start.getUTCDate()}. ${monthLabel(start.getUTCMonth() + 1)} – ${end.getUTCDate()}. ${monthLabel(
-    end.getUTCMonth() + 1
+
+  if (sameMonth) {
+    return `${start.getUTCDate()}.–${end.getUTCDate()}. ${monthLabel(end.getUTCMonth() + 1, locale)} ${end.getUTCFullYear()}`;
+  }
+  return `${start.getUTCDate()}. ${monthLabel(start.getUTCMonth() + 1, locale)} – ${end.getUTCDate()}. ${monthLabel(
+    end.getUTCMonth() + 1,
+    locale
   )} ${end.getUTCFullYear()}`;
 }
 

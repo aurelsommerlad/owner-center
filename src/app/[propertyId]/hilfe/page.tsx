@@ -1,10 +1,16 @@
 import { PlaceholderPage } from "@/components/ui/PlaceholderPage";
+import { getOwnerLocale } from "@/server/locale";
+import { getDictionary, createTranslator } from "@/i18n";
 
-export default function HilfePage() {
+export default async function HilfePage() {
+  const locale = await getOwnerLocale();
+  const t = createTranslator(getDictionary(locale));
+
   return (
     <PlaceholderPage
-      title="Hilfe & Kontakt"
-      description="Ihr Ansprechpartner bei UNIQUE PLACES und häufige Fragen finden Sie in Kürze an dieser Stelle."
+      title={t("help.title")}
+      description={t("help.description")}
+      inPreparationLabel={t("common.inPreparation")}
     />
   );
 }

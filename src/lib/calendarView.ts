@@ -14,6 +14,7 @@ import {
   startOfWeek,
 } from "./dates";
 import type { DateRange } from "./occupancy";
+import type { Locale } from "@/i18n";
 
 export type CalendarViewType = "month" | "twoWeeks" | "week";
 
@@ -33,7 +34,7 @@ function windowLengthDays(view: CalendarViewType): number {
   return view === "week" ? 7 : 14;
 }
 
-export function getCalendarWindow(view: CalendarViewType, rawAnchor: string): CalendarWindow {
+export function getCalendarWindow(view: CalendarViewType, rawAnchor: string, locale: Locale = "de"): CalendarWindow {
   const anchor = normalizeAnchor(view, rawAnchor);
 
   if (view === "month") {
@@ -43,7 +44,7 @@ export function getCalendarWindow(view: CalendarViewType, rawAnchor: string): Ca
       view,
       anchor,
       range: { start: anchor, endExclusive },
-      label: `${monthLabel(date.getUTCMonth() + 1)} ${date.getUTCFullYear()}`,
+      label: `${monthLabel(date.getUTCMonth() + 1, locale)} ${date.getUTCFullYear()}`,
     };
   }
 

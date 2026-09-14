@@ -1,10 +1,16 @@
 import { PlaceholderPage } from "@/components/ui/PlaceholderPage";
+import { getOwnerLocale } from "@/server/locale";
+import { getDictionary, createTranslator } from "@/i18n";
 
-export default function DokumentePage() {
+export default async function DokumentePage() {
+  const locale = await getOwnerLocale();
+  const t = createTranslator(getDictionary(locale));
+
   return (
     <PlaceholderPage
-      title="Dokumente"
-      description="Die vollständige Dokumentenablage nach Kategorien folgt in einem der nächsten Schritte."
+      title={t("documents.title")}
+      description={t("documents.description")}
+      inPreparationLabel={t("common.inPreparation")}
     />
   );
 }

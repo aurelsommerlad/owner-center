@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentOwner } from "@/services/ownerService";
 import { getPropertiesForOwner } from "@/services/propertyService";
+import { getOwnerLocale } from "@/server/locale";
+import { getDictionary, createTranslator } from "@/i18n";
 
 export default async function RootPage() {
   const owner = await getCurrentOwner();
@@ -8,12 +10,10 @@ export default async function RootPage() {
   const defaultProperty = properties[0];
 
   if (!defaultProperty) {
+    const t = createTranslator(getDictionary(await getOwnerLocale()));
     return (
       <main className="flex min-h-screen items-center justify-center bg-paper px-6 text-center">
-        <p className="text-ink-soft">
-          Für Ihr Konto ist aktuell kein Objekt hinterlegt. Bitte wenden Sie sich an UNIQUE
-          PLACES.
-        </p>
+        <p className="text-ink-soft">{t("common.noPropertyForAccount")}</p>
       </main>
     );
   }

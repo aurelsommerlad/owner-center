@@ -42,6 +42,13 @@ model User {
   /// Display name for admin-role users only (shown in the admin header).
   /// Owner-role users display OwnerUser.firstName/lastName instead.
   name         String?
+  /// "de" | "en" - the Owner Center's UI language for this login, chosen via
+  /// the sidebar language switcher (see src/server/locale.ts). Only ever
+  /// read/written for role "owner" - admin-role rows carry the same column
+  /// (no separate table) but nothing in /admin reads it, since /admin stays
+  /// German-only. Defaults to "de" so every existing row (and the admin
+  /// area) keeps its current behavior unchanged.
+  locale       String   @default("de")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

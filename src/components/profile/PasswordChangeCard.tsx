@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { changePasswordAction } from "@/app/[propertyId]/profil/actions";
 import { PROFILE_INPUT_CLASS, PROFILE_LABEL_CLASS } from "./formStyles";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 export function PasswordChangeCard() {
+  const { t } = useTranslations();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -26,10 +28,10 @@ export function PasswordChangeCard() {
 
   return (
     <div className="mt-4">
-      <p className="text-sm font-medium text-ink">Passwort ändern</p>
+      <p className="text-sm font-medium text-ink">{t("profile.changePassword")}</p>
       <form key={formKey} action={handleSubmit} className="mt-3 flex flex-col gap-3 sm:max-w-sm">
         <label className="flex flex-col gap-1.5">
-          <span className={PROFILE_LABEL_CLASS}>Aktuelles Passwort</span>
+          <span className={PROFILE_LABEL_CLASS}>{t("profile.currentPassword")}</span>
           <input
             type="password"
             name="currentPassword"
@@ -39,7 +41,7 @@ export function PasswordChangeCard() {
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={PROFILE_LABEL_CLASS}>Neues Passwort</span>
+          <span className={PROFILE_LABEL_CLASS}>{t("profile.newPassword")}</span>
           <input
             type="password"
             name="newPassword"
@@ -50,7 +52,7 @@ export function PasswordChangeCard() {
           />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={PROFILE_LABEL_CLASS}>Neues Passwort wiederholen</span>
+          <span className={PROFILE_LABEL_CLASS}>{t("profile.repeatNewPassword")}</span>
           <input
             type="password"
             name="newPasswordConfirm"
@@ -68,7 +70,7 @@ export function PasswordChangeCard() {
             disabled={pending}
             className="rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {pending ? "Speichert…" : "Passwort ändern"}
+            {pending ? t("common.saving") : t("profile.changePassword")}
           </button>
         </div>
       </form>

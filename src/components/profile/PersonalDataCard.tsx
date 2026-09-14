@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { updateProfileAction } from "@/app/[propertyId]/profil/actions";
 import { PROFILE_INPUT_CLASS, PROFILE_LABEL_CLASS } from "./formStyles";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -29,6 +30,7 @@ export function PersonalDataCard({
   ownerName: string;
   ownerCompanyName?: string;
 }) {
+  const { t } = useTranslations();
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,9 +60,9 @@ export function PersonalDataCard({
     return (
       <div className="mt-4">
         <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-          <Field label="Name" value={`${current.firstName} ${current.lastName}`} />
-          <Field label="E-Mail" value={current.email} />
-          <Field label="Eigentümer/Firma" value={ownerCompanyName ?? ownerName} />
+          <Field label={t("profile.name")} value={`${current.firstName} ${current.lastName}`} />
+          <Field label={t("profile.email")} value={current.email} />
+          <Field label={t("profile.ownerCompany")} value={ownerCompanyName ?? ownerName} />
         </div>
         <div className="mt-4 flex items-center gap-3 border-t border-line pt-4">
           <button
@@ -68,7 +70,7 @@ export function PersonalDataCard({
             onClick={() => setEditing(true)}
             className="rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-colors hover:border-ink hover:text-ink"
           >
-            Bearbeiten
+            {t("common.edit")}
           </button>
           {message && <span className="text-xs text-ink-soft">{message}</span>}
         </div>
@@ -80,15 +82,15 @@ export function PersonalDataCard({
     <form action={handleSubmit} className="mt-4 flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5">
-          <span className={PROFILE_LABEL_CLASS}>Vorname</span>
+          <span className={PROFILE_LABEL_CLASS}>{t("profile.firstName")}</span>
           <input name="firstName" required defaultValue={current.firstName} className={PROFILE_INPUT_CLASS} />
         </label>
         <label className="flex flex-col gap-1.5">
-          <span className={PROFILE_LABEL_CLASS}>Nachname</span>
+          <span className={PROFILE_LABEL_CLASS}>{t("profile.lastName")}</span>
           <input name="lastName" required defaultValue={current.lastName} className={PROFILE_INPUT_CLASS} />
         </label>
         <label className="flex flex-col gap-1.5 sm:col-span-2">
-          <span className={PROFILE_LABEL_CLASS}>E-Mail</span>
+          <span className={PROFILE_LABEL_CLASS}>{t("profile.email")}</span>
           <input type="email" name="email" required defaultValue={current.email} className={PROFILE_INPUT_CLASS} />
         </label>
       </div>
@@ -102,14 +104,14 @@ export function PersonalDataCard({
           }}
           className="rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-colors hover:border-ink hover:text-ink"
         >
-          Abbrechen
+          {t("common.cancel")}
         </button>
         <button
           type="submit"
           disabled={pending}
           className="rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "Speichert…" : "Speichern"}
+          {pending ? t("common.saving") : t("common.save")}
         </button>
       </div>
     </form>

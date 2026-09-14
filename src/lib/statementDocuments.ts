@@ -1,5 +1,6 @@
 import type { StatementDocument, StatementDocumentType } from "@/types";
 import { monthLabel } from "@/lib/dates";
+import { getDictionary, type Locale } from "@/i18n";
 
 /**
  * A statement counts as unseen - and is shown as "Neu" - until it has been
@@ -16,21 +17,28 @@ export function isDownloadedStatementDocument(document: StatementDocument): bool
   return document.downloadCount > 0 && document.lastDownloadedAt !== null;
 }
 
-export const STATEMENT_DOCUMENT_TYPE_LABEL: Record<StatementDocumentType, string> = {
-  owner_report: "Eigentümerreporting",
-  invoice: "Rechnung",
-  credit_note: "Gutschrift",
-  other: "Weiteres Dokument",
-};
+/** Locale-aware label for the three fachlich defined document types, via the shared dictionary (see @/i18n) - not a second, separately-maintained label map. */
+export function statementDocumentTypeLabel(type: StatementDocumentType, locale: Locale = "de"): string {
+  const dict = getDictionary(locale).statements;
+  const labels: Record<StatementDocumentType, string> = {
+    owner_report: dict.ownerReport,
+    invoice: dict.invoice,
+    credit_note: dict.creditNote,
+    other: dict.otherDocument,
+  };
+  return labels[type];
+}
 
 /**
  * The three fachlich defined types always display their fixed label. Only
  * "other" documents show their specific stored `title` (e.g. "Ergänzende
- * Unterlage"), since the generic "Weiteres Dokument" label alone wouldn't
- * distinguish several such documents in the same month.
+ * Unterlage"), since the generic "Weiteres Dokument"/"Other document" label
+ * alone wouldn't distinguish several such documents in the same month -
+ * that stored title is document CONTENT, never machine-translated (see
+ * this module's callers).
  */
-export function statementDocumentDisplayTitle(document: StatementDocument): string {
-  return document.documentType === "other" ? document.title : STATEMENT_DOCUMENT_TYPE_LABEL[document.documentType];
+export function statementDocumentDisplayTitle(document: StatementDocument, locale: Locale = "de"): string {
+  return document.documentType === "other" ? document.title : statementDocumentTypeLabel(document.documentType, locale);
 }
 
 /** Fixed display order for the two "standard" documents alongside the owner report. */
@@ -82,6 +90,6 @@ export function groupStatementDocumentsByMonth(documents: StatementDocument[]): 
     });
 }
 
-export function statementMonthGroupLabel(group: { year: number; month: number }): string {
-  return `${monthLabel(group.month)} ${group.year}`;
+export function statementMonthGroupLabel(group: { year: number; month: number }, locale: Locale = "de"): string {
+  return `${monthLabel(group.month, locale)} ${group.year}`;
 }

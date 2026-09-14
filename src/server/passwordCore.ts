@@ -40,10 +40,18 @@ export const NO_PASSWORD_SET_HASH = "invitation-pending-no-password-set";
 
 export const MIN_PASSWORD_LENGTH = 10;
 
-/** Returns a user-facing German error, or null if the password is acceptable. Deliberately simple - length only, no arbitrary complexity rules. */
-export function passwordStrengthError(password: string): string | null {
+/**
+ * Returns a user-facing locale-aware error, or null if the password is
+ * acceptable. Deliberately simple - length only, no arbitrary complexity
+ * rules. `locale` defaults to "de" so `prisma/seed.ts` (a plain Node/tsx
+ * script, not part of the i18n-aware app) keeps its original German
+ * behaviour without needing to import `@/i18n` itself.
+ */
+export function passwordStrengthError(password: string, locale: "de" | "en" = "de"): string | null {
   if (password.length < MIN_PASSWORD_LENGTH) {
-    return `Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`;
+    return locale === "en"
+      ? `The password must be at least ${MIN_PASSWORD_LENGTH} characters long.`
+      : `Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`;
   }
   return null;
 }

@@ -1,16 +1,18 @@
 import type { CalendarStats } from "@/services/calendarService";
 import { formatPercent } from "@/lib/format";
+import { getDictionary, createTranslator, type Locale } from "@/i18n";
 
-export function CalendarStatsBar({ stats }: { stats: CalendarStats }) {
+export function CalendarStatsBar({ stats, locale = "de" }: { stats: CalendarStats; locale?: Locale }) {
+  const t = createTranslator(getDictionary(locale));
   const tiles = [
-    { label: "Auslastung", value: formatPercent(stats.occupancyPct) },
+    { label: t("calendar.occupancyTile"), value: formatPercent(stats.occupancyPct, 0, locale) },
     {
-      label: "Einheiten heute belegt",
+      label: t("calendar.unitsOccupiedTodayTile"),
       value: `${stats.unitsOccupiedToday} / ${stats.unitsTotal}`,
     },
-    { label: "Anreisen (7 Tage)", value: String(stats.arrivalsNext7Days) },
-    { label: "Abreisen (7 Tage)", value: String(stats.departuresNext7Days) },
-    { label: "Freie Nächte", value: String(stats.freeNights) },
+    { label: t("calendar.arrivalsNext7Tile"), value: String(stats.arrivalsNext7Days) },
+    { label: t("calendar.departuresNext7Tile"), value: String(stats.departuresNext7Days) },
+    { label: t("calendar.freeNightsTile"), value: String(stats.freeNights) },
   ];
 
   return (

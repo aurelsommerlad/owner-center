@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import type { OverviewPeriod } from "@/services/overviewService";
+import { monthLabel } from "@/lib/dates";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
-const OPTIONS: Array<{ value: OverviewPeriod; label: string }> = [
-  { value: "month", label: "September 2026" },
-  { value: "year", label: "Jahr 2026" },
-];
+// Mock data is anchored to September 2026 (see lib/config.ts#MOCK_TODAY) -
+// only the label text is locale-aware, the underlying period is unchanged.
+const MOCK_MONTH = 9;
+const MOCK_YEAR = 2026;
 
 export function PeriodFilter({
   propertyId,
@@ -16,10 +18,16 @@ export function PeriodFilter({
   period: OverviewPeriod;
 }) {
   const router = useRouter();
+  const { t, locale } = useTranslations();
+
+  const options: Array<{ value: OverviewPeriod; label: string }> = [
+    { value: "month", label: `${monthLabel(MOCK_MONTH, locale)} ${MOCK_YEAR}` },
+    { value: "year", label: t("overview.year", { year: MOCK_YEAR }) },
+  ];
 
   return (
     <div className="inline-flex items-center gap-0.5 rounded-full border border-line bg-paper p-1">
-      {OPTIONS.map((option) => {
+      {options.map((option) => {
         const active = option.value === period;
         return (
           <button

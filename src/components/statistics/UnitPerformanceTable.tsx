@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Unit, UnitStatistics } from "@/types";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 export interface UnitPerformanceRow {
   unit: Unit;
@@ -11,19 +12,20 @@ export interface UnitPerformanceRow {
 
 type SortKey = "name" | "occupancyPct" | "revenue" | "adr" | "revPar" | "bookings" | "avgStayNights";
 
-const COLUMNS: Array<{ key: SortKey; label: string }> = [
-  { key: "name", label: "Einheit" },
-  { key: "occupancyPct", label: "Auslastung" },
-  { key: "revenue", label: "Buchungsumsatz" },
-  { key: "adr", label: "ADR" },
-  { key: "revPar", label: "RevPAR" },
-  { key: "bookings", label: "Buchungen" },
-  { key: "avgStayNights", label: "Ø Aufenthaltsdauer" },
-];
-
 export function UnitPerformanceTable({ rows }: { rows: UnitPerformanceRow[] }) {
+  const { locale, t } = useTranslations();
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [direction, setDirection] = useState<1 | -1>(1);
+
+  const columns: Array<{ key: SortKey; label: string }> = [
+    { key: "name", label: t("statistics.unit") },
+    { key: "occupancyPct", label: t("statistics.occupancy") },
+    { key: "revenue", label: t("statistics.bookingRevenue") },
+    { key: "adr", label: t("statistics.adr") },
+    { key: "revPar", label: t("statistics.revPar") },
+    { key: "bookings", label: t("statistics.bookings") },
+    { key: "avgStayNights", label: t("statistics.avgStay") },
+  ];
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -45,7 +47,7 @@ export function UnitPerformanceTable({ rows }: { rows: UnitPerformanceRow[] }) {
       <table className="w-full min-w-[720px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-line text-left text-[11px] uppercase tracking-[0.06em] text-ink-soft">
-            {COLUMNS.map((column, index) => (
+            {columns.map((column, index) => (
               <th key={column.key} className={`py-2.5 font-medium ${index > 0 ? "text-right" : ""}`}>
                 <button
                   type="button"
@@ -66,18 +68,20 @@ export function UnitPerformanceTable({ rows }: { rows: UnitPerformanceRow[] }) {
             <tr key={unit.id}>
               <td className="whitespace-nowrap py-3 font-medium text-ink">{unit.name}</td>
               <td className="whitespace-nowrap py-3 text-right text-ink-soft">
-                {formatPercent(stats.occupancyPct)}
+                {formatPercent(stats.occupancyPct, 0, locale)}
               </td>
               <td className="whitespace-nowrap py-3 text-right text-ink-soft">
-                {formatCurrency(stats.revenue)}
+                {formatCurrency(stats.revenue, "EUR", 2, locale)}
               </td>
-              <td className="whitespace-nowrap py-3 text-right text-ink-soft">{formatCurrency(stats.adr)}</td>
               <td className="whitespace-nowrap py-3 text-right text-ink-soft">
-                {formatCurrency(stats.revPar)}
+                {formatCurrency(stats.adr, "EUR", 2, locale)}
+              </td>
+              <td className="whitespace-nowrap py-3 text-right text-ink-soft">
+                {formatCurrency(stats.revPar, "EUR", 2, locale)}
               </td>
               <td className="whitespace-nowrap py-3 text-right text-ink-soft">{stats.bookings}</td>
               <td className="whitespace-nowrap py-3 text-right text-ink-soft">
-                {formatNumber(stats.avgStayNights, 1)} Nächte
+                {formatNumber(stats.avgStayNights, 1, locale)} {t("statistics.nights")}
               </td>
             </tr>
           ))}

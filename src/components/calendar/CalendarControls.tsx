@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import type { Unit } from "@/types";
 import { shiftAnchor, type CalendarViewType } from "@/lib/calendarView";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui/icons";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 interface CalendarControlsProps {
   propertyId: string;
@@ -14,12 +15,6 @@ interface CalendarControlsProps {
   selectedUnitId?: string;
   today: string;
 }
-
-const VIEW_OPTIONS: Array<{ value: CalendarViewType; label: string }> = [
-  { value: "month", label: "Monat" },
-  { value: "twoWeeks", label: "14 Tage" },
-  { value: "week", label: "Woche" },
-];
 
 function buildQuery(view: CalendarViewType, anchor: string, unitId?: string): string {
   const params = new URLSearchParams({ view, anchor });
@@ -37,6 +32,13 @@ export function CalendarControls({
   today,
 }: CalendarControlsProps) {
   const router = useRouter();
+  const { t } = useTranslations();
+
+  const viewOptions: Array<{ value: CalendarViewType; label: string }> = [
+    { value: "month", label: t("calendar.month") },
+    { value: "twoWeeks", label: t("calendar.twoWeeks") },
+    { value: "week", label: t("calendar.week") },
+  ];
 
   function go(nextView: CalendarViewType, nextAnchor: string) {
     router.push(`/${propertyId}/kalender?${buildQuery(nextView, nextAnchor, selectedUnitId)}`);
@@ -70,7 +72,7 @@ export function CalendarControls({
         <button
           type="button"
           onClick={goToPrevious}
-          aria-label="Vorheriger Zeitraum"
+          aria-label={t("common.previousPeriod")}
           className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink-soft transition-colors hover:border-ink hover:text-ink"
         >
           <ChevronLeftIcon className="h-4 w-4" />
@@ -79,7 +81,7 @@ export function CalendarControls({
         <button
           type="button"
           onClick={goToNext}
-          aria-label="Nächster Zeitraum"
+          aria-label={t("common.nextPeriod")}
           className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink-soft transition-colors hover:border-ink hover:text-ink"
         >
           <ChevronRightIcon className="h-4 w-4" />
@@ -89,13 +91,13 @@ export function CalendarControls({
           onClick={goToToday}
           className="ml-1 rounded-full border border-line px-3.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-ink hover:text-ink"
         >
-          Heute
+          {t("common.today")}
         </button>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex items-center gap-0.5 rounded-full border border-line bg-paper p-1">
-          {VIEW_OPTIONS.map((option) => {
+          {viewOptions.map((option) => {
             const active = option.value === view;
             return (
               <button
@@ -118,7 +120,7 @@ export function CalendarControls({
           onChange={(event) => onUnitChange(event.target.value)}
           className="rounded-full border border-line bg-paper px-3.5 py-2 text-xs font-medium text-ink-soft outline-none transition-colors hover:border-ink focus:border-ink"
         >
-          <option value="all">Alle Einheiten</option>
+          <option value="all">{t("calendar.allUnits")}</option>
           {units.map((unit) => (
             <option key={unit.id} value={unit.id}>
               {unit.name}

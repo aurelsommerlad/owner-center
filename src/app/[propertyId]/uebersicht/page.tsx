@@ -24,6 +24,8 @@ import { monthLabel, parseIsoDate } from "@/lib/dates";
 import { ownerPortalToday } from "@/server/services/ownerPortal/today";
 import { hadOwnerPortalDataError } from "@/server/services/ownerPortal/errorState";
 import { DataUnavailableNotice } from "@/components/ui/DataUnavailableNotice";
+import { getOwnerLocale } from "@/server/locale";
+import { getDictionary, createTranslator } from "@/i18n";
 
 export default async function UebersichtPage({
   params,
@@ -39,11 +41,15 @@ export default async function UebersichtPage({
   const property = await getProperty(propertyId);
   if (!property) notFound();
 
+  const locale = await getOwnerLocale();
+  const dict = getDictionary(locale);
+  const t = createTranslator(dict);
+
   const todayDate = parseIsoDate(ownerPortalToday());
   const periodLabel =
     period === "year"
-      ? `Jahr ${todayDate.getUTCFullYear()}`
-      : `${monthLabel(todayDate.getUTCMonth() + 1)} ${todayDate.getUTCFullYear()}`;
+      ? t("overview.year", { year: todayDate.getUTCFullYear() })
+      : `${monthLabel(todayDate.getUTCMonth() + 1, locale)} ${todayDate.getUTCFullYear()}`;
 
   const [kpis, preview, arrivalsDepartures, todayStatus, unitStatusOverview, statements, documents] =
     await Promise.all([
@@ -59,8 +65,8 @@ export default async function UebersichtPage({
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
-      <HeroSection property={property} periodLabel={periodLabel} />
-      {dataError && <DataUnavailableNotice />}
+      <HeroSection property={property} periodLabel={periodLabel} subtitle={t("overview.performanceOverview")} />
+      {dataError && <DataUnavailableNotice text={t("common.dataUnavailable")} />}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PeriodFilter propertyId={propertyId} period={period} />
@@ -68,31 +74,33 @@ export default async function UebersichtPage({
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
-          label="Auslastung"
-          value={formatPercent(kpis.occupancyPct)}
+          label={t("overview.occupancy")}
+          value={formatPercent(kpis.occupancyPct, 0, locale)}
           deltaPoints={
             kpis.occupancyPctPreviousYear !== undefined
               ? kpis.occupancyPct - kpis.occupancyPctPreviousYear
               : undefined
           }
           deltaFractionDigits={1}
-          deltaSuffix=" %"
-          deltaLabel="zum Vorjahr"
+          deltaSuffix={locale === "en" ? "%" : " %"}
+          deltaLabel={t("overview.vsLastYear")}
+          locale={locale}
         />
         <KpiCard
-          label="Buchungsumsatz"
-          value={formatCurrency(kpis.revenue)}
+          label={t("overview.bookingRevenue")}
+          value={formatCurrency(kpis.revenue, "EUR", 2, locale)}
           deltaPoints={
             kpis.revenuePreviousYear
               ? ((kpis.revenue - kpis.revenuePreviousYear) / kpis.revenuePreviousYear) * 100
               : undefined
           }
           deltaFractionDigits={1}
-          deltaSuffix=" %"
-          deltaLabel="zum Vorjahr"
+          deltaSuffix={locale === "en" ? "%" : " %"}
+          deltaLabel={t("overview.vsLastYear")}
+          locale={locale}
         />
         <KpiCard
-          label="Buchungen"
+          label={t("overview.bookings")}
           value={String(kpis.bookingsCount)}
           deltaPoints={
             kpis.bookingsCountPreviousYear !== undefined
@@ -100,36 +108,43 @@ export default async function UebersichtPage({
               : undefined
           }
           deltaFractionDigits={0}
-          deltaLabel="Buchungen zum Vorjahr"
+          deltaLabel={t("overview.bookingsVsLastYear")}
+          locale={locale}
         />
         <KpiCard
-          label="Ø Aufenthaltsdauer"
-          value={`${formatNumber(kpis.avgStayNights, 1)} Nächte`}
+          label={t("overview.avgStay")}
+          value={`${formatNumber(kpis.avgStayNights, 1, locale)} ${t("overview.nights")}`}
           deltaPoints={
             kpis.avgStayNightsPreviousYear !== undefined
               ? kpis.avgStayNights - kpis.avgStayNightsPreviousYear
               : undefined
           }
           deltaFractionDigits={1}
-          deltaLabel="Nächte zum Vorjahr"
+          deltaLabel={t("overview.nightsVsLastYear")}
+          locale={locale}
         />
       </div>
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <OccupancyPreviewCard preview={preview} propertyId={propertyId} today={ownerPortalToday()} />
+          <OccupancyPreviewCard preview={preview} propertyId={propertyId} today={ownerPortalToday()} locale={locale} />
         </div>
         <div className="flex flex-col gap-5">
-          <TodayStatusCard status={todayStatus} />
-          <ArrivalsDeparturesCard summary={arrivalsDepartures} propertyId={propertyId} today={ownerPortalToday()} />
+          <TodayStatusCard status={todayStatus} locale={locale} />
+          <ArrivalsDeparturesCard
+            summary={arrivalsDepartures}
+            propertyId={propertyId}
+            today={ownerPortalToday()}
+            locale={locale}
+          />
         </div>
       </div>
 
-      <UnitStatusOverviewCard overview={unitStatusOverview} propertyId={propertyId} />
+      <UnitStatusOverviewCard overview={unitStatusOverview} propertyId={propertyId} locale={locale} />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <RecentStatements statements={statements} propertyId={propertyId} />
-        <DocumentsPreview documents={documents.slice(0, 4)} propertyId={propertyId} />
+        <RecentStatements statements={statements} propertyId={propertyId} locale={locale} />
+        <DocumentsPreview documents={documents.slice(0, 4)} propertyId={propertyId} locale={locale} />
       </div>
     </div>
   );

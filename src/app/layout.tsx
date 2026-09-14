@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Fraunces } from "next/font/google";
 import "./globals.css";
+import { getPublicLocale } from "@/server/locale";
+import { getDictionary } from "@/i18n";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -16,18 +18,25 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "UNIQUE PLACES | Eigentümerportal",
-  description: "Übersicht über Ihre Objekte, Belegung und Abrechnungen bei UNIQUE PLACES.",
-};
+/**
+ * Resolved via the same cookie-based getPublicLocale() the login/invite
+ * pages use (cheap, no DB call, no session required) rather than
+ * getOwnerLocale() - the root layout wraps /admin too, which never sets the
+ * locale cookie, so it always falls back to its existing German default.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const dict = getDictionary(await getPublicLocale());
+  return { title: dict.common.metaTitle, description: dict.common.metaDescription };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getPublicLocale();
   return (
-    <html lang="de" data-scroll-behavior="smooth">
+    <html lang={locale} data-scroll-behavior="smooth">
       <body className={`${inter.variable} ${fraunces.variable} font-sans antialiased`}>
         {children}
       </body>

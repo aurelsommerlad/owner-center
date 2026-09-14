@@ -7,11 +7,14 @@ import { usePathname } from "next/navigation";
 import { CloseIcon, MenuIcon } from "@/components/ui/icons";
 import { FOOTER_NAV, LOGOUT_ITEM, MAIN_NAV, navHref } from "./navigation";
 import { logoutAction } from "@/app/actions";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 
 export function MobileNav({ propertyId }: { propertyId: string }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const activeSegment = pathname.split("/")[2] ?? "uebersicht";
+  const { t } = useTranslations();
 
   const [lastPathname, setLastPathname] = useState(pathname);
   if (pathname !== lastPathname) {
@@ -32,7 +35,7 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
         type="button"
         onClick={() => setOpen(true)}
         className="flex h-10 w-10 items-center justify-center rounded-full border border-line text-ink lg:hidden"
-        aria-label="Menü öffnen"
+        aria-label={t("common.menuOpen")}
       >
         <MenuIcon className="h-5 w-5" />
       </button>
@@ -42,23 +45,23 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
           <div className="fixed inset-0 z-50 lg:hidden">
             <button
               type="button"
-              aria-label="Menü schließen"
+              aria-label={t("common.menuClose")}
               className="absolute inset-0 bg-ink/40"
               onClick={() => setOpen(false)}
             />
             <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-paper px-5 py-6 shadow-soft-lg">
               <div className="mb-8 flex items-center justify-between px-1">
                 <div>
-                  <span className="font-sans text-sm font-medium tracking-[0.14em] text-ink">UNIQUE PLACES</span>
+                  <span className="font-sans text-sm font-medium tracking-[0.14em] text-ink">{t("nav.brand")}</span>
                   <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-ink-soft/70">
-                    Eigentümerportal
+                    {t("nav.brandSubtitleMobile")}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
                   className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink"
-                  aria-label="Menü schließen"
+                  aria-label={t("common.menuClose")}
                 >
                   <CloseIcon className="h-4 w-4" />
                 </button>
@@ -77,7 +80,7 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
                       }`}
                     >
                       <Icon className={`h-5 w-5 ${active ? "text-paper" : "text-ink-soft/70"}`} />
-                      {item.label}
+                      {t(item.translationKey)}
                     </Link>
                   );
                 })}
@@ -96,7 +99,7 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
                       }`}
                     >
                       <Icon className={`h-5 w-5 ${active ? "text-paper" : "text-ink-soft/70"}`} />
-                      {item.label}
+                      {t(item.translationKey)}
                     </Link>
                   );
                 })}
@@ -106,9 +109,12 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
                     className="flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left text-[15px] text-ink-soft"
                   >
                     <LOGOUT_ITEM.icon className="h-5 w-5 text-ink-soft/70" />
-                    {LOGOUT_ITEM.label}
+                    {t(LOGOUT_ITEM.translationKey)}
                   </button>
                 </form>
+                <div className="px-3.5 pt-2">
+                  <LanguageSwitcher />
+                </div>
               </div>
             </div>
           </div>,

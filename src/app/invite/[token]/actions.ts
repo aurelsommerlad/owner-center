@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { hashPassword, passwordStrengthError } from "@/server/password";
 import { acceptInvitation, lookupInvitationByToken } from "@/server/invitations";
+import { getDictionary, createTranslator, type Locale } from "@/i18n";
 
 export interface AcceptInvitationResult {
   ok: boolean;
@@ -17,13 +18,18 @@ export interface AcceptInvitationResult {
  * an atomic transaction rather than trusting the page-load check that
  * rendered the form).
  */
-export async function acceptInvitationAction(token: string, formData: FormData): Promise<AcceptInvitationResult> {
+export async function acceptInvitationAction(
+  token: string,
+  formData: FormData,
+  locale: Locale = "de"
+): Promise<AcceptInvitationResult> {
+  const t = createTranslator(getDictionary(locale));
   const password = String(formData.get("password") ?? "");
   const passwordConfirm = String(formData.get("passwordConfirm") ?? "");
 
-  const strengthError = passwordStrengthError(password);
+  const strengthError = passwordStrengthError(password, locale);
   if (strengthError) return { ok: false, message: strengthError };
-  if (password !== passwordConfirm) return { ok: false, message: "Die Passwörter stimmen nicht überein." };
+  if (password !== passwordConfirm) return { ok: false, message: t("invite.passwordsDontMatch") };
 
   // Re-check right before writing too (not just relying on the page's
   // earlier lookup) so a link that expired/was revoked/was already used in
@@ -31,24 +37,24 @@ export async function acceptInvitationAction(token: string, formData: FormData):
   // right message, matching what a fresh page load would show.
   const lookup = await lookupInvitationByToken(token);
   if (lookup.status === "not_found") {
-    return { ok: false, message: "Dieser Einladungslink ist ungültig." };
+    return { ok: false, message: t("invite.invalidLink") };
   }
   if (lookup.status === "expired" || lookup.status === "revoked") {
-    return { ok: false, message: "Diese Einladung ist nicht mehr gültig. Bitte wenden Sie sich an UNIQUE PLACES." };
+    return { ok: false, message: t("invite.expiredOrRevoked") };
   }
   if (lookup.status === "accepted") {
-    return { ok: false, message: "Diese Einladung wurde bereits verwendet." };
+    return { ok: false, message: t("invite.alreadyAccepted") };
   }
 
   const result = await acceptInvitation(token, hashPassword(password));
   if (!result.ok) {
     if (result.reason === "expired" || result.reason === "revoked") {
-      return { ok: false, message: "Diese Einladung ist nicht mehr gültig. Bitte wenden Sie sich an UNIQUE PLACES." };
+      return { ok: false, message: t("invite.expiredOrRevoked") };
     }
     if (result.reason === "accepted") {
-      return { ok: false, message: "Diese Einladung wurde bereits verwendet." };
+      return { ok: false, message: t("invite.alreadyAccepted") };
     }
-    return { ok: false, message: "Dieser Einladungslink ist ungültig." };
+    return { ok: false, message: t("invite.invalidLink") };
   }
 
   redirect("/login");

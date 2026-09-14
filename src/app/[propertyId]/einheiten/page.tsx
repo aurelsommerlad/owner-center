@@ -1,10 +1,16 @@
 import { PlaceholderPage } from "@/components/ui/PlaceholderPage";
+import { getOwnerLocale } from "@/server/locale";
+import { getDictionary, createTranslator } from "@/i18n";
 
-export default function EinheitenPage() {
+export default async function EinheitenPage() {
+  const locale = await getOwnerLocale();
+  const t = createTranslator(getDictionary(locale));
+
   return (
     <PlaceholderPage
-      title="Einheiten"
-      description="Die Einheitenübersicht mit Foto, Auslastung und Jahresumsatz je Einheit folgt in einem der nächsten Schritte."
+      title={t("units.title")}
+      description={t("units.description")}
+      inPreparationLabel={t("common.inPreparation")}
     />
   );
 }

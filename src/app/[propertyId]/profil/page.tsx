@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/Card";
 import { PersonalDataCard } from "@/components/profile/PersonalDataCard";
 import { PasswordChangeCard } from "@/components/profile/PasswordChangeCard";
 import { TeamUsersSection } from "@/components/profile/TeamUsersSection";
+import { getOwnerLocale } from "@/server/locale";
+import { getDictionary, createTranslator } from "@/i18n";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -38,17 +40,19 @@ export default async function ProfilPage({ params }: { params: Promise<{ propert
       : null;
 
   const profile = await getOwnerProfile(context.ownerId, self);
+  const locale = await getOwnerLocale();
+  const t = createTranslator(getDictionary(locale));
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <div>
-        <h1 className="font-display text-2xl italic text-ink sm:text-3xl">Profil</h1>
-        <p className="mt-1 text-sm text-ink-soft">Ihre Zugangsdaten und Ihr Team im Überblick.</p>
+        <h1 className="font-display text-2xl italic text-ink sm:text-3xl">{t("profile.title")}</h1>
+        <p className="mt-1 text-sm text-ink-soft">{t("profile.subtitle")}</p>
       </div>
 
       {/* Persönliche Daten */}
       <Card className="p-5 shadow-soft sm:p-6">
-        <h2 className="font-display text-lg italic text-ink">Persönliche Daten</h2>
+        <h2 className="font-display text-lg italic text-ink">{t("profile.personalData")}</h2>
         {profile.self ? (
           <PersonalDataCard
             propertyId={propertyId}
@@ -59,23 +63,20 @@ export default async function ProfilPage({ params }: { params: Promise<{ propert
         ) : (
           <div className="mt-4">
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-              <Field label="Eigentümer/Firma" value={profile.ownerCompanyName ?? profile.ownerName} />
+              <Field label={t("profile.ownerCompany")} value={profile.ownerCompanyName ?? profile.ownerName} />
             </div>
-            <p className="mt-4 text-sm text-ink-soft">
-              Persönliche Daten sind in der Admin-Vorschau nicht verfügbar, da hierfür kein eigener Nutzer-Zugang
-              besteht.
-            </p>
+            <p className="mt-4 text-sm text-ink-soft">{t("profile.notAvailableInPreviewPersonal")}</p>
           </div>
         )}
       </Card>
 
       {/* Zugang & Sicherheit */}
       <Card className="p-5 shadow-soft sm:p-6">
-        <h2 className="font-display text-lg italic text-ink">Zugang &amp; Sicherheit</h2>
+        <h2 className="font-display text-lg italic text-ink">{t("profile.accessSecurity")}</h2>
         {profile.self ? (
           <PasswordChangeCard />
         ) : (
-          <p className="mt-3 text-sm text-ink-soft">In der Admin-Vorschau nicht verfügbar.</p>
+          <p className="mt-3 text-sm text-ink-soft">{t("profile.notAvailableInPreview")}</p>
         )}
       </Card>
 

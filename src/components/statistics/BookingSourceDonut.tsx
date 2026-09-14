@@ -2,8 +2,9 @@
 
 import { useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { BookingSourceBreakdown } from "@/types";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatCurrency, formatPercent } from "@/lib/format";
 import { CHANNEL_COLORS } from "@/data/mock/bookingChannels";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 const SIZE = 216;
 const RADIUS = 78;
@@ -88,7 +89,14 @@ function segmentIndexAtPoint(
   return index === -1 ? null : index;
 }
 
+function channelLabel(row: BookingSourceBreakdown, dict: ReturnType<typeof useTranslations>["dict"]): string {
+  if (row.source === "direct") return dict.statistics.channelDirect;
+  if (row.source === "other") return dict.statistics.channelOther;
+  return row.label;
+}
+
 export function BookingSourceDonut({ sources }: { sources: BookingSourceBreakdown[] }) {
+  const { locale, dict, t } = useTranslations();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -129,7 +137,7 @@ export function BookingSourceDonut({ sources }: { sources: BookingSourceBreakdow
           height={SIZE}
           viewBox={`0 0 ${SIZE} ${SIZE}`}
           role="img"
-          aria-label="Buchungsumsatz nach Vertriebskanal"
+          aria-label={t("statistics.bookingSourceChartLabel")}
           className="cursor-pointer"
           onMouseMove={handlePointerMove}
           onMouseLeave={handlePointerLeave}
@@ -151,8 +159,8 @@ export function BookingSourceDonut({ sources }: { sources: BookingSourceBreakdow
           })}
         </svg>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">Direktanteil</p>
-          <p className="mt-1 font-display text-2xl italic text-ink">{formatNumber(directShare, 0)} %</p>
+          <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">{t("statistics.directShare")}</p>
+          <p className="mt-1 font-display text-2xl italic text-ink">{formatPercent(directShare, 0, locale)}</p>
         </div>
       </div>
 
@@ -165,14 +173,14 @@ export function BookingSourceDonut({ sources }: { sources: BookingSourceBreakdow
                 style={{ backgroundColor: CHANNEL_COLORS[active.source] }}
                 aria-hidden="true"
               />
-              {active.label}
+              {channelLabel(active, dict)}
             </span>
-            <span className="text-ink-soft">{formatCurrency(active.revenue)}</span>
-            <span className="text-ink-soft">{formatNumber(active.revenueShare, 1)} %</span>
-            <span className="text-ink-soft">{active.bookingCount} Buchungen</span>
+            <span className="text-ink-soft">{formatCurrency(active.revenue, "EUR", 2, locale)}</span>
+            <span className="text-ink-soft">{formatPercent(active.revenueShare, 1, locale)}</span>
+            <span className="text-ink-soft">{t("statistics.bookingCountSuffix", { count: active.bookingCount })}</span>
           </>
         ) : (
-          <span className="text-ink-soft/60">Segment berühren oder überfahren für Details</span>
+          <span className="text-ink-soft/60">{t("statistics.hoverForDetailsSegment")}</span>
         )}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import type { OwnerTeamUserStatus } from "@/types";
+import { getDictionary, type Locale } from "@/i18n";
 
 export type TeamStatusTone = "positive" | "strong" | "neutral" | "muted";
 
@@ -18,12 +19,14 @@ export const TEAM_STATUS_DOT_CLASS: Record<TeamStatusTone, string> = {
 
 export function teamUserStatusBadge(
   status: OwnerTeamUserStatus,
-  invitationExpiresAt?: string
+  invitationExpiresAt?: string,
+  locale: Locale = "de"
 ): { label: string; tone: TeamStatusTone } {
-  if (status === "active") return { label: "Aktiv", tone: "positive" };
-  if (status === "inactive") return { label: "Deaktiviert", tone: "muted" };
+  const dict = getDictionary(locale).profile;
+  if (status === "active") return { label: dict.statusActive, tone: "positive" };
+  if (status === "inactive") return { label: dict.statusDeactivated, tone: "muted" };
   if (invitationExpiresAt && new Date(invitationExpiresAt) < new Date()) {
-    return { label: "Einladung abgelaufen", tone: "strong" };
+    return { label: dict.statusExpired, tone: "strong" };
   }
-  return { label: "Eingeladen", tone: "neutral" };
+  return { label: dict.statusInvited, tone: "neutral" };
 }

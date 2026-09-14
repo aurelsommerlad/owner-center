@@ -10,6 +10,8 @@ import {
   setOwnTeamUserStatus,
   updateOwnProfile,
 } from "@/services/profileService";
+import { getOwnerLocale } from "@/server/locale";
+import { getDictionary, createTranslator } from "@/i18n";
 
 /**
  * Server Actions for the Owner Center's "Profil" page. Every action here
@@ -41,38 +43,42 @@ function readString(formData: FormData, key: string): string {
  */
 export async function updateProfileAction(propertyId: string, formData: FormData): Promise<ActionResult> {
   const self = await requireOwnerSelfSession();
+  const locale = await getOwnerLocale();
+  const t = createTranslator(getDictionary(locale));
 
   const firstName = readString(formData, "firstName");
   const lastName = readString(formData, "lastName");
   const email = readString(formData, "email").toLowerCase();
-  if (!firstName || !lastName || !email) return { ok: false, message: "Bitte alle Felder ausfüllen." };
+  if (!firstName || !lastName || !email) return { ok: false, message: t("profile.fillAllFields") };
 
   const emailChanged = email !== self.email.toLowerCase();
   try {
-    await updateOwnProfile(self.userId, self.ownerUserId, { firstName, lastName, email });
+    await updateOwnProfile(self.userId, self.ownerUserId, { firstName, lastName, email }, locale);
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Profil konnte nicht aktualisiert werden." };
+    return { ok: false, message: error instanceof Error ? error.message : t("profile.profileUpdateFailed") };
   }
 
   revalidatePath(`/${propertyId}/profil`);
-  return { ok: true, message: emailChanged ? "E-Mail-Adresse wurde aktualisiert." : "Profil wurde aktualisiert." };
+  return { ok: true, message: emailChanged ? t("profile.emailUpdated") : t("profile.profileUpdated") };
 }
 
 /** "Passwort ändern". No display data changes, so no revalidatePath needed. */
 export async function changePasswordAction(formData: FormData): Promise<ActionResult> {
   const self = await requireOwnerSelfSession();
+  const locale = await getOwnerLocale();
+  const t = createTranslator(getDictionary(locale));
 
   const currentPassword = String(formData.get("currentPassword") ?? "");
   const newPassword = String(formData.get("newPassword") ?? "");
   const newPasswordConfirm = String(formData.get("newPasswordConfirm") ?? "");
 
   try {
-    await changeOwnPassword(self.userId, self.sessionId, { currentPassword, newPassword, newPasswordConfirm });
+    await changeOwnPassword(self.userId, self.sessionId, { currentPassword, newPassword, newPasswordConfirm }, locale);
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Passwort konnte nicht geändert werden." };
+    return { ok: false, message: error instanceof Error ? error.message : t("profile.passwordChangeFailed") };
   }
 
-  return { ok: true, message: "Passwort wurde geändert." };
+  return { ok: true, message: t("profile.passwordChanged") };
 }
 
 /**
@@ -84,27 +90,35 @@ export async function changePasswordAction(formData: FormData): Promise<ActionRe
 export async function inviteTeamUserAction(propertyId: string, formData: FormData): Promise<InviteActionResult> {
   const context = await requireEffectiveOwnerContext();
   const session = await getSession();
-  if (!session) return { ok: false, message: "Bitte erneut anmelden." };
+  const locale = await getOwnerLocale();
+  const t = createTranslator(getDictionary(locale));
+  if (!session) return { ok: false, message: t("profile.pleaseSignInAgain") };
 
   const firstName = readString(formData, "firstName");
   const lastName = readString(formData, "lastName");
   const email = readString(formData, "email");
-  if (!firstName || !lastName || !email) return { ok: false, message: "Bitte alle Felder ausfüllen." };
+  if (!firstName || !lastName || !email) return { ok: false, message: t("profile.fillAllFields") };
 
   let inviteToken: string;
   let inviteExpiresAt: string;
   try {
-    ({ inviteToken, inviteExpiresAt } = await inviteOwnerTeamUser(context.ownerId, session.userId, {
-      firstName,
-      lastName,
-      email,
-    }));
+    ({ inviteToken, inviteExpiresAt } = await inviteOwnerTeamUser(
+      context.ownerId,
+      session.userId,
+      { firstName, lastName, email },
+      locale
+    ));
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Nutzer konnte nicht angelegt werden." };
+    return { ok: false, message: error instanceof Error ? error.message : t("profile.userCreationFailed") };
   }
 
   revalidatePath(`/${propertyId}/profil`);
-  return { ok: true, message: `${firstName} ${lastName} wurde eingeladen.`, inviteToken, inviteExpiresAt };
+  return {
+    ok: true,
+    message: t("profile.userInvited", { name: `${firstName} ${lastName}` }),
+    inviteToken,
+    inviteExpiresAt,
+  };
 }
 
 /**
@@ -115,18 +129,25 @@ export async function inviteTeamUserAction(propertyId: string, formData: FormDat
 export async function recreateTeamInvitationAction(propertyId: string, ownerUserId: string): Promise<InviteActionResult> {
   const context = await requireEffectiveOwnerContext();
   const session = await getSession();
-  if (!session) return { ok: false, message: "Bitte erneut anmelden." };
+  const locale = await getOwnerLocale();
+  const t = createTranslator(getDictionary(locale));
+  if (!session) return { ok: false, message: t("profile.pleaseSignInAgain") };
 
   let inviteToken: string;
   let inviteExpiresAt: string;
   try {
-    ({ inviteToken, inviteExpiresAt } = await recreateOwnTeamInvitation(context.ownerId, ownerUserId, session.userId));
+    ({ inviteToken, inviteExpiresAt } = await recreateOwnTeamInvitation(
+      context.ownerId,
+      ownerUserId,
+      session.userId,
+      locale
+    ));
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Einladung konnte nicht erstellt werden." };
+    return { ok: false, message: error instanceof Error ? error.message : t("profile.invitationCreationFailed") };
   }
 
   revalidatePath(`/${propertyId}/profil`);
-  return { ok: true, message: "Neue Einladung erstellt.", inviteToken, inviteExpiresAt };
+  return { ok: true, message: t("profile.newInvitationCreated"), inviteToken, inviteExpiresAt };
 }
 
 /**
@@ -141,12 +162,17 @@ export async function setTeamUserStatusAction(
   status: "active" | "inactive"
 ): Promise<ActionResult> {
   const context = await requireEffectiveOwnerContext();
+  const locale = await getOwnerLocale();
+  const t = createTranslator(getDictionary(locale));
 
   try {
-    const { userName } = await setOwnTeamUserStatus(context.ownerId, ownerUserId, status);
+    const { userName } = await setOwnTeamUserStatus(context.ownerId, ownerUserId, status, locale);
     revalidatePath(`/${propertyId}/profil`);
-    return { ok: true, message: `${userName} wurde ${status === "active" ? "aktiviert" : "deaktiviert"}.` };
+    return {
+      ok: true,
+      message: t(status === "active" ? "profile.userActivated" : "profile.userDeactivated", { name: userName }),
+    };
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Status konnte nicht geändert werden." };
+    return { ok: false, message: error instanceof Error ? error.message : t("profile.statusChangeFailed") };
   }
 }

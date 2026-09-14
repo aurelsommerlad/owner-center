@@ -140,8 +140,8 @@ export interface OwnerStatement {
  * month may have (Eigentümerreporting, Rechnung, Gutschrift); "other" covers
  * any further supporting file. Deliberately a flat, open union so more
  * specific types can be added later without touching the components that
- * render this list - they only ever look up
- * STATEMENT_DOCUMENT_TYPE_LABEL[documentType].
+ * render this list - they only ever call
+ * statementDocumentTypeLabel(documentType, locale).
  */
 export type StatementDocumentType = "owner_report" | "invoice" | "credit_note" | "other";
 
@@ -179,7 +179,7 @@ export interface StatementDocument {
   /**
    * Descriptive title. Only shown in the UI for "other" documents (e.g.
    * "Ergänzende Unterlage") - the three main types always display their
-   * fixed STATEMENT_DOCUMENT_TYPE_LABEL instead.
+   * fixed, locale-aware label instead (see statementDocumentTypeLabel).
    */
   title: string;
   fileName: string;
