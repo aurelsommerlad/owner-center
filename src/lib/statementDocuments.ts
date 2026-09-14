@@ -13,6 +13,10 @@ export function isNewStatementDocument(document: StatementDocument): boolean {
   return !document.firstViewedAt || document.firstViewedAt < referenceDate;
 }
 
+export function isDownloadedStatementDocument(document: StatementDocument): boolean {
+  return document.downloadCount > 0 && document.lastDownloadedAt !== null;
+}
+
 /** Locale-aware label for the three fachlich defined document types, via the shared dictionary (see @/i18n) - not a second, separately-maintained label map. */
 export function statementDocumentTypeLabel(type: StatementDocumentType, locale: Locale = "de"): string {
   const dict = getDictionary(locale).statements;

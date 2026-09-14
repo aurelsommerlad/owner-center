@@ -198,6 +198,7 @@ export const en: Dictionary = {
     settlement: "Settlement",
     showReceipts: "Show {count} {noun}",
     download: "Download",
+    redownload: "Download again",
     otherDocuments: "Supporting documents",
     ownerReport: "Owner report",
     invoice: "Invoice",

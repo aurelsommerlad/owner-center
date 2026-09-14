@@ -14,14 +14,14 @@ import type { StatementDocument } from "@/types";
 import { getDictionary, createTranslator, type Locale } from "@/i18n";
 
 /** One category within an expanded month - a heading plus its rows, omitted entirely when empty. */
-function DocumentSection({ title, documents }: { title: string; documents: StatementDocument[] }) {
+function DocumentSection({ title, documents, primary = false }: { title: string; documents: StatementDocument[]; primary?: boolean }) {
   if (documents.length === 0) return null;
   return (
     <div>
       <p className="text-[10px] font-medium uppercase tracking-wide text-ink-soft/70">{title}</p>
       <div className="mt-1 flex flex-col divide-y divide-line/60">
         {documents.map((document) => (
-          <StatementDocumentRow key={document.id} document={document} />
+          <StatementDocumentRow key={document.id} document={document} primary={primary} />
         ))}
       </div>
     </div>
@@ -88,7 +88,7 @@ export function StatementMonthAccordion({
 
       {open && (
         <div className="mt-4 flex flex-col gap-4">
-          <DocumentSection title={t("statements.ownerReport")} documents={group.ownerReportDocuments} />
+          <DocumentSection title={t("statements.ownerReport")} documents={group.ownerReportDocuments} primary />
           <DocumentSection title={t("statements.settlement")} documents={settlementDocuments} />
 
           {receiptCount > 0 && (

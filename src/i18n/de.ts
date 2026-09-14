@@ -202,6 +202,7 @@ export const de = {
     settlement: "Abrechnung",
     showReceipts: "{count} {noun} anzeigen",
     download: "Herunterladen",
+    redownload: "Erneut herunterladen",
     otherDocuments: "Belege",
     ownerReport: "Eigentümerreporting",
     invoice: "Rechnung",
