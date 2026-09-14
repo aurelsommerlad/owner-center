@@ -10,6 +10,12 @@ interface PropertySwitcherProps {
   currentPropertyId: string;
 }
 
+/** "City, Region", or just "City" when the region name is redundant (e.g. "Lindau, Lindau"). */
+function locationLabel(location: Property["location"]): string {
+  if (!location.region || location.region === location.city) return location.city;
+  return `${location.city}, ${location.region}`;
+}
+
 export function PropertySwitcher({ properties, currentPropertyId }: PropertySwitcherProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,6 +35,11 @@ export function PropertySwitcher({ properties, currentPropertyId }: PropertySwit
 
   if (!current) return null;
 
+  // A single-property owner has nothing to switch to - the card would only
+  // ever show its own property, so it's pure chrome; hide it entirely
+  // rather than rendering an inert, non-interactive button.
+  if (properties.length <= 1) return null;
+
   function selectProperty(propertyId: string) {
     setOpen(false);
     if (propertyId === currentPropertyId) return;
@@ -36,17 +47,13 @@ export function PropertySwitcher({ properties, currentPropertyId }: PropertySwit
     router.push(`/${propertyId}/${segment}`);
   }
 
-  const isSingleProperty = properties.length <= 1;
-
   return (
     <div className="relative" ref={containerRef}>
       <button
         type="button"
-        onClick={() => !isSingleProperty && setOpen((value) => !value)}
-        className={`flex items-center gap-3 rounded-2xl border border-line bg-paper px-3.5 py-2 text-left transition-colors ${
-          isSingleProperty ? "cursor-default" : "hover:bg-paper-dim"
-        }`}
-        aria-haspopup={isSingleProperty ? undefined : "listbox"}
+        onClick={() => setOpen((value) => !value)}
+        className="flex items-center gap-3 rounded-2xl border border-line bg-paper px-3.5 py-2 text-left transition-colors hover:bg-paper-dim"
+        aria-haspopup="listbox"
         aria-expanded={open}
       >
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-ink text-paper">
@@ -56,17 +63,15 @@ export function PropertySwitcher({ properties, currentPropertyId }: PropertySwit
           <p className="font-display text-[15px] italic text-ink">{current.name}</p>
           <p className="flex items-center gap-1 text-xs text-ink-soft">
             <MapPinIcon className="h-3 w-3" />
-            {current.location.city}, {current.location.region}
+            {locationLabel(current.location)}
           </p>
         </div>
-        {!isSingleProperty && (
-          <ChevronDownIcon
-            className={`ml-1 h-4 w-4 text-ink-soft transition-transform ${open ? "rotate-180" : ""}`}
-          />
-        )}
+        <ChevronDownIcon
+          className={`ml-1 h-4 w-4 text-ink-soft transition-transform ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
-      {open && !isSingleProperty && (
+      {open && (
         <div
           role="listbox"
           className="absolute left-0 z-30 mt-2 w-72 overflow-hidden rounded-2xl border border-line bg-paper py-1.5 shadow-soft-lg"
@@ -87,9 +92,7 @@ export function PropertySwitcher({ properties, currentPropertyId }: PropertySwit
               </div>
               <div className="leading-tight">
                 <p className="font-medium text-ink">{property.name}</p>
-                <p className="text-xs text-ink-soft">
-                  {property.location.city}, {property.location.region}
-                </p>
+                <p className="text-xs text-ink-soft">{locationLabel(property.location)}</p>
               </div>
             </button>
           ))}
