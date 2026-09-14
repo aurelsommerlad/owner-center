@@ -12,11 +12,12 @@ import type {
  * reason other than a guest stay. Rendered as "Blockiert" in the owner
  * calendar/occupancy math.
  *
- * Deliberately NOT used for "Eigennutzung" (owner use): apaleo has no
- * dedicated Owner-Use concept on Maintenance, Block, or Reservation - the
- * `group`/`ratePlan` fields on a Block name a commercial group/rate, never a
- * usage reason - so nothing is guessed from free text. See the ownerPortal
- * layer's reservations.ts for how this is documented to callers.
+ * Deliberately NOT used for "Eigennutzung" (owner use): a Maintenance
+ * window has no rate-plan concept at all, and a Block's `group`/`ratePlan`
+ * fields name a commercial group/rate, never a usage reason - so nothing is
+ * guessed from either. Owner-use is instead detected from the Reservation
+ * resource's own rate plan code - see
+ * integrations/apaleo/reservationService.ts#isOwnerUseReservation.
  */
 
 const PAGE_SIZE = 200;

@@ -20,11 +20,44 @@ import type {
 
 const PAGE_SIZE = 200;
 
+/**
+ * The rate-plan code apaleo uses for an owner staying in their own unit -
+ * grounded against real apaleo data (GET /booking/v1/reservations,
+ * expand=timeSlices), NOT assumed: `ListRatePlans` for property ALPILA
+ * returned a rate plan with `code: "OWNER"`, `name: "Owner Rate"`,
+ * description "We are delighted that you, as the owner, have booked with
+ * us. You will receive a 100% discount on the accommodation costs...",
+ * `marketSegment: { code: "OWNER" }`, and a `-100%` pricing rule off the
+ * property's standard rate. Four real reservations booked against it were
+ * found and inspected: every one has `ratePlan.code === "OWNER"` both on
+ * the reservation itself and on every one of its `timeSlices`, and every
+ * timeSlice's `baseAmount.grossAmount` is exactly 0 (only the separately
+ * charged cleaning/linen services carry a price). No property in this
+ * account has a rate plan literally coded "RATE".
+ */
+const OWNER_USE_RATE_CODE = "OWNER";
+
 interface FetchRange {
   /** ISO date (yyyy-MM-dd), inclusive. */
   from: string;
   /** ISO date (yyyy-MM-dd), exclusive. */
   to: string;
+}
+
+/**
+ * A reservation counts as owner use only when EVERY timeSlice of the stay
+ * was billed against the owner rate - "eindeutig für den relevanten
+ * Aufenthalt" from the spec, not just some nights of a mixed-rate stay.
+ * Falls back to the reservation-level `ratePlan.code` only when apaleo
+ * returned no timeSlices at all (nothing to check per-night); in every real
+ * reservation inspected, timeSlices were always present when `expand=timeSlices`
+ * was requested, and each slice's rate code always matched the reservation's.
+ */
+export function isOwnerUseReservation(raw: RawApaleoReservation): boolean {
+  if (raw.timeSlices && raw.timeSlices.length > 0) {
+    return raw.timeSlices.every((slice) => slice.ratePlan?.code === OWNER_USE_RATE_CODE);
+  }
+  return raw.ratePlan?.code === OWNER_USE_RATE_CODE;
 }
 
 export function toReservationSummary(raw: RawApaleoReservation): ApaleoReservationSummary | null {
@@ -53,6 +86,7 @@ export function toReservationSummary(raw: RawApaleoReservation): ApaleoReservati
     children: raw.children ?? null,
     channelCode: raw.channelCode ?? null,
     source: raw.source ?? null,
+    isOwnerUse: isOwnerUseReservation(raw),
     accommodationGrossAmount,
     currency,
   };

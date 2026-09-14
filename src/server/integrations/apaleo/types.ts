@@ -74,10 +74,17 @@ export interface RawApaleoBaseAmount {
   currency: string;
 }
 
+/** The rate plan apaleo billed a given night/reservation against - `code` is the stable, human-assigned short code (e.g. "STD_DP_OTA", "OWNER"), distinct from `id` (which is property+unit-group-scoped, e.g. "ALPILA-OWNER-TOBL5") and from `name`/`description` (free text, never matched on). */
+export interface RawApaleoRatePlanRef {
+  id?: string;
+  code: string;
+}
+
 export interface RawApaleoTimeSlice {
   serviceDate: string;
   unit?: { id: string };
   baseAmount?: RawApaleoBaseAmount;
+  ratePlan?: RawApaleoRatePlanRef;
 }
 
 export interface RawApaleoReservation {
@@ -91,6 +98,8 @@ export interface RawApaleoReservation {
   source?: string;
   hasCityTax?: boolean;
   unit?: { id: string };
+  /** Reservation-level rate plan - grounded against real apaleo data (GET /booking/v1/reservations), always present and, in every real reservation observed, identical to every one of `timeSlices[].ratePlan`. */
+  ratePlan?: RawApaleoRatePlanRef;
   timeSlices?: RawApaleoTimeSlice[];
 }
 
@@ -115,6 +124,8 @@ export interface ApaleoReservationSummary {
   /** Sum of every timeSlice's `baseAmount.grossAmount` - accommodation only, never city tax/extras. `null` when apaleo returned no timeSlices to sum (never guessed from another field). */
   accommodationGrossAmount: number | null;
   currency: string;
+  /** True when the reservation is billed against the "OWNER" rate plan - see reservationService.ts#isOwnerUseReservation for the exact rule and how it's grounded against real apaleo data. */
+  isOwnerUse: boolean;
 }
 
 export type RawApaleoMaintenanceType = "OutOfService" | "OutOfOrder" | "OutOfInventory";

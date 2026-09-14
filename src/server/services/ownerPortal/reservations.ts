@@ -35,13 +35,29 @@ function toReservation(propertyId: string, raw: ApaleoReservationSummary): Reser
     propertyId,
     checkIn: raw.arrivalDate,
     checkOut: raw.departureDate,
-    status: "confirmed",
+    // The one place a live reservation becomes "owner-use" instead of
+    // "confirmed" - see integrations/apaleo/reservationService.ts#isOwnerUseReservation
+    // for the rate-code rule this is grounded on. Every calendar/overview/
+    // statistics calculation already branches on this status (occupancy,
+    // revenue, bookings count and channel mix all already filter to
+    // `status === "confirmed"` only - see lib/occupancy.ts), so this single
+    // classification is what makes owner-use flow correctly everywhere,
+    // with no second copy of that exclusion logic.
+    status: raw.isOwnerUse ? "owner-use" : "confirmed",
     // Accommodation-only revenue (see integrations/apaleo/reservationService.ts) -
     // never city tax, never extras. `null` (apaleo returned no timeSlices to
-    // sum) is treated as 0 rather than guessed from another field.
+    // sum) is treated as 0 rather than guessed from another field. For an
+    // owner-use stay this is already 0 from apaleo itself (the Owner Rate's
+    // -100% pricing rule), never a value we blank out ourselves.
     accommodationAmount: raw.accommodationGrossAmount ?? 0,
     currency: raw.currency,
-    occupancy: occupancyLabel(raw.adults, raw.children),
+    // Never the guest's own occupancy/name for an owner-use stay - the UI
+    // never reads a name off Reservation at all (see toReservation's return
+    // type), and the "Eigennutzung"/"Owner use" bar label in
+    // OccupancyTimeline.tsx is a fixed translated string keyed only on
+    // `status`, not on this field - but keeping it undefined here too means
+    // no guest-count/occupancy text renders next to an owner-use bar either.
+    occupancy: raw.isOwnerUse ? undefined : occupancyLabel(raw.adults, raw.children),
     channel: classifyBookingChannel(raw.channelCode, raw.source),
   };
 }
@@ -68,11 +84,12 @@ function maintenanceToReservation(propertyId: string, id: string, unitId: string
  *
  * Cancelled/no-show reservations never appear (filtered in the apaleo
  * integration layer). Maintenance windows (OutOfService/OutOfOrder/
- * OutOfInventory) render as "blocked". There is currently no live source
- * for "Eigennutzung" (owner use) - apaleo exposes no field that
- * unambiguously distinguishes it from any other block or booking - so the
- * `owner-use` status is simply never produced by this function; see
- * integrations/apaleo/maintenanceService.ts for the grounding.
+ * OutOfInventory) render as "blocked". "Eigennutzung" (owner use) is
+ * detected from the reservation's own rate-plan code - see
+ * integrations/apaleo/reservationService.ts#isOwnerUseReservation for the
+ * exact rule, grounded against real apaleo data - and produces the
+ * `owner-use` status below; see integrations/apaleo/maintenanceService.ts
+ * for why Maintenance/Block data is never used for this instead.
  */
 export async function getOwnerPortalReservations(
   propertyId: string,
