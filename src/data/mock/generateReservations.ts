@@ -102,7 +102,13 @@ export function generateMockReservations(
       // Flat mock rate, treated as already net (VAT excluded) - matches the
       // live apaleo path, which sums `baseAmount.netAmount` (see
       // Reservation.accommodationAmount and integrations/apaleo/reservationService.ts).
-      const accommodationAmount = status === "confirmed" ? rate * nights : 0;
+      // Same flat rate for every night of this stay (mirrors the live path's
+      // per-night `timeSlices`, just without night-to-night rate variation).
+      const nightlyAccommodationAmounts =
+        status === "confirmed"
+          ? Array.from({ length: nights }, (_, i) => ({ date: addDays(cursor, i), amount: rate }))
+          : [];
+      const accommodationAmount = nightlyAccommodationAmounts.reduce((sum, night) => sum + night.amount, 0);
 
       reservations.push({
         id: `${unit.id}-res-${bookingSeq}`,
@@ -113,6 +119,7 @@ export function generateMockReservations(
         checkOut,
         status,
         accommodationAmount,
+        nightlyAccommodationAmounts,
         currency: "EUR",
         occupancy: status === "confirmed" ? pickOccupancy(random, unit.maxOccupancy) : undefined,
       });

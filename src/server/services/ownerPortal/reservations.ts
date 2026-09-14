@@ -51,6 +51,7 @@ function toReservation(propertyId: string, raw: ApaleoReservationSummary): Reser
     // stay this is already 0 from apaleo itself (the Owner Rate's -100%
     // pricing rule), never a value we blank out ourselves.
     accommodationAmount: raw.accommodationNetAmount ?? 0,
+    nightlyAccommodationAmounts: raw.nightlyAccommodationAmounts,
     currency: raw.currency,
     // Never the guest's own occupancy/name for an owner-use stay - the UI
     // never reads a name off Reservation at all (see toReservation's return
@@ -73,6 +74,7 @@ function maintenanceToReservation(propertyId: string, id: string, unitId: string
     checkOut: to,
     status: "blocked",
     accommodationAmount: 0,
+    nightlyAccommodationAmounts: [],
     currency: "EUR",
   };
 }

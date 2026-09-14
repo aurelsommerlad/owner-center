@@ -167,11 +167,36 @@ export function calculateOccupancy(occupiedUnitNights: number, availableUnitNigh
   return Math.round((occupiedUnitNights / availableUnitNights) * 1000) / 10;
 }
 
-/** Übernachtungsumsatz (netto) = sum of net accommodation-only revenue across confirmed reservations - never city tax/extras, never gross (see Reservation.accommodationAmount). */
-export function calculateBookingRevenue(reservations: Pick<Reservation, "status" | "accommodationAmount">[]): number {
-  return reservations
-    .filter((reservation) => reservation.status === "confirmed")
-    .reduce((sum, reservation) => sum + reservation.accommodationAmount, 0);
+/**
+ * Übernachtungsumsatz (netto) = sum of net accommodation revenue across
+ * confirmed reservations, counting only the nights that actually fall
+ * inside `range` (the "Logis-Prinzip": each night's revenue belongs to the
+ * calendar day it happens on) - never city tax/extras, never gross (see
+ * Reservation.accommodationAmount/nightlyAccommodationAmounts).
+ *
+ * Deliberately NOT `reservation.accommodationAmount` (the whole-stay total)
+ * summed over every reservation that merely overlaps `range` - that would
+ * double-count nights outside `range` whenever a stay crosses its boundary
+ * (e.g. a July 29 - August 4 stay would contribute its full 6-night total to
+ * August's revenue, 3 of those nights belonging to July), which both
+ * inflates any single period and makes adjoining periods overlap when
+ * compared. Clipping to nights actually in `range` is what makes this
+ * number match a night-by-night PMS/channel-manager report.
+ */
+export function calculatePeriodRevenue(
+  reservations: Pick<Reservation, "status" | "nightlyAccommodationAmounts">[],
+  range: DateRange
+): number {
+  let total = 0;
+  for (const reservation of reservations) {
+    if (reservation.status !== "confirmed") continue;
+    for (const night of reservation.nightlyAccommodationAmounts) {
+      if (night.date >= range.start && night.date < range.endExclusive) {
+        total += night.amount;
+      }
+    }
+  }
+  return total;
 }
 
 /** Buchungen = count of confirmed reservations whose stay overlaps the period (see reservationsInRange above for the overlap definition). */

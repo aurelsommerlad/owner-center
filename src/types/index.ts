@@ -106,14 +106,33 @@ export interface Reservation {
   /**
    * Accommodation/overnight revenue only, always net (VAT excluded) - never
    * Kurtaxe (city tax), never extras/services, never parking, never gross.
-   * On live apaleo data this is the sum of each stay night's
-   * `timeSlices[].baseAmount.netAmount` (see
+   * The total across the whole stay - on live apaleo data the sum of every
+   * entry in `nightlyAccommodationAmounts` below, which is itself the sum of
+   * each stay night's `timeSlices[].baseAmount.netAmount` (see
    * server/integrations/apaleo/reservationService.ts) - the one apaleo
    * field that reliably isolates accommodation charges, net of tax, from
-   * everything else on a folio. Every KPI derived from this figure
-   * (Übernachtungsumsatz, ADR, RevPAR, Ø Buchungswert) is net as a result.
+   * everything else on a folio.
+   *
+   * This whole-stay total is for "value of this one booking" contexts only
+   * (e.g. Ø Buchungswert's numerator). Any calculation scoped to a date
+   * range (a selected month, a trend-chart bucket, channel mix, per-unit
+   * performance) must use `nightlyAccommodationAmounts` instead, clipped to
+   * that range - see lib/occupancy.ts#calculatePeriodRevenue. Summing this
+   * field for every reservation that merely *touches* a range double-counts
+   * nights that fall outside it whenever a stay crosses the range's
+   * boundary.
    */
   accommodationAmount: number;
+  /**
+   * `accommodationAmount` broken out per night, keyed by that night's ISO
+   * service date (the calendar day the night falls on, e.g. "2026-08-31" -
+   * always in `[checkIn, checkOut)`) - lets any period-scoped calculation
+   * count only the nights that actually fall inside its date range, instead
+   * of a whole stay's total when the stay crosses the range's boundary.
+   * Empty for non-revenue reservations ("blocked"). Every entry's `amount`
+   * is net (VAT excluded), same as `accommodationAmount`.
+   */
+  nightlyAccommodationAmounts: { date: string; amount: number }[];
   currency: string;
   /** Optional occupancy summary for the calendar tooltip, e.g. "2 Erwachsene · 1 Kind". No other guest data is ever shown. */
   occupancy?: string;

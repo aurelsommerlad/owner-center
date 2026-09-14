@@ -123,6 +123,8 @@ export interface ApaleoReservationSummary {
   source: string | null;
   /** Sum of every timeSlice's `baseAmount.netAmount` - accommodation only, never city tax/extras, and always net (VAT excluded) so every KPI derived from it (Übernachtungsumsatz, ADR, RevPAR, Ø Buchungswert) is net too. `null` when apaleo returned no timeSlices to sum (never guessed from another field). */
   accommodationNetAmount: number | null;
+  /** `accommodationNetAmount` broken out per night, keyed by that timeSlice's `serviceDate` - lets a period-scoped query (a selected month, a trend-chart bucket) count only the nights actually inside its range instead of this whole stay's total, which matters whenever a stay crosses the range's boundary. Empty when apaleo returned no timeSlices. */
+  nightlyAccommodationAmounts: { date: string; amount: number }[];
   currency: string;
   /** True when the reservation is billed against the "OWNER" rate plan - see reservationService.ts#isOwnerUseReservation for the exact rule and how it's grounded against real apaleo data. */
   isOwnerUse: boolean;

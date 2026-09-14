@@ -2,12 +2,11 @@ import type { BookingSourceBreakdown, ComparableMetric, PropertyStatistics, Rese
 import { addDays, daysInMonth, isoDate, monthLabel, parseIsoDate } from "@/lib/dates";
 import { createTranslator, getDictionary, type Locale } from "@/i18n";
 import {
-  arrivalsInRange,
   calculateADR,
   calculateAverageStay,
   calculateBookingCount,
-  calculateBookingRevenue,
   calculateOccupancy,
+  calculatePeriodRevenue,
   calculateRevPAR,
   nightsOfStatusInRange,
   reservationsInRange,
@@ -116,19 +115,19 @@ interface PeriodMetrics {
 }
 
 /**
- * Belegung/Buchungen/Buchungsumsatz/Ø Aufenthaltsdauer for one range, all
- * stay-overlap based (a reservation counts if its stay touches the range) -
- * the "prefer overlap for performance/stay KPIs" rule from the spec. Safe
- * for a single headline range; the 12-bucket monthly trend series below
- * uses arrival-date attribution instead so adjoining month buckets never
- * double-count a stay that crosses a month boundary.
+ * Belegung/Buchungen/Ø Aufenthaltsdauer for one range are stay-overlap based
+ * (a reservation counts if its stay touches the range) - the "prefer
+ * overlap for performance/stay KPIs" rule from the spec. Buchungsumsatz is
+ * the one exception: it's night-clipped (see calculatePeriodRevenue) so a
+ * stay crossing the range's boundary only contributes the nights actually
+ * inside it, not its whole-stay total.
  */
 function metricsForRange(reservations: Reservation[], propertyId: string, unitCount: number, range: DateRange): PeriodMetrics {
   const scoped = reservationsInRange(reservations, propertyId, range);
   const occupiedNights = nightsOfStatusInRange(reservations, range, ["confirmed"]);
   const rangeDays = (parseIsoDate(range.endExclusive).getTime() - parseIsoDate(range.start).getTime()) / 86_400_000;
   const availableNights = unitCount * rangeDays;
-  const revenue = calculateBookingRevenue(scoped);
+  const revenue = calculatePeriodRevenue(scoped, range);
   const bookingsCount = calculateBookingCount(scoped);
   const avgStayNights = calculateAverageStay(scoped);
 
@@ -144,14 +143,14 @@ function metricsForRange(reservations: Reservation[], propertyId: string, unitCo
   };
 }
 
-/** Monthly revenue series, attributed by arrival date - see metricsForRange's doc comment for why this differs from the headline KPI's overlap basis. */
+/** Monthly revenue series, night-clipped per bucket (see calculatePeriodRevenue) - a stay crossing a month boundary contributes to both buckets, exactly the nights each one actually covers, never double-counted. */
 function monthlyRevenueSeries(reservations: Reservation[], propertyId: string, year: number) {
   return Array.from({ length: 12 }, (_, i) => {
     const month = i + 1;
     const start = isoDate(year, month, 1);
     const range: DateRange = { start, endExclusive: addDays(start, daysInMonth(year, month)) };
-    const arrivals = arrivalsInRange(reservations, propertyId, range).filter((r) => r.status === "confirmed");
-    return { month, year, revenue: calculateBookingRevenue(arrivals) };
+    const scoped = reservationsInRange(reservations, propertyId, range);
+    return { month, year, revenue: calculatePeriodRevenue(scoped, range) };
   });
 }
 
@@ -173,20 +172,21 @@ const CHANNEL_LABELS: Record<BookingSourceBreakdown["source"], string> = {
   other: "Sonstige",
 };
 
-/** Channel Mix from each reservation's already-classified `channel` field (see ownerPortal/reservations.ts) - arrival-date attributed, same reasoning as the revenue trend series. */
+/** Channel Mix from each reservation's already-classified `channel` field (see ownerPortal/reservations.ts) - stay-overlap based for the booking count (same as the headline "Buchungen" KPI), night-clipped for revenue (see calculatePeriodRevenue) so it always sums to the same total as the headline Übernachtungsumsatz KPI. */
 function liveBookingSourceBreakdown(reservations: Reservation[], propertyId: string, range: DateRange): BookingSourceBreakdown[] {
-  const arrivals = arrivalsInRange(reservations, propertyId, range).filter((r) => r.status === "confirmed");
+  const scoped = reservationsInRange(reservations, propertyId, range).filter((r) => r.status === "confirmed");
   const totals = new Map<BookingSourceBreakdown["source"], { revenue: number; bookingCount: number }>(
     (Object.keys(CHANNEL_LABELS) as BookingSourceBreakdown["source"][]).map((source) => [source, { revenue: 0, bookingCount: 0 }])
   );
 
   let totalRevenue = 0;
-  for (const reservation of arrivals) {
+  for (const reservation of scoped) {
     const source = reservation.channel ?? "other";
     const bucket = totals.get(source)!;
-    bucket.revenue += reservation.accommodationAmount;
+    const revenue = calculatePeriodRevenue([reservation], range);
+    bucket.revenue += revenue;
     bucket.bookingCount += 1;
-    totalRevenue += reservation.accommodationAmount;
+    totalRevenue += revenue;
   }
 
   return (Object.keys(CHANNEL_LABELS) as BookingSourceBreakdown["source"][]).map((source) => {
@@ -216,7 +216,7 @@ async function getLiveUnitPerformance(
       range
     );
     const confirmed = unitReservations.filter((r) => r.status === "confirmed");
-    const revenue = calculateBookingRevenue(confirmed);
+    const revenue = calculatePeriodRevenue(confirmed, range);
     const occupiedNights = nightsOfStatusInRange(unitReservations, range, ["confirmed"]);
     const occupied = calculateOccupancy(occupiedNights, rangeDays);
 
@@ -467,7 +467,7 @@ async function getMockUnitPerformance(propertyId: string, year: number, month: n
   return units.map((unit) => {
     const unitReservations = reservations.filter((reservation) => reservation.unitId === unit.id);
     const confirmed = unitReservations.filter((reservation) => reservation.status === "confirmed");
-    const revenue = calculateBookingRevenue(confirmed);
+    const revenue = calculatePeriodRevenue(confirmed, range);
     const occupied = calculateOccupancy(nightsOfStatusInRange(unitReservations, range, ["confirmed"]), days);
     const occupiedNights = (occupied / 100) * days;
 

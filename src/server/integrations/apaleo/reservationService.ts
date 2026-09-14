@@ -66,9 +66,14 @@ export function toReservationSummary(raw: RawApaleoReservation): ApaleoReservati
   const unitId = raw.unit?.id;
   if (!unitId) return null;
 
+  const nightlyAccommodationAmounts = (raw.timeSlices ?? []).map((slice) => ({
+    date: slice.serviceDate,
+    amount: slice.baseAmount?.netAmount ?? 0,
+  }));
+
   const accommodationNetAmount =
     raw.timeSlices && raw.timeSlices.length > 0
-      ? raw.timeSlices.reduce((sum, slice) => sum + (slice.baseAmount?.netAmount ?? 0), 0)
+      ? nightlyAccommodationAmounts.reduce((sum, night) => sum + night.amount, 0)
       : null;
 
   const currency = raw.timeSlices?.find((slice) => slice.baseAmount)?.baseAmount?.currency ?? "EUR";
@@ -88,6 +93,7 @@ export function toReservationSummary(raw: RawApaleoReservation): ApaleoReservati
     source: raw.source ?? null,
     isOwnerUse: isOwnerUseReservation(raw),
     accommodationNetAmount,
+    nightlyAccommodationAmounts,
     currency,
   };
 }

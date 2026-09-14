@@ -5,8 +5,8 @@ import {
   arrivalsInRange,
   calculateAverageStay,
   calculateBookingCount,
-  calculateBookingRevenue,
   calculateOccupancy,
+  calculatePeriodRevenue,
   departuresInRange,
   nightsOfStatusInRange,
   reservationsInRange,
@@ -50,7 +50,7 @@ async function kpisForRange(propertyId: string, units: Unit[], range: DateRange)
 
   return {
     occupancyPct: calculateOccupancy(occupiedNights, availableNights),
-    revenue: calculateBookingRevenue(scoped),
+    revenue: calculatePeriodRevenue(scoped, range),
     bookingsCount: calculateBookingCount(scoped),
     avgStayNights: calculateAverageStay(scoped),
   };
