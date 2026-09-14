@@ -25,8 +25,8 @@ export default async function AdminDashboardPage() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Aktive Eigentümer" value={summary.activeOwnersCount} />
         <StatTile label="Aktive Objekte" value={summary.activePropertiesCount} />
-        <StatTile label="Veröffentlicht (Monat)" value={summary.publishedThisMonthCount} />
-        <StatTile label="Neue / nicht zugeordnet" value={summary.unassignedDocumentsCount} />
+        <StatTile label="Dokumente veröffentlicht (Monat)" value={summary.publishedThisMonthCount} />
+        <StatTile label="Dokumente neu / nicht zugeordnet" value={summary.unassignedDocumentsCount} />
       </div>
 
       <Link href="/admin/properties" className="block">
