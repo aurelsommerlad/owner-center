@@ -14,14 +14,22 @@ import type { StatementDocument } from "@/types";
 import { getDictionary, createTranslator, type Locale } from "@/i18n";
 
 /** One category within an expanded month - a heading plus its rows, omitted entirely when empty. */
-function DocumentSection({ title, documents, primary = false }: { title: string; documents: StatementDocument[]; primary?: boolean }) {
+function DocumentSection({
+  title,
+  documents,
+  locale,
+}: {
+  title: string;
+  documents: StatementDocument[];
+  locale: Locale;
+}) {
   if (documents.length === 0) return null;
   return (
     <div>
       <p className="text-[10px] font-medium uppercase tracking-wide text-ink-soft/70">{title}</p>
       <div className="mt-1 flex flex-col divide-y divide-line/60">
         {documents.map((document) => (
-          <StatementDocumentRow key={document.id} document={document} primary={primary} />
+          <StatementDocumentRow key={document.id} document={document} locale={locale} />
         ))}
       </div>
     </div>
@@ -88,8 +96,8 @@ export function StatementMonthAccordion({
 
       {open && (
         <div className="mt-4 flex flex-col gap-4">
-          <DocumentSection title={t("statements.ownerReport")} documents={group.ownerReportDocuments} primary />
-          <DocumentSection title={t("statements.settlement")} documents={settlementDocuments} />
+          <DocumentSection title={t("statements.ownerReport")} documents={group.ownerReportDocuments} locale={locale} />
+          <DocumentSection title={t("statements.settlement")} documents={settlementDocuments} locale={locale} />
 
           {receiptCount > 0 && (
             <div>
@@ -97,7 +105,7 @@ export function StatementMonthAccordion({
               {receiptsOpen ? (
                 <div className="mt-1 flex flex-col divide-y divide-line/60">
                   {group.receiptDocuments.map((document) => (
-                    <StatementDocumentRow key={document.id} document={document} />
+                    <StatementDocumentRow key={document.id} document={document} locale={locale} />
                   ))}
                 </div>
               ) : (

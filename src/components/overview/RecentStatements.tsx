@@ -49,12 +49,7 @@ export function RecentStatements({
           </p>
           <div className="mt-1 divide-y divide-line">
             {coreDocuments.map((document) => (
-              <StatementDocumentRow
-                key={document.id}
-                document={document}
-                locale={locale}
-                primary={document.documentType === "owner_report"}
-              />
+              <StatementDocumentRow key={document.id} document={document} locale={locale} />
             ))}
           </div>
         </>

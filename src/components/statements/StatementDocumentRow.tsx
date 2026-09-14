@@ -9,21 +9,20 @@ import {
 import { getDictionary, createTranslator, type Locale } from "@/i18n";
 
 /**
- * One document row. `primary` adds the circular document-icon badge used
- * for Eigentümerreporting rows; every row gets the labeled download action,
- * which switches to "Erneut herunterladen" once the document was already
- * downloaded. The subline shows when it was provided and, once it stops
- * being "Neu", when it was last downloaded - the two states are mutually
- * exclusive so the line never grows to more than one fact.
+ * One document row. Every row gets the same circular document-icon badge
+ * (Eigentümerreporting, Rechnung, Gutschrift, Belege alike) and the labeled
+ * download action, which switches to "Erneut herunterladen" once the
+ * document was already downloaded. The subline shows when it was provided
+ * and, once it stops being "Neu", when it was last downloaded - the two
+ * states are mutually exclusive so the line never grows to more than one
+ * fact.
  */
 export function StatementDocumentRow({
   document,
   locale = "de",
-  primary = false,
 }: {
   document: StatementDocument;
   locale?: Locale;
-  primary?: boolean;
 }) {
   const t = createTranslator(getDictionary(locale));
   const isNew = isNewStatementDocument(document);
@@ -37,11 +36,9 @@ export function StatementDocumentRow({
   return (
     <div className="flex items-center justify-between gap-3 py-2.5">
       <div className="flex min-w-0 items-start gap-2.5">
-        {primary && (
-          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#87977E]/12 text-[#52664E]">
-            <DocumentsIcon className="h-4 w-4" />
-          </span>
-        )}
+        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#87977E]/12 text-[#52664E]">
+          <DocumentsIcon className="h-4 w-4" />
+        </span>
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-2">
             <p className="min-w-0 truncate text-sm text-ink">{label}</p>
