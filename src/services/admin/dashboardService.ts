@@ -52,7 +52,7 @@ export async function getDashboardSummary(): Promise<AdminDashboardSummary> {
   const apaleoOverview = await loadApaleoMappingOverview();
   let connectedCount = 0;
   for (const property of allProperties) {
-    if (!property.statementsDriveFolderId || !property.documentsDriveFolderId) {
+    if (!property.googleDriveFolderId) {
       hints.push({ id: `drive-${property.id}`, message: `${property.name}: fehlender Drive-Ordner.` });
     }
     if (!property.apaleoPropertyId) {
