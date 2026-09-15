@@ -162,7 +162,6 @@ export const de = {
     directBookingShare: "Direktbuchungsanteil",
     avgLeadTime: "Ø Buchungsvorlaufzeit",
     days: "Tage",
-    cancellationRate: "Stornierungsquote",
     unitPerformance: "Performance je Einheit",
     unit: "Einheit",
     hoverForDetails: "Punkt berühren oder überfahren für Details",

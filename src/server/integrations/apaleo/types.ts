@@ -92,6 +92,8 @@ export interface RawApaleoReservation {
   status: RawApaleoReservationStatus;
   arrival: string;
   departure: string;
+  /** ISO timestamp the booking was made - grounded against real apaleo data (GET /booking/v1/reservations), always present. Used only for Ø Buchungsvorlauf (avgLeadTimeDays). */
+  created: string;
   adults?: number;
   children?: number;
   channelCode?: string;
@@ -117,6 +119,8 @@ export interface ApaleoReservationSummary {
   arrivalDate: string;
   /** ISO date (yyyy-MM-dd), exclusive. */
   departureDate: string;
+  /** ISO date (yyyy-MM-dd) the booking was made - see RawApaleoReservation.created. */
+  createdDate: string;
   adults: number | null;
   children: number | null;
   channelCode: string | null;

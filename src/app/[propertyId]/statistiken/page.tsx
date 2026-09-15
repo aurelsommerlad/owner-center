@@ -268,10 +268,9 @@ export default async function StatistikenPage({
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-3 gap-3 border-t border-line pt-5">
+        <div className="mt-6 grid grid-cols-2 gap-3 border-t border-line pt-5">
           <KpiCard compact label={t("statistics.directBookingShare")} value={formatPercent(directSharePct, 0, locale)} locale={locale} />
           <KpiCard compact label={t("statistics.avgLeadTime")} value={`${stats.avgLeadTimeDays} ${t("statistics.days")}`} locale={locale} />
-          <KpiCard compact label={t("statistics.cancellationRate")} value={formatPercent(stats.cancellationRatePct, 1, locale)} locale={locale} />
         </div>
       </Card>
 

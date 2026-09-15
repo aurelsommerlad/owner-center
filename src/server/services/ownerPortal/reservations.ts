@@ -61,6 +61,7 @@ function toReservation(propertyId: string, raw: ApaleoReservationSummary): Reser
     // no guest-count/occupancy text renders next to an owner-use bar either.
     occupancy: raw.isOwnerUse ? undefined : occupancyLabel(raw.adults, raw.children),
     channel: classifyBookingChannel(raw.channelCode, raw.source),
+    createdDate: raw.createdDate,
   };
 }
 

@@ -209,6 +209,28 @@ export function calculateAverageStay(reservations: Reservation[]): number {
   return averageStayNights(reservations);
 }
 
+/**
+ * Ø Buchungsvorlauf = average days between booking creation and arrival, over
+ * confirmed reservations with a known creation date (apaleo's `created`
+ * field - see server/integrations/apaleo/reservationService.ts). Owner-use
+ * and blocked/maintenance entries are excluded, same as every other
+ * "Buchungen"-based KPI (see calculateBookingCount). `createdDate` is
+ * undefined for maintenance-window entries and for any mock-fallback
+ * reservation, which never populate it - those are simply skipped rather
+ * than treated as a zero lead time.
+ */
+export function calculateAverageLeadTime(reservations: Pick<Reservation, "status" | "checkIn" | "createdDate">[]): number {
+  const guestBookings = reservations.filter(
+    (reservation) => reservation.status === "confirmed" && reservation.createdDate !== undefined
+  );
+  if (guestBookings.length === 0) return 0;
+  const totalDays = guestBookings.reduce(
+    (sum, reservation) => sum + nightsBetween(reservation.createdDate!, reservation.checkIn),
+    0
+  );
+  return Math.round(totalDays / guestBookings.length);
+}
+
 export type StayTimingStatus = "past" | "in-house" | "upcoming";
 
 /**

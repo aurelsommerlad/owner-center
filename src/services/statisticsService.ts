@@ -3,6 +3,7 @@ import { addDays, daysInMonth, isoDate, monthLabel, parseIsoDate } from "@/lib/d
 import { createTranslator, getDictionary, type Locale } from "@/i18n";
 import {
   calculateADR,
+  calculateAverageLeadTime,
   calculateAverageStay,
   calculateBookingCount,
   calculateOccupancy,
@@ -62,13 +63,19 @@ export function recentStatisticsMonths(today: string, windowMonths = 24): Statis
 }
 
 /**
- * Illustrative figures with no live apaleo source in V1 (booking lead time
- * and cancellation rate are both on the explicit "not required live yet"
- * list) - kept as named, clearly-labelled constants rather than blended
- * silently into otherwise-live numbers.
+ * Illustrative Ø-Buchungsvorlauf figure for the mock-fallback path only
+ * (apaleo not configured, local dev without credentials) - the live path
+ * below computes a real value from apaleo's `created` field instead (see
+ * lib/occupancy.ts#calculateAverageLeadTime). Never used together with live
+ * data. Stornierungsquote/cancellationRatePct was removed entirely (both
+ * live and mock): apaleo drops cancelled/no-show reservations before they
+ * ever reach this app's data (see
+ * integrations/apaleo/reservationService.ts#listApaleoReservationsForProperty),
+ * and there is no single, already-established definition for which window
+ * a cancellation rate should use - showing one would mean inventing a KPI
+ * definition rather than reporting a real one.
  */
 const MOCK_AVG_LEAD_TIME_DAYS: Record<StatisticsPeriod, number> = { month: 32, ytd: 29, year: 27 };
-const MOCK_CANCELLATION_PCT: Record<StatisticsPeriod, number> = { month: 4.8, ytd: 5.2, year: 5.5 };
 
 function metric(value: number, previousYear: number, previousYearAvailable: boolean): ComparableMetric {
   return { value, previousYear, previousYearAvailable };
@@ -110,6 +117,8 @@ interface PeriodMetrics {
   bookingsCount: number;
   avgStayNights: number;
   avgBookingValue: number;
+  /** Ø Buchungsvorlauf, real apaleo-derived (see calculateAverageLeadTime) - unlike the other fields here, never compared against a previous year (matches PropertyStatistics.avgLeadTimeDays being a bare number, not a ComparableMetric). */
+  avgLeadTimeDays: number;
   /** Whether apaleo returned any reservation (any status) touching this range at all - see ComparableMetric.previousYearAvailable. */
   hasData: boolean;
 }
@@ -139,6 +148,7 @@ function metricsForRange(reservations: Reservation[], propertyId: string, unitCo
     bookingsCount,
     avgStayNights,
     avgBookingValue: bookingsCount > 0 ? revenue / bookingsCount : 0,
+    avgLeadTimeDays: calculateAverageLeadTime(scoped),
     hasData: scoped.length > 0,
   };
 }
@@ -302,8 +312,7 @@ async function getLivePropertyStatistics(
     unitStats,
     unitStatsPeriodLabel: periodLabelFor(period, year, month, locale),
     bookingSources,
-    avgLeadTimeDays: MOCK_AVG_LEAD_TIME_DAYS[period],
-    cancellationRatePct: MOCK_CANCELLATION_PCT[period],
+    avgLeadTimeDays: current.avgLeadTimeDays,
   };
 }
 
@@ -444,7 +453,6 @@ async function getMockPropertyStatistics(
     unitStatsPeriodLabel: `${monthLabel(unitStatsMonth, locale)} ${unitStatsYear}`,
     bookingSources,
     avgLeadTimeDays: MOCK_AVG_LEAD_TIME_DAYS[period],
-    cancellationRatePct: MOCK_CANCELLATION_PCT[period],
   };
 }
 

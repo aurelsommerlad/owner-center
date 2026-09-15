@@ -138,6 +138,8 @@ export interface Reservation {
   occupancy?: string;
   /** Sales channel this booking came through, when the data source can classify it (see server/services/ownerPortal/channels.ts). Never present on a "blocked"/maintenance entry. */
   channel?: BookingSourceId;
+  /** ISO date (yyyy-MM-dd) the booking was made - used only for Ø Buchungsvorlauf (avgLeadTimeDays). Undefined for "blocked" maintenance-window entries, which aren't real bookings. */
+  createdDate?: string;
 }
 
 /**
@@ -288,9 +290,8 @@ export interface PropertyStatistics {
   unitStatsPeriodLabel: string;
   /** Sums exactly to `revenue.value` / `bookingsCount.value` for the period. */
   bookingSources: BookingSourceBreakdown[];
-  /** Illustrative mock figures until real booking-lead-time/cancellation data exists. */
+  /** Ø Buchungsvorlauf - real, apaleo-derived (see lib/occupancy.ts#calculateAverageLeadTime) once apaleo is configured; an illustrative constant only in the local mock-fallback path (see services/statisticsService.ts). */
   avgLeadTimeDays: number;
-  cancellationRatePct: number;
 }
 
 /** KPI summary shown on the Übersicht page for a given property. */

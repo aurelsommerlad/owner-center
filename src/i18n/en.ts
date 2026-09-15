@@ -158,7 +158,6 @@ export const en: Dictionary = {
     directBookingShare: "Direct booking share",
     avgLeadTime: "Avg. lead time",
     days: "days",
-    cancellationRate: "Cancellation rate",
     unitPerformance: "Performance per unit",
     unit: "Unit",
     hoverForDetails: "Touch or hover a point for details",

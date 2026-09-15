@@ -87,6 +87,7 @@ export function toReservationSummary(raw: RawApaleoReservation): ApaleoReservati
     // the first 10 characters are already the correct local calendar date.
     arrivalDate: raw.arrival.slice(0, 10),
     departureDate: raw.departure.slice(0, 10),
+    createdDate: raw.created.slice(0, 10),
     adults: raw.adults ?? null,
     children: raw.children ?? null,
     channelCode: raw.channelCode ?? null,
