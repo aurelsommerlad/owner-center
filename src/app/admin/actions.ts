@@ -286,8 +286,6 @@ export async function createPropertyAction(formData: FormData): Promise<ActionRe
   const location = readString(formData, "location");
   if (!name || !location) return { ok: false, message: "Bitte Objektname und Standort angeben." };
 
-  const statementsDriveFolderId = readString(formData, "statementsDriveFolderId");
-  const documentsDriveFolderId = readString(formData, "documentsDriveFolderId");
   const ownerIds = formData.getAll("ownerIds").map(String);
 
   // apaleoPropertyId is deliberately not set here - it is only ever set via
@@ -297,8 +295,6 @@ export async function createPropertyAction(formData: FormData): Promise<ActionRe
   const property = await createProperty({
     name,
     location,
-    statementsDriveFolderId: statementsDriveFolderId || undefined,
-    documentsDriveFolderId: documentsDriveFolderId || undefined,
   });
   for (const ownerId of ownerIds) {
     await grantAccess(ownerId, property.id);
@@ -317,8 +313,6 @@ export async function updatePropertyAction(propertyId: string, formData: FormDat
   const location = readString(formData, "location");
   if (!name || !location) return { ok: false, message: "Bitte Objektname und Standort angeben." };
 
-  const statementsDriveFolderId = readString(formData, "statementsDriveFolderId");
-  const documentsDriveFolderId = readString(formData, "documentsDriveFolderId");
   const ownerIds = formData.getAll("ownerIds").map(String);
 
   // apaleoPropertyId is deliberately left untouched here - see
@@ -326,8 +320,6 @@ export async function updatePropertyAction(propertyId: string, formData: FormDat
   await updateProperty(propertyId, {
     name,
     location,
-    statementsDriveFolderId: statementsDriveFolderId || undefined,
-    documentsDriveFolderId: documentsDriveFolderId || undefined,
   });
   await setPropertyOwnerAccess(propertyId, ownerIds);
 

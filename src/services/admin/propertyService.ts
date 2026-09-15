@@ -29,12 +29,8 @@ export interface PropertyInput {
   /** Admin's single "Standort" field - stored as Property.city. */
   location: string;
   status?: AdminPropertyStatus;
-  /** Mock configuration only - never a real apaleo connection. */
+  /** The leading, admin-entered apaleo property id - see setApaleoPropertyMappingAction, the only caller that ever sets this via the "apaleo-Verknüpfung" card. */
   apaleoPropertyId?: string;
-  /** Mock configuration only - never a real Drive connection. */
-  statementsDriveFolderId?: string;
-  /** Mock configuration only - never a real Drive connection. */
-  documentsDriveFolderId?: string;
   /** The real Google Drive folder mapping - see setGoogleDriveFolderMappingAction, the only caller that ever sets this. */
   googleDriveFolderId?: string;
 }
@@ -46,8 +42,6 @@ export async function createProperty(input: PropertyInput): Promise<AdminPropert
       city: input.location,
       status: input.status ?? "active",
       apaleoPropertyId: input.apaleoPropertyId || undefined,
-      statementsDriveFolderId: input.statementsDriveFolderId || undefined,
-      documentsDriveFolderId: input.documentsDriveFolderId || undefined,
       googleDriveFolderId: input.googleDriveFolderId || undefined,
     },
   });
@@ -63,10 +57,6 @@ export async function updateProperty(id: string, input: Partial<PropertyInput>):
         city: input.location,
         status: input.status,
         apaleoPropertyId: input.apaleoPropertyId === undefined ? undefined : input.apaleoPropertyId || null,
-        statementsDriveFolderId:
-          input.statementsDriveFolderId === undefined ? undefined : input.statementsDriveFolderId || null,
-        documentsDriveFolderId:
-          input.documentsDriveFolderId === undefined ? undefined : input.documentsDriveFolderId || null,
         googleDriveFolderId:
           input.googleDriveFolderId === undefined ? undefined : input.googleDriveFolderId || null,
       },

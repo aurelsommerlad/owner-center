@@ -39,6 +39,8 @@ interface PeriodKpis {
   revenue: number;
   bookingsCount: number;
   avgStayNights: number;
+  /** Whether any reservation (any status) touched this range at all - see PropertyOverviewKpis.previousYearAvailable. */
+  hasData: boolean;
 }
 
 async function kpisForRange(propertyId: string, units: Unit[], range: DateRange): Promise<PeriodKpis> {
@@ -53,6 +55,7 @@ async function kpisForRange(propertyId: string, units: Unit[], range: DateRange)
     revenue: calculatePeriodRevenue(scoped, range),
     bookingsCount: calculateBookingCount(scoped),
     avgStayNights: calculateAverageStay(scoped),
+    hasData: scoped.length > 0,
   };
 }
 
@@ -79,6 +82,10 @@ export async function getPropertyOverviewKpis(
     bookingsCountPreviousYear: previous.bookingsCount,
     avgStayNights: current.avgStayNights,
     avgStayNightsPreviousYear: previous.avgStayNights,
+    // Every KPI card compares against the same previous-year period, so
+    // whether that comparison is even meaningful is a single, shared signal
+    // - mirrors statisticsService.ts's identical previousYearAvailable.
+    previousYearAvailable: previous.hasData,
   };
 }
 

@@ -210,25 +210,6 @@ export interface StatementDocument {
   downloadCount: number;
 }
 
-export type DocumentCategory =
-  | "vertraege"
-  | "abrechnungen"
-  | "steuerlich"
-  | "objektunterlagen"
-  | "sonstiges";
-
-export interface OwnerDocument {
-  id: string;
-  propertyId: string;
-  category: DocumentCategory;
-  name: string;
-  fileType: "pdf" | "docx" | "xlsx";
-  fileSizeKb: number;
-  /** ISO date (yyyy-MM-dd). */
-  date: string;
-  fileName: string;
-}
-
 export interface MonthlyRevenuePoint {
   month: number;
   year: number;
@@ -322,4 +303,6 @@ export interface PropertyOverviewKpis {
   bookingsCountPreviousYear?: number;
   avgStayNights: number;
   avgStayNightsPreviousYear?: number;
+  /** Whether the previous-year period has any underlying data at all - shared across all 4 KPIs above, see ComparableMetric.previousYearAvailable. */
+  previousYearAvailable: boolean;
 }

@@ -87,30 +87,6 @@ export function PropertyFormModal({
             </div>
           </div>
 
-          <div className="border-t border-line pt-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-ink-soft">Google Drive</p>
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1.5">
-                <span className={ADMIN_LABEL_CLASS}>Ordner-ID Abrechnungen</span>
-                <input
-                  name="statementsDriveFolderId"
-                  defaultValue={property?.statementsDriveFolderId}
-                  className={ADMIN_INPUT_CLASS}
-                  placeholder="noch nicht verbunden"
-                />
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className={ADMIN_LABEL_CLASS}>Ordner-ID Dokumente</span>
-                <input
-                  name="documentsDriveFolderId"
-                  defaultValue={property?.documentsDriveFolderId}
-                  className={ADMIN_INPUT_CLASS}
-                  placeholder="noch nicht verbunden"
-                />
-              </label>
-            </div>
-          </div>
-
           {error && <p className="text-sm text-ink-soft">{error}</p>}
 
           <div className="flex justify-end gap-2 border-t border-line pt-4">

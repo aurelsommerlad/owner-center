@@ -4,7 +4,7 @@ import { toDateString } from "@/server/mapDate";
 import { toAdminOwner, toAdminProperty } from "@/lib/adminPermissions";
 import { getUnassignedGeneralDocuments } from "./documentService";
 import { countPublishedInMonth } from "./statementService";
-import { MOCK_TODAY } from "@/lib/config";
+import { today } from "@/lib/dates";
 import { loadApaleoMappingOverview, mappingStatusFor } from "@/server/integrations/apaleo/mappingStatus";
 
 export interface AdminDashboardHint {
@@ -31,7 +31,7 @@ export interface AdminDashboardSummary {
 }
 
 export async function getDashboardSummary(): Promise<AdminDashboardSummary> {
-  const [year, month] = MOCK_TODAY.split("-").map(Number);
+  const [year, month] = today().split("-").map(Number);
 
   const [activeOwnersCount, activePropertiesCount, properties, recentOwnerRows, recentDocumentRows, unassignedDocuments, publishedThisMonthCount] =
     await Promise.all([

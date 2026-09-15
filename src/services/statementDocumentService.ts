@@ -1,6 +1,7 @@
 import type { StatementDocument } from "@/types";
 import { prisma } from "@/server/db";
 import { toDateString } from "@/server/mapDate";
+import { markStatementDataError } from "./statementDataError";
 import type { StatementDocument as DbStatementDocument } from "@/generated/prisma/client";
 
 /**
@@ -41,15 +42,21 @@ export async function getStatementDocuments(
   propertyId: string,
   year: number
 ): Promise<StatementDocument[]> {
-  const documents = await prisma.statementDocument.findMany({
-    where: {
-      propertyId,
-      year,
-      adminStatus: { in: ["published", "updated"] },
-    },
-    orderBy: { month: "desc" },
-  });
-  return documents.map(toStatementDocument);
+  try {
+    const documents = await prisma.statementDocument.findMany({
+      where: {
+        propertyId,
+        year,
+        adminStatus: { in: ["published", "updated"] },
+      },
+      orderBy: { month: "desc" },
+    });
+    return documents.map(toStatementDocument);
+  } catch (error) {
+    console.error("[statementDocumentService] getStatementDocuments failed", propertyId, year, error);
+    markStatementDataError();
+    return [];
+  }
 }
 
 /**
@@ -68,12 +75,18 @@ export async function getLatestStatementMonthDocuments(propertyId: string): Prom
 
 /** Years that have at least one published statement for this property, newest first. */
 export async function getStatementDocumentYears(propertyId: string): Promise<number[]> {
-  const documents = await prisma.statementDocument.findMany({
-    where: { propertyId, adminStatus: { in: ["published", "updated"] } },
-    select: { year: true },
-    distinct: ["year"],
-  });
-  return documents.map((document) => document.year).sort((a, b) => b - a);
+  try {
+    const documents = await prisma.statementDocument.findMany({
+      where: { propertyId, adminStatus: { in: ["published", "updated"] } },
+      select: { year: true },
+      distinct: ["year"],
+    });
+    return documents.map((document) => document.year).sort((a, b) => b - a);
+  } catch (error) {
+    console.error("[statementDocumentService] getStatementDocumentYears failed", propertyId, error);
+    markStatementDataError();
+    return [];
+  }
 }
 
 /**

@@ -109,9 +109,6 @@ export const de = {
     latestStatement: "Letzte Abrechnung",
     allStatements: "Alle Abrechnungen",
     noStatementsYet: "Es liegt noch keine Abrechnung vor.",
-    documents: "Dokumente",
-    allDocuments: "Alle Dokumente",
-    downloadDocument: "{name} herunterladen",
   },
   calendar: {
     title: "Kalender",

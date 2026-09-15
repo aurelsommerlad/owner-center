@@ -105,9 +105,6 @@ export const en: Dictionary = {
     latestStatement: "Latest statement",
     allStatements: "All statements",
     noStatementsYet: "No statement is available yet.",
-    documents: "Documents",
-    allDocuments: "All documents",
-    downloadDocument: "Download {name}",
   },
   calendar: {
     title: "Calendar",

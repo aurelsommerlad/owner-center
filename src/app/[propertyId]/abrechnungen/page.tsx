@@ -5,10 +5,12 @@ import {
   getStatementDocumentYears,
   markStatementDocumentsViewed,
 } from "@/services/statementDocumentService";
-import { MOCK_TODAY } from "@/lib/config";
+import { hadStatementDataError } from "@/services/statementDataError";
+import { today } from "@/lib/dates";
 import { groupStatementDocumentsByMonth } from "@/lib/statementDocuments";
 import { StatementYearFilter } from "@/components/statements/StatementYearFilter";
 import { StatementMonthAccordion } from "@/components/statements/StatementMonthAccordion";
+import { DataUnavailableNotice } from "@/components/ui/DataUnavailableNotice";
 import { getOwnerLocale } from "@/server/locale";
 import { getDictionary, createTranslator } from "@/i18n";
 import { requireEffectiveOwnerContext } from "@/server/ownerContext";
@@ -29,7 +31,7 @@ export default async function AbrechnungenPage({
   const locale = await getOwnerLocale();
   const t = createTranslator(getDictionary(locale));
 
-  const currentYear = Number(MOCK_TODAY.slice(0, 4));
+  const currentYear = Number(today().slice(0, 4));
   const years = await getStatementDocumentYears(propertyId);
   const requestedYear = Number(query.jahr);
   const selectedYear = years.includes(requestedYear) ? requestedYear : currentYear;
@@ -47,6 +49,7 @@ export default async function AbrechnungenPage({
   // At most one month starts expanded: the newest one that still has
   // unseen documents. Everything else stays collapsed.
   const defaultOpenGroup = monthGroups.find((group) => group.newCount > 0);
+  const dataError = hadStatementDataError();
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -54,6 +57,8 @@ export default async function AbrechnungenPage({
         <h1 className="font-display text-2xl italic text-ink sm:text-3xl">{t("statements.title")}</h1>
         <p className="mt-1 text-sm text-ink-soft">{t("statements.subtitle")}</p>
       </div>
+
+      {dataError && <DataUnavailableNotice text={t("common.dataUnavailable")} />}
 
       <StatementYearFilter propertyId={propertyId} years={years} selectedYear={selectedYear} />
 

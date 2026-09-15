@@ -5,24 +5,24 @@ import type { OverviewPeriod } from "@/services/overviewService";
 import { monthLabel } from "@/lib/dates";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
-// Mock data is anchored to September 2026 (see lib/config.ts#MOCK_TODAY) -
-// only the label text is locale-aware, the underlying period is unchanged.
-const MOCK_MONTH = 9;
-const MOCK_YEAR = 2026;
-
 export function PeriodFilter({
   propertyId,
   period,
+  month,
+  year,
 }: {
   propertyId: string;
   period: OverviewPeriod;
+  /** Current month (1-12) and year, as resolved server-side via ownerPortalToday(). */
+  month: number;
+  year: number;
 }) {
   const router = useRouter();
   const { t, locale } = useTranslations();
 
   const options: Array<{ value: OverviewPeriod; label: string }> = [
-    { value: "month", label: `${monthLabel(MOCK_MONTH, locale)} ${MOCK_YEAR}` },
-    { value: "year", label: t("overview.year", { year: MOCK_YEAR }) },
+    { value: "month", label: `${monthLabel(month, locale)} ${year}` },
+    { value: "year", label: t("overview.year", { year }) },
   ];
 
   return (

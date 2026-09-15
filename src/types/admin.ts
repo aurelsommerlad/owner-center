@@ -107,10 +107,6 @@ export interface AdminProperty {
   status: AdminPropertyStatus;
   /** The leading, admin-entered apaleo property id - see src/server/integrations/apaleo. */
   apaleoPropertyId?: string;
-  /** Mock configuration value only - no real Drive connection. */
-  statementsDriveFolderId?: string;
-  /** Mock configuration value only - no real Drive connection. */
-  documentsDriveFolderId?: string;
   /**
    * The real Google Drive mapping: this property's document folder id,
    * always a direct child of the configured root folder - see
