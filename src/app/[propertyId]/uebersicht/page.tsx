@@ -20,7 +20,7 @@ import { ArrivalsDeparturesCard } from "@/components/overview/ArrivalsDepartures
 import { UnitStatusOverviewCard } from "@/components/overview/UnitStatusOverviewCard";
 import { RecentStatements } from "@/components/overview/RecentStatements";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
-import { monthLabel, parseIsoDate } from "@/lib/dates";
+import { formatDateRange, parseIsoDate, startOfMonth } from "@/lib/dates";
 import { ownerPortalToday } from "@/server/services/ownerPortal/today";
 import { hadOwnerPortalDataError } from "@/server/services/ownerPortal/errorState";
 import { DataUnavailableNotice } from "@/components/ui/DataUnavailableNotice";
@@ -36,7 +36,11 @@ export default async function UebersichtPage({
 }) {
   const { propertyId } = await params;
   const query = await searchParams;
-  const period: OverviewPeriod = query.zeitraum === "year" ? "year" : "month";
+  // "mtd" is the default - both when `zeitraum` is missing and for any
+  // unrecognized/legacy value (a bookmarked `?zeitraum=month` from before
+  // this page had a real MTD view lands here too, which is exactly the
+  // period it always meant to show).
+  const period: OverviewPeriod = query.zeitraum === "year" ? "year" : "mtd";
 
   const property = await getProperty(propertyId);
   if (!property) notFound();
@@ -45,11 +49,12 @@ export default async function UebersichtPage({
   const dict = getDictionary(locale);
   const t = createTranslator(dict);
 
-  const todayDate = parseIsoDate(ownerPortalToday());
+  const today = ownerPortalToday();
+  const todayDate = parseIsoDate(today);
   const periodLabel =
     period === "year"
       ? t("overview.year", { year: todayDate.getUTCFullYear() })
-      : `${monthLabel(todayDate.getUTCMonth() + 1, locale)} ${todayDate.getUTCFullYear()}`;
+      : formatDateRange(startOfMonth(today), today, locale);
 
   const [kpis, preview, arrivalsDepartures, todayStatus, unitStatusOverview, latestStatementDocuments] =
     await Promise.all([
@@ -70,12 +75,7 @@ export default async function UebersichtPage({
         {dataError && <DataUnavailableNotice text={t("common.dataUnavailable")} />}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <PeriodFilter
-            propertyId={propertyId}
-            period={period}
-            month={todayDate.getUTCMonth() + 1}
-            year={todayDate.getUTCFullYear()}
-          />
+          <PeriodFilter propertyId={propertyId} period={period} year={todayDate.getUTCFullYear()} today={today} />
         </div>
       </div>
 

@@ -145,3 +145,19 @@ export function startOfMonth(iso: string): string {
 export function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
+
+/**
+ * The end (exclusive) of a previous-year comparison range that starts at
+ * `previousStart` and covers exactly as many calendar days as
+ * `[currentStart, currentEndExclusive)` - e.g. for an MTD/YTD range ending
+ * "heute" rather than at a period boundary, where the previous-year period
+ * must match by day count, not by calendar day-of-month/day-of-year (see
+ * services/statisticsService.ts#periodRanges and
+ * services/overviewService.ts#overviewPeriodRanges, the two callers this
+ * exists to keep in sync). Counted forward from `previousStart`, so it can
+ * legitimately spill into the following month/year around a leap day
+ * (e.g. 29 Feb in a leap year compared against a non-leap previous year).
+ */
+export function sameDayCountRangeEnd(currentStart: string, currentEndExclusive: string, previousStart: string): string {
+  return addDays(previousStart, nightsBetween(currentStart, currentEndExclusive));
+}

@@ -1,5 +1,5 @@
 import type { BookingSourceBreakdown, ComparableMetric, PropertyStatistics, Reservation, UnitStatistics } from "@/types";
-import { addDays, daysInMonth, formatDateRange, isoDate, monthLabel, nightsBetween, parseIsoDate, startOfMonth } from "@/lib/dates";
+import { addDays, daysInMonth, formatDateRange, isoDate, monthLabel, parseIsoDate, sameDayCountRangeEnd, startOfMonth } from "@/lib/dates";
 import { createTranslator, getDictionary, type Locale } from "@/i18n";
 import {
   calculateADR,
@@ -22,7 +22,6 @@ import {
   type MonthlyMockPoint,
 } from "@/data/mock/statisticsSeries";
 import { computeBookingSourceBreakdown } from "@/data/mock/bookingChannels";
-import { getPropertyOverviewKpis } from "./overviewService";
 import { getUnitsForProperty } from "./unitService";
 import { getReservationsForProperty } from "./reservationService";
 
@@ -142,12 +141,13 @@ function periodRanges(
     // compared to a non-leap previous year), where matching the day count
     // exactly - as explicitly required - means the previous-year range
     // spills a single day into the following month/year rather than
-    // silently comparing against one day fewer.
-    const days = nightsBetween(start, endExclusive);
+    // silently comparing against one day fewer. sameDayCountRangeEnd is the
+    // one place this arithmetic lives - see overviewService.ts's identical
+    // "mtd" case for the Übersicht page's own use of it.
     const previousStart = period === "mtd" ? isoDate(year - 1, month, 1) : isoDate(year - 1, 1, 1);
     return {
       currentRange: { start, endExclusive },
-      previousRange: { start: previousStart, endExclusive: addDays(previousStart, days) },
+      previousRange: { start: previousStart, endExclusive: sameDayCountRangeEnd(start, endExclusive, previousStart) },
     };
   }
 
@@ -529,19 +529,6 @@ async function getMockPropertyStatistics(
   const currentAgg = currentSeries ? aggregateMonths(currentSeries, year, months) : EMPTY_AGGREGATE;
   const previousAgg = previousSeries ? aggregateMonths(previousSeries, year - 1, months) : EMPTY_AGGREGATE;
   const previousYearAvailable = previousSeries !== null;
-
-  // The current month is also driven by real (mock) reservations elsewhere in
-  // the app (Übersicht page) - splice that live figure in so both pages agree
-  // on September 2026 exactly, instead of two independently-authored numbers.
-  // Only applies to the actual "today" mock month - any other month picked
-  // from the dropdown just uses the aggregate series as-is.
-  if (period === "month" && year === REPORTING_YEAR && month === REPORTING_MONTH) {
-    const liveKpis = await getPropertyOverviewKpis(propertyId, "month");
-    currentAgg.revenue = liveKpis.revenue;
-    currentAgg.bookings = liveKpis.bookingsCount;
-    currentAgg.stayNightsTotal = liveKpis.bookingsCount * liveKpis.avgStayNights;
-    currentAgg.occupiedNights = (liveKpis.occupancyPct / 100) * currentAgg.availableNights;
-  }
 
   const current = metricsFromAggregate(currentAgg);
   const previous = metricsFromAggregate(previousAgg);

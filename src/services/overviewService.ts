@@ -1,5 +1,5 @@
 import type { PropertyOverviewKpis, ReservationStatus, Reservation, Unit } from "@/types";
-import { addDays, daysInMonth, isoDate, parseIsoDate } from "@/lib/dates";
+import { addDays, isoDate, parseIsoDate, sameDayCountRangeEnd, startOfMonth } from "@/lib/dates";
 import { ownerPortalToday } from "@/server/services/ownerPortal/today";
 import {
   arrivalsInRange,
@@ -19,19 +19,46 @@ import { getReservationsForProperty } from "./reservationService";
 
 const PREVIEW_WINDOW_DAYS = 14;
 
-export type OverviewPeriod = "month" | "year";
+/**
+ * "mtd" (Month to Date, 1st of the current month through today inclusive) is
+ * the Übersicht page's default and only "this month" view - unlike the
+ * Statistiken page there's no historical month picker here, so there's no
+ * separate "full current month" option to keep alongside it (a full,
+ * still-incomplete current month would just be a second, more misleading
+ * way to show the same "this month" concept - see statisticsService.ts's
+ * identical "mtd"/"ytd bis heute" reasoning). "year" is unchanged: the full
+ * calendar year, including already-booked future reservations.
+ */
+export type OverviewPeriod = "mtd" | "year";
 
-function rangeForPeriod(period: OverviewPeriod, today: string, yearOffset = 0): DateRange {
+/**
+ * The current- and previous-year DateRanges for one period - mirrors
+ * services/statisticsService.ts#periodRanges (same "mtd ends at today,
+ * previous year matched by exact day count" rule; see
+ * lib/dates.ts#sameDayCountRangeEnd for the shared arithmetic).
+ */
+function overviewPeriodRanges(period: OverviewPeriod, today: string): { currentRange: DateRange; previousRange: DateRange } {
   const todayDate = parseIsoDate(today);
-  const year = todayDate.getUTCFullYear() + yearOffset;
+  const year = todayDate.getUTCFullYear();
   const month = todayDate.getUTCMonth() + 1;
 
   if (period === "year") {
-    return { start: isoDate(year, 1, 1), endExclusive: isoDate(year + 1, 1, 1) };
+    const start = isoDate(year, 1, 1);
+    const endExclusive = isoDate(year + 1, 1, 1);
+    const previousStart = isoDate(year - 1, 1, 1);
+    return {
+      currentRange: { start, endExclusive },
+      previousRange: { start: previousStart, endExclusive: isoDate(year, 1, 1) },
+    };
   }
 
-  const start = isoDate(year, month, 1);
-  return { start, endExclusive: addDays(start, daysInMonth(year, month)) };
+  const start = startOfMonth(today);
+  const endExclusive = addDays(today, 1);
+  const previousStart = isoDate(year - 1, month, 1);
+  return {
+    currentRange: { start, endExclusive },
+    previousRange: { start: previousStart, endExclusive: sameDayCountRangeEnd(start, endExclusive, previousStart) },
+  };
 }
 
 interface PeriodKpis {
@@ -61,16 +88,15 @@ async function kpisForRange(propertyId: string, units: Unit[], range: DateRange)
 
 export async function getPropertyOverviewKpis(
   propertyId: string,
-  period: OverviewPeriod = "month"
+  period: OverviewPeriod = "mtd"
 ): Promise<PropertyOverviewKpis> {
   const today = ownerPortalToday();
   const units = await getUnitsForProperty(propertyId);
-  const range = rangeForPeriod(period, today);
-  const previousYearRange = rangeForPeriod(period, today, -1);
+  const { currentRange, previousRange } = overviewPeriodRanges(period, today);
 
   const [current, previous] = await Promise.all([
-    kpisForRange(propertyId, units, range),
-    kpisForRange(propertyId, units, previousYearRange),
+    kpisForRange(propertyId, units, currentRange),
+    kpisForRange(propertyId, units, previousRange),
   ]);
 
   return {
