@@ -64,7 +64,10 @@ export function InfoTooltip({
         <span
           id={tooltipId}
           role="tooltip"
-          className="absolute left-0 top-full z-40 mt-2 w-56 max-w-[75vw] rounded-2xl border border-line bg-paper px-3.5 py-3 text-xs shadow-soft-lg"
+          // normal-case: the KPI-card label this sits next to is itself
+          // uppercase (see KpiCard.tsx), which would otherwise cascade into
+          // this panel's multi-line explanatory text and make it unreadable.
+          className="absolute left-0 top-full z-40 mt-2 w-56 max-w-[75vw] rounded-2xl border border-line bg-paper px-3.5 py-3 text-xs normal-case shadow-soft-lg"
         >
           {title && <span className="mb-0.5 block font-medium text-ink">{title}</span>}
           <span className="block text-ink-soft">{description}</span>
