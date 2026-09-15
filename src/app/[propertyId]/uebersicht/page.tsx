@@ -97,6 +97,7 @@ export default async function UebersichtPage({
         />
         <KpiCard
           label={t("overview.bookingRevenue")}
+          tooltip={{ label: t("common.moreInformation"), description: t("statistics.bookingRevenueTooltip") }}
           value={formatCurrency(kpis.revenue, "EUR", 2, locale)}
           deltaPoints={
             kpis.previousYearAvailable && kpis.revenuePreviousYear
