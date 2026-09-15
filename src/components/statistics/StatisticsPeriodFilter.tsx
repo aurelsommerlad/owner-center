@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { StatisticsMonthOption, StatisticsPeriod } from "@/services/statisticsService";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { monthLabel } from "@/lib/dates";
+import { formatDateRange, monthLabel, startOfMonth } from "@/lib/dates";
 import { ChevronDownIcon } from "@/components/ui/icons";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 
 function isoFirstOfMonth(option: StatisticsMonthOption): string {
   return `${option.year}-${String(option.month).padStart(2, "0")}-01`;
@@ -13,11 +14,12 @@ function isoFirstOfMonth(option: StatisticsMonthOption): string {
 
 /**
  * The Statistiken page's period control - a segmented pill row matching
- * every other filter in the app, except its first segment is itself a
- * dropdown (month picker) rather than a single fixed label. `availableMonths`
- * (newest first, no future months) and `currentYear` are resolved
- * server-side from the real "today" - see services/statisticsService.ts and
- * the page - so nothing here is hardcoded to a specific year.
+ * every other filter in the app, except its first two segments (MTD, then
+ * the month dropdown) are followed by YTD and Jahr. `availableMonths`
+ * (newest first, no future/current months - see recentStatisticsMonths) and
+ * `currentYear`/`today` are all resolved server-side from the real "today" -
+ * see services/statisticsService.ts and the page - so nothing here is
+ * hardcoded to a specific date.
  */
 export function StatisticsPeriodFilter({
   propertyId,
@@ -26,6 +28,7 @@ export function StatisticsPeriodFilter({
   availableMonths,
   selectedMonth,
   currentYear,
+  today,
 }: {
   propertyId: string;
   period: StatisticsPeriod;
@@ -33,6 +36,8 @@ export function StatisticsPeriodFilter({
   availableMonths: StatisticsMonthOption[];
   selectedMonth: StatisticsMonthOption;
   currentYear: number;
+  /** ISO "today" (real in production, MOCK_TODAY-anchored in local dev - see ownerPortalToday), only used to render the MTD tooltip's dynamic "1.–15. September 2026" range. */
+  today: string;
 }) {
   const router = useRouter();
   const { t, locale } = useTranslations();
@@ -54,7 +59,7 @@ export function StatisticsPeriodFilter({
     router.push(`/${propertyId}/statistiken?zeitraum=month&monat=${isoFirstOfMonth(option)}`);
   }
 
-  function selectPeriod(value: "ytd" | "year") {
+  function selectPeriod(value: "mtd" | "ytd" | "year") {
     setOpen(false);
     router.push(`/${propertyId}/statistiken?zeitraum=${value}`);
   }
@@ -69,9 +74,31 @@ export function StatisticsPeriodFilter({
   }
   const years = [...monthsByYear.keys()].sort((a, b) => b - a);
 
+  const mtdRangeLabel = formatDateRange(startOfMonth(today), today, locale);
+
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="inline-flex items-center gap-0.5 rounded-full border border-line bg-paper p-1">
+        <span className="inline-flex items-center">
+          <button
+            type="button"
+            aria-pressed={period === "mtd"}
+            onClick={() => selectPeriod("mtd")}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              period === "mtd" ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
+            }`}
+          >
+            {t("statistics.mtd")}
+          </button>
+          <InfoTooltip
+            label={t("common.moreInformation")}
+            title={t("statistics.mtdTooltipTitle")}
+            description={t("statistics.mtdTooltipDescription")}
+            dateRangeLabel={mtdRangeLabel}
+            className="ml-0.5 mr-1"
+          />
+        </span>
+
         <div className="relative" ref={containerRef}>
           <button
             type="button"
@@ -124,26 +151,42 @@ export function StatisticsPeriodFilter({
           )}
         </div>
 
-        <button
-          type="button"
-          aria-pressed={period === "ytd"}
-          onClick={() => selectPeriod("ytd")}
-          className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
-            period === "ytd" ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
-          }`}
-        >
-          YTD {currentYear}
-        </button>
-        <button
-          type="button"
-          aria-pressed={period === "year"}
-          onClick={() => selectPeriod("year")}
-          className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
-            period === "year" ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
-          }`}
-        >
-          {t("overview.year", { year: currentYear })}
-        </button>
+        <span className="inline-flex items-center">
+          <button
+            type="button"
+            aria-pressed={period === "ytd"}
+            onClick={() => selectPeriod("ytd")}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              period === "ytd" ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
+            }`}
+          >
+            YTD {currentYear}
+          </button>
+          <InfoTooltip
+            label={t("common.moreInformation")}
+            title={t("statistics.ytdTooltipTitle")}
+            description={t("statistics.ytdTooltipDescription")}
+            className="ml-0.5 mr-1"
+          />
+        </span>
+        <span className="inline-flex items-center">
+          <button
+            type="button"
+            aria-pressed={period === "year"}
+            onClick={() => selectPeriod("year")}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              period === "year" ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"
+            }`}
+          >
+            {t("overview.year", { year: currentYear })}
+          </button>
+          <InfoTooltip
+            label={t("common.moreInformation")}
+            title={t("statistics.yearTooltipTitle")}
+            description={t("statistics.yearTooltipDescription")}
+            className="ml-0.5 mr-1"
+          />
+        </span>
       </div>
       <span className="text-xs text-ink-soft">
         {t("statistics.comparisonPeriod")} <span className="text-ink">{comparisonLabel}</span>

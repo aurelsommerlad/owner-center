@@ -1,5 +1,5 @@
 import type { BookingSourceBreakdown, ComparableMetric, PropertyStatistics, Reservation, UnitStatistics } from "@/types";
-import { addDays, daysInMonth, isoDate, monthLabel, parseIsoDate } from "@/lib/dates";
+import { addDays, daysInMonth, formatDateRange, isoDate, monthLabel, nightsBetween, parseIsoDate, startOfMonth } from "@/lib/dates";
 import { createTranslator, getDictionary, type Locale } from "@/i18n";
 import {
   calculateADR,
@@ -27,8 +27,12 @@ import { getUnitsForProperty } from "./unitService";
 import { getReservationsForProperty } from "./reservationService";
 
 /** The Statistiken page's own period filter - a superset of the Übersicht
- *  page's "month"/"year" that also offers a year-to-date view. */
-export type StatisticsPeriod = "month" | "ytd" | "year";
+ *  page's "month"/"year" that also offers month-to-date and year-to-date
+ *  views. "mtd" is the page's default (see the page component); "month" is
+ *  always a past, fully-completed calendar month picked from the dropdown -
+ *  the current (incomplete) month is only ever reachable via "mtd", never
+ *  offered as a "month" option (see recentStatisticsMonths). */
+export type StatisticsPeriod = "mtd" | "month" | "ytd" | "year";
 
 /** One selectable month in the Statistiken page's month dropdown. */
 export interface StatisticsMonthOption {
@@ -50,6 +54,17 @@ export function recentStatisticsMonths(today: string, windowMonths = 24): Statis
   const todayDate = parseIsoDate(today);
   let year = todayDate.getUTCFullYear();
   let month = todayDate.getUTCMonth() + 1;
+
+  // Start at the last fully-completed month, never the current one: a
+  // "vollständiger Monat" (full calendar month) picked from this dropdown
+  // must actually be complete, and the current, still-running month is
+  // reachable exclusively via the "mtd" period instead (a deliberately
+  // different, partial-month view - see StatisticsPeriod's doc comment).
+  month -= 1;
+  if (month === 0) {
+    month = 12;
+    year -= 1;
+  }
 
   return Array.from({ length: windowMonths }, () => {
     const option = { year, month };
@@ -75,7 +90,11 @@ export function recentStatisticsMonths(today: string, windowMonths = 24): Statis
  * a cancellation rate should use - showing one would mean inventing a KPI
  * definition rather than reporting a real one.
  */
-const MOCK_AVG_LEAD_TIME_DAYS: Record<StatisticsPeriod, number> = { month: 32, ytd: 29, year: 27 };
+// "mtd" is never actually read from here (see getMockMtdPropertyStatistics,
+// which computes a real value from the day-level mock reservations
+// instead) - the key still has to exist for Record<StatisticsPeriod,
+// number> to type-check.
+const MOCK_AVG_LEAD_TIME_DAYS: Record<StatisticsPeriod, number> = { mtd: 0, month: 32, ytd: 29, year: 27 };
 
 function metric(value: number, previousYear: number, previousYearAvailable: boolean): ComparableMetric {
   return { value, previousYear, previousYearAvailable };
@@ -87,10 +106,64 @@ function monthsForPeriod(period: StatisticsPeriod, currentMonth: number): number
   return Array.from({ length: 12 }, (_, i) => i + 1);
 }
 
-function periodLabelFor(period: StatisticsPeriod, year: number, month: number, locale: Locale): string {
+/**
+ * `today` is only needed for "mtd" (to render its actual partial-month
+ * range, e.g. "1.–15. September 2026" - the same dynamic label used in the
+ * period filter's info tooltip) and is safe to omit for every other period.
+ */
+function periodLabelFor(period: StatisticsPeriod, year: number, month: number, locale: Locale, today?: string): string {
   if (period === "year") return createTranslator(getDictionary(locale))("overview.year", { year });
   if (period === "ytd") return `YTD ${year}`;
+  if (period === "mtd" && today) return formatDateRange(startOfMonth(today), today, locale);
   return `${monthLabel(month, locale)} ${year}`;
+}
+
+/**
+ * The current- and previous-year DateRanges for one period. "month"/"year"
+ * are unchanged (full calendar month(s)/year). "mtd"/"ytd" both now end
+ * exactly at `today` (not at the end of the current month/year, which would
+ * include not-yet-happened days) - see this function's own previous-year
+ * branch for how the comparison period is derived from that.
+ */
+function periodRanges(
+  period: StatisticsPeriod,
+  year: number,
+  month: number,
+  today: string
+): { currentRange: DateRange; previousRange: DateRange } {
+  if (period === "mtd" || period === "ytd") {
+    const start = period === "mtd" ? startOfMonth(today) : isoDate(year, 1, 1);
+    const endExclusive = addDays(today, 1);
+    // "Exakt dieselbe Anzahl Kalendertage des Vorjahres" (spec) - counted
+    // forward from the same calendar date one year earlier, not matched to
+    // the same day-of-month/day-of-year number. The two are usually
+    // identical; they only diverge around a leap day (e.g. today = 29 Feb
+    // in a leap year, or any date after 29 Feb in a leap year being
+    // compared to a non-leap previous year), where matching the day count
+    // exactly - as explicitly required - means the previous-year range
+    // spills a single day into the following month/year rather than
+    // silently comparing against one day fewer.
+    const days = nightsBetween(start, endExclusive);
+    const previousStart = period === "mtd" ? isoDate(year - 1, month, 1) : isoDate(year - 1, 1, 1);
+    return {
+      currentRange: { start, endExclusive },
+      previousRange: { start: previousStart, endExclusive: addDays(previousStart, days) },
+    };
+  }
+
+  const months = monthsForPeriod(period, month);
+  const firstMonth = months[0];
+  const lastMonth = months[months.length - 1];
+  return {
+    currentRange: {
+      start: isoDate(year, firstMonth, 1),
+      endExclusive: addDays(isoDate(year, lastMonth, 1), daysInMonth(year, lastMonth)),
+    },
+    previousRange: {
+      start: isoDate(year - 1, firstMonth, 1),
+      endExclusive: addDays(isoDate(year - 1, lastMonth, 1), daysInMonth(year - 1, lastMonth)),
+    },
+  };
 }
 
 export async function getPropertyStatistics(
@@ -260,10 +333,9 @@ async function getLivePropertyStatistics(
   const today = ownerPortalToday();
   const todayDate = parseIsoDate(today);
   // Only "month" ever anchors on something other than the current year/month
-  // (a past month picked from the dropdown) - YTD/Jahr always mean "this year".
+  // (a past month picked from the dropdown) - mtd/YTD/Jahr always mean "this year".
   const year = period === "month" && selectedMonth ? selectedMonth.year : todayDate.getUTCFullYear();
   const month = period === "month" && selectedMonth ? selectedMonth.month : todayDate.getUTCMonth() + 1;
-  const months = monthsForPeriod(period, month);
 
   const units = await getUnitsForProperty(propertyId);
   const yearRange: DateRange = { start: isoDate(year, 1, 1), endExclusive: isoDate(year + 1, 1, 1) };
@@ -274,16 +346,7 @@ async function getLivePropertyStatistics(
     getReservationsForProperty(propertyId, previousYearRange),
   ]);
 
-  const firstMonth = months[0];
-  const lastMonth = months[months.length - 1];
-  const currentRange: DateRange = {
-    start: isoDate(year, firstMonth, 1),
-    endExclusive: addDays(isoDate(year, lastMonth, 1), daysInMonth(year, lastMonth)),
-  };
-  const previousRange: DateRange = {
-    start: isoDate(year - 1, firstMonth, 1),
-    endExclusive: addDays(isoDate(year - 1, lastMonth, 1), daysInMonth(year - 1, lastMonth)),
-  };
+  const { currentRange, previousRange } = periodRanges(period, year, month, today);
 
   const current = metricsForRange(currentYearReservations, propertyId, units.length, currentRange);
   const previous = metricsForRange(previousYearReservations, propertyId, units.length, previousRange);
@@ -300,7 +363,7 @@ async function getLivePropertyStatistics(
 
   return {
     propertyId,
-    periodLabel: periodLabelFor(period, year, month, locale),
+    periodLabel: periodLabelFor(period, year, month, locale, today),
     comparisonLabel: getDictionary(locale).statistics.previousYearLabel,
     occupancyPct: metric(current.occupancyPct, previous.occupancyPct, previousYearAvailable),
     revenue: metric(current.revenue, previous.revenue, previousYearAvailable),
@@ -319,7 +382,7 @@ async function getLivePropertyStatistics(
       ...monthlyOccupancySeries(previousYearReservations, units.length, year - 1),
     ],
     unitStats,
-    unitStatsPeriodLabel: periodLabelFor(period, year, month, locale),
+    unitStatsPeriodLabel: periodLabelFor(period, year, month, locale, today),
     bookingSources,
     avgLeadTimeDays: current.avgLeadTimeDays,
   };
@@ -329,8 +392,9 @@ async function getLivePropertyStatistics(
 // Mock fallback path (apaleo not configured) - unchanged V1 behaviour.
 // ---------------------------------------------------------------------------
 
-const REPORTING_YEAR = parseIsoDate(ownerPortalToday()).getUTCFullYear();
-const REPORTING_MONTH = parseIsoDate(ownerPortalToday()).getUTCMonth() + 1;
+const REPORTING_TODAY = ownerPortalToday();
+const REPORTING_YEAR = parseIsoDate(REPORTING_TODAY).getUTCFullYear();
+const REPORTING_MONTH = parseIsoDate(REPORTING_TODAY).getUTCMonth() + 1;
 
 /** The two years the mock fixtures actually cover - `null` outside that range (see ComparableMetric.previousYearAvailable). */
 function mockSeriesForYear(year: number): MonthlyMockPoint[] | null {
@@ -380,12 +444,82 @@ function metricsFromAggregate(a: Aggregate) {
   return { adr, revPar, occupancy, avgStay, avgBookingValue };
 }
 
+/**
+ * MTD in the mock fallback: the hand-authored monthly aggregate series
+ * above (MONTHLY_SERIES_2026/2025) only has month granularity and cannot
+ * represent a partial month, so MTD instead reads the real day-level mock
+ * reservations - the exact same metricsForRange calculation the live path
+ * uses (see getLivePropertyStatistics), via the same isMockFallbackAllowed()
+ * -gated getReservationsForProperty/getUnitsForProperty seam. Those day-level
+ * fixtures only cover a ~6 week window around the current mock "today" (see
+ * data/mock/reservations.ts) and have no 2025 coverage at all, so the
+ * previous-year comparison legitimately comes back empty ("Keine
+ * Vorjahresdaten") here - illustrative, dev-only, never shown in production
+ * (see isMockFallbackAllowed).
+ */
+async function getMockMtdPropertyStatistics(propertyId: string, locale: Locale): Promise<PropertyStatistics> {
+  const today = REPORTING_TODAY;
+  const year = REPORTING_YEAR;
+  const month = REPORTING_MONTH;
+  const { currentRange, previousRange } = periodRanges("mtd", year, month, today);
+
+  const units = await getUnitsForProperty(propertyId);
+  const [currentReservations, previousReservations] = await Promise.all([
+    getReservationsForProperty(propertyId, currentRange),
+    getReservationsForProperty(propertyId, previousRange),
+  ]);
+
+  const current = metricsForRange(currentReservations, propertyId, units.length, currentRange);
+  const previous = metricsForRange(previousReservations, propertyId, units.length, previousRange);
+  const previousYearAvailable = previous.hasData;
+
+  const currentOwnerUseNights = nightsOfStatusInRange(currentReservations, currentRange, ["owner-use"]);
+  const previousOwnerUseNights = nightsOfStatusInRange(previousReservations, previousRange, ["owner-use"]);
+
+  const unitStats = await getLiveUnitPerformance(propertyId, currentReservations, currentRange);
+  const bookingSources = liveBookingSourceBreakdown(currentReservations, propertyId, currentRange);
+  const periodLabel = periodLabelFor("mtd", year, month, locale, today);
+
+  return {
+    propertyId,
+    periodLabel,
+    comparisonLabel: getDictionary(locale).statistics.previousYearLabel,
+    occupancyPct: metric(current.occupancyPct, previous.occupancyPct, previousYearAvailable),
+    revenue: metric(current.revenue, previous.revenue, previousYearAvailable),
+    adr: metric(current.adr, previous.adr, previousYearAvailable),
+    revPar: metric(current.revPar, previous.revPar, previousYearAvailable),
+    bookingsCount: metric(current.bookingsCount, previous.bookingsCount, previousYearAvailable),
+    avgStayNights: metric(current.avgStayNights, previous.avgStayNights, previousYearAvailable),
+    avgBookingValue: metric(current.avgBookingValue, previous.avgBookingValue, previousYearAvailable),
+    ownerUseNights: metric(currentOwnerUseNights, previousOwnerUseNights, previousYearAvailable),
+    // The trend charts always show the full year regardless of the selected
+    // period (see the Statistiken page) - same fixed mock series as every
+    // other mock period.
+    monthlyRevenue: MONTHLY_SERIES_2026.map((point) => ({ month: point.month, year: REPORTING_YEAR, revenue: point.revenue })).concat(
+      MONTHLY_SERIES_2025.map((point) => ({ month: point.month, year: REPORTING_YEAR - 1, revenue: point.revenue }))
+    ),
+    monthlyOccupancy: MONTHLY_SERIES_2026.map((point) => ({
+      month: point.month,
+      year: REPORTING_YEAR,
+      occupancyPct: point.occupancyPct,
+    })).concat(
+      MONTHLY_SERIES_2025.map((point) => ({ month: point.month, year: REPORTING_YEAR - 1, occupancyPct: point.occupancyPct }))
+    ),
+    unitStats,
+    unitStatsPeriodLabel: periodLabel,
+    bookingSources,
+    avgLeadTimeDays: current.avgLeadTimeDays,
+  };
+}
+
 async function getMockPropertyStatistics(
   propertyId: string,
   period: StatisticsPeriod,
   locale: Locale,
   selectedMonth?: StatisticsMonthOption
 ): Promise<PropertyStatistics> {
+  if (period === "mtd") return getMockMtdPropertyStatistics(propertyId, locale);
+
   const year = period === "month" && selectedMonth ? selectedMonth.year : REPORTING_YEAR;
   const month = period === "month" && selectedMonth ? selectedMonth.month : REPORTING_MONTH;
   const months = monthsForPeriod(period, month);

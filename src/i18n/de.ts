@@ -32,6 +32,7 @@ export const de = {
     previousPeriod: "Vorheriger Zeitraum",
     nextPeriod: "Nächster Zeitraum",
     today: "Heute",
+    moreInformation: "Weitere Informationen",
   },
   nav: {
     overview: "Übersicht",
@@ -154,6 +155,24 @@ export const de = {
     previousYearLabel: "Vorjahr",
     noComparisonData: "Keine Vorjahresdaten",
     selectMonth: "Monat wählen",
+    mtd: "MTD",
+    mtdTooltipTitle: "Month to Date (MTD)",
+    mtdTooltipDescription:
+      "Zeigt die Kennzahlen vom ersten Tag des aktuellen Monats bis einschließlich heute.",
+    ytdTooltipTitle: "Year to Date (YTD)",
+    ytdTooltipDescription: "Zeigt die Kennzahlen vom 1. Januar bis einschließlich heute.",
+    yearTooltipTitle: "Gesamtjahr",
+    yearTooltipDescription:
+      "Zeigt das vollständige Kalenderjahr einschließlich bereits vorliegender zukünftiger Reservierungen.",
+    bookingRevenueTooltip:
+      "Netto-Übernachtungsumsatz für den ausgewählten Zeitraum, ohne Kurtaxe und Nebenleistungen.",
+    occupancyTooltip:
+      "Anteil der belegten an den verfügbaren Übernachtungskapazitäten im ausgewählten Zeitraum.",
+    adrTooltipTitle: "Average Daily Rate (ADR)",
+    adrTooltipDescription: "Durchschnittlicher Netto-Übernachtungsumsatz je belegter Nacht.",
+    revParTooltipTitle: "Revenue per Available Room (RevPAR)",
+    revParTooltipDescription: "Netto-Übernachtungsumsatz je verfügbarer Nacht.",
+    avgLeadTimeTooltip: "Durchschnittliche Anzahl der Tage zwischen Buchung und Anreise.",
     revenueTrendTitle: "Übernachtungsumsatz (netto) im Jahresverlauf",
     occupancyTrendTitle: "Auslastung im Jahresverlauf",
     bookingSources: "Buchungsquellen",

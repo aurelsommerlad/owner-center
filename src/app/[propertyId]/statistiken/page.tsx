@@ -43,8 +43,18 @@ export default async function StatistikenPage({
 }) {
   const { propertyId } = await params;
   const query = await searchParams;
+  // "mtd" is the default: both when `zeitraum` is missing entirely (a plain
+  // /statistiken visit) and when it's some unrecognized value - an explicit,
+  // already-chosen `?zeitraum=...` is always respected, per the other three
+  // recognized values below.
   const period: StatisticsPeriod =
-    query.zeitraum === "year" ? "year" : query.zeitraum === "ytd" ? "ytd" : "month";
+    query.zeitraum === "month"
+      ? "month"
+      : query.zeitraum === "ytd"
+        ? "ytd"
+        : query.zeitraum === "year"
+          ? "year"
+          : "mtd";
 
   const property = await getProperty(propertyId);
   if (!property) notFound();
@@ -59,10 +69,11 @@ export default async function StatistikenPage({
   const availableMonths = recentStatisticsMonths(today);
 
   // The requested month only takes effect when it's actually one of the
-  // offered options (never in the future, never further back than the
-  // dropdown reaches) - otherwise fall back to the current month, the same
-  // way an invalid `view`/`zeitraum` elsewhere in the app falls back to a
-  // safe default rather than erroring.
+  // offered options (a past, fully-completed month, never further back than
+  // the dropdown reaches, and never the current month - see
+  // recentStatisticsMonths) - otherwise fall back to the most recent
+  // available month, the same way an invalid `view`/`zeitraum` elsewhere in
+  // the app falls back to a safe default rather than erroring.
   const requestedMonth: StatisticsMonthOption | null = (() => {
     if (!query.monat || !/^\d{4}-\d{2}-\d{2}$/.test(query.monat)) return null;
     const date = parseIsoDate(query.monat);
@@ -71,7 +82,7 @@ export default async function StatistikenPage({
   const selectedMonth: StatisticsMonthOption =
     requestedMonth && availableMonths.some((o) => o.year === requestedMonth.year && o.month === requestedMonth.month)
       ? requestedMonth
-      : { year: currentYear, month: todayDate.getUTCMonth() + 1 };
+      : availableMonths[0];
 
   const [units, stats] = await Promise.all([
     getUnitsForProperty(propertyId),
@@ -131,11 +142,13 @@ export default async function StatistikenPage({
         availableMonths={availableMonths}
         selectedMonth={selectedMonth}
         currentYear={currentYear}
+        today={today}
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
           label={t("statistics.occupancy")}
+          tooltip={{ label: t("common.moreInformation"), description: t("statistics.occupancyTooltip") }}
           value={formatPercent(stats.occupancyPct.value, 0, locale)}
           deltaPoints={pointDelta(stats.occupancyPct)}
           deltaFractionDigits={1}
@@ -147,6 +160,7 @@ export default async function StatistikenPage({
         />
         <KpiCard
           label={t("statistics.bookingRevenue")}
+          tooltip={{ label: t("common.moreInformation"), description: t("statistics.bookingRevenueTooltip") }}
           value={formatCurrency(stats.revenue.value, "EUR", 2, locale)}
           deltaPoints={percentDelta(stats.revenue)}
           deltaFractionDigits={1}
@@ -158,6 +172,11 @@ export default async function StatistikenPage({
         />
         <KpiCard
           label={t("statistics.adr")}
+          tooltip={{
+            label: t("common.moreInformation"),
+            title: t("statistics.adrTooltipTitle"),
+            description: t("statistics.adrTooltipDescription"),
+          }}
           value={formatCurrency(stats.adr.value, "EUR", 2, locale)}
           deltaPoints={percentDelta(stats.adr)}
           deltaFractionDigits={1}
@@ -169,6 +188,11 @@ export default async function StatistikenPage({
         />
         <KpiCard
           label={t("statistics.revPar")}
+          tooltip={{
+            label: t("common.moreInformation"),
+            title: t("statistics.revParTooltipTitle"),
+            description: t("statistics.revParTooltipDescription"),
+          }}
           value={formatCurrency(stats.revPar.value, "EUR", 2, locale)}
           deltaPoints={percentDelta(stats.revPar)}
           deltaFractionDigits={1}
@@ -270,7 +294,13 @@ export default async function StatistikenPage({
 
         <div className="mt-6 grid grid-cols-2 gap-3 border-t border-line pt-5">
           <KpiCard compact label={t("statistics.directBookingShare")} value={formatPercent(directSharePct, 0, locale)} locale={locale} />
-          <KpiCard compact label={t("statistics.avgLeadTime")} value={`${stats.avgLeadTimeDays} ${t("statistics.days")}`} locale={locale} />
+          <KpiCard
+            compact
+            label={t("statistics.avgLeadTime")}
+            tooltip={{ label: t("common.moreInformation"), description: t("statistics.avgLeadTimeTooltip") }}
+            value={`${stats.avgLeadTimeDays} ${t("statistics.days")}`}
+            locale={locale}
+          />
         </div>
       </Card>
 

@@ -1,11 +1,14 @@
 import { Card } from "@/components/ui/Card";
 import { TrendDownIcon, TrendUpIcon } from "@/components/ui/icons";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { formatDelta } from "@/lib/format";
 import type { Locale } from "@/i18n";
 
 interface KpiCardProps {
   label: string;
   value: string;
+  /** Optional, dezent ⓘ explanation next to the label - only for KPIs that genuinely need one (see InfoTooltip). */
+  tooltip?: { label: string; title?: string; description: string };
   deltaPoints?: number;
   /** Decimal places for the delta number, e.g. 0 for counts, 1 for % or nights. */
   deltaFractionDigits?: number;
@@ -28,6 +31,7 @@ interface KpiCardProps {
 export function KpiCard({
   label,
   value,
+  tooltip,
   deltaPoints,
   deltaFractionDigits = 1,
   deltaSuffix = "",
@@ -43,7 +47,10 @@ export function KpiCard({
 
   return (
     <Card className={compact ? "px-4 py-3 shadow-none" : "px-4 py-3.5 shadow-none sm:px-5 sm:py-4"}>
-      <p className="text-[11px] uppercase tracking-[0.08em] text-ink-soft">{label}</p>
+      <p className="flex items-center gap-1 text-[11px] uppercase tracking-[0.08em] text-ink-soft">
+        {label}
+        {tooltip && <InfoTooltip label={tooltip.label} title={tooltip.title} description={tooltip.description} />}
+      </p>
       <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <p className={`font-display italic text-ink ${compact ? "text-lg" : "text-xl sm:text-2xl"}`}>{value}</p>
         {showDelta && (
