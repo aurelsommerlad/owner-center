@@ -3,7 +3,7 @@ import { mockReservations } from "@/data/mock";
 import type { DateRange } from "@/lib/occupancy";
 import { reservationsInRange } from "@/lib/occupancy";
 import { addDays, today } from "@/lib/dates";
-import { isApaleoConfigured } from "@/server/integrations/apaleo/config";
+import { isApaleoConfigured, isMockFallbackAllowed, logApaleoNotConfiguredInProduction } from "@/server/integrations/apaleo/config";
 import { resolveOwnerPortalProperty } from "@/server/services/ownerPortal/context";
 import { getOwnerPortalReservations } from "@/server/services/ownerPortal/reservations";
 import { markOwnerPortalDataError } from "@/server/services/ownerPortal/errorState";
@@ -12,11 +12,16 @@ import { markOwnerPortalDataError } from "@/server/services/ownerPortal/errorSta
  * The one seam every calendar/overview/statistics calculation reads
  * reservations through - components never call apaleo directly.
  *
- * - apaleo not configured at all (no credentials - this sandbox's own
- *   state, and any local dev checkout without them): falls back to the V1
- *   mock fixtures, exactly as before. This is a deliberate local-dev
- *   convenience, not "showing mock data as live" - the same distinction
- *   /admin/properties already draws for its own apaleo section.
+ * - apaleo not configured, in local development without credentials: falls
+ *   back to the V1 mock fixtures, exactly as before. This is a deliberate
+ *   local-dev convenience, not "showing mock data as live" - the same
+ *   distinction /admin/properties already draws for its own apaleo
+ *   section. Gated on isMockFallbackAllowed(), never on
+ *   `!isApaleoConfigured()` alone, so this branch is structurally
+ *   unreachable once `NODE_ENV === "production"`.
+ * - apaleo not configured while running in production (a real
+ *   deployment/configuration problem, not a normal state): never mock
+ *   data - flags the request exactly like a live fetch failure below.
  * - apaleo configured but this property has no apaleoPropertyId mapped yet
  *   in /admin, or the live apaleo request itself fails: returns an empty
  *   array and flags the request (see ownerPortal/errorState.ts) so the
@@ -27,11 +32,17 @@ export async function getReservationsForProperty(
   propertyId: string,
   range?: DateRange
 ): Promise<Reservation[]> {
-  if (!isApaleoConfigured()) {
+  if (isMockFallbackAllowed()) {
     if (!range) {
       return mockReservations.filter((reservation) => reservation.propertyId === propertyId);
     }
     return reservationsInRange(mockReservations, propertyId, range);
+  }
+
+  if (!isApaleoConfigured()) {
+    logApaleoNotConfiguredInProduction("getReservationsForProperty");
+    markOwnerPortalDataError();
+    return [];
   }
 
   const context = await resolveOwnerPortalProperty(propertyId);

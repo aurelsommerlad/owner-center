@@ -13,7 +13,7 @@ import {
   reservationsInRange,
   type DateRange,
 } from "@/lib/occupancy";
-import { isApaleoConfigured } from "@/server/integrations/apaleo/config";
+import { isMockFallbackAllowed } from "@/server/integrations/apaleo/config";
 import { ownerPortalToday } from "@/server/services/ownerPortal/today";
 import {
   MONTHLY_SERIES_2025,
@@ -100,9 +100,18 @@ export async function getPropertyStatistics(
   /** A specific past (or current) month from the dropdown - only meaningful when `period === "month"`; omitted/ignored otherwise, and defaults to the current month when `period === "month"` but nothing was selected. */
   selectedMonth?: StatisticsMonthOption
 ): Promise<PropertyStatistics> {
-  return isApaleoConfigured()
-    ? getLivePropertyStatistics(propertyId, period, locale, selectedMonth)
-    : getMockPropertyStatistics(propertyId, period, locale, selectedMonth);
+  // Mock fixtures only in local development without apaleo credentials
+  // (isMockFallbackAllowed(), never `!isApaleoConfigured()` alone - see
+  // integrations/apaleo/config.ts). Every other case, including apaleo
+  // unconfigured in production, goes through the live path: it reads
+  // reservations/units exclusively via getReservationsForProperty/
+  // getUnitsForProperty, which already degrade to an empty, flagged
+  // "Daten konnten aktuell nicht geladen werden." result themselves in
+  // that situation, the same way they do for an unmapped property today -
+  // no separate handling needed here.
+  return isMockFallbackAllowed()
+    ? getMockPropertyStatistics(propertyId, period, locale, selectedMonth)
+    : getLivePropertyStatistics(propertyId, period, locale, selectedMonth);
 }
 
 // ---------------------------------------------------------------------------

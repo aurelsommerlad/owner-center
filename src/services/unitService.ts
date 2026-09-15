@@ -1,6 +1,6 @@
 import type { Unit } from "@/types";
 import { mockUnits } from "@/data/mock";
-import { isApaleoConfigured } from "@/server/integrations/apaleo/config";
+import { isApaleoConfigured, isMockFallbackAllowed, logApaleoNotConfiguredInProduction } from "@/server/integrations/apaleo/config";
 import { resolveOwnerPortalProperty } from "@/server/services/ownerPortal/context";
 import { getOwnerPortalUnits } from "@/server/services/ownerPortal/units";
 import { markOwnerPortalDataError } from "@/server/services/ownerPortal/errorState";
@@ -11,8 +11,14 @@ import { markOwnerPortalDataError } from "@/server/services/ownerPortal/errorSta
  * property-mapped / request-failed decision this mirrors.
  */
 export async function getUnitsForProperty(propertyId: string): Promise<Unit[]> {
-  if (!isApaleoConfigured()) {
+  if (isMockFallbackAllowed()) {
     return mockUnits.filter((unit) => unit.propertyId === propertyId).sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  if (!isApaleoConfigured()) {
+    logApaleoNotConfiguredInProduction("getUnitsForProperty");
+    markOwnerPortalDataError();
+    return [];
   }
 
   const context = await resolveOwnerPortalProperty(propertyId);
@@ -25,7 +31,7 @@ export async function getUnitsForProperty(propertyId: string): Promise<Unit[]> {
 }
 
 export async function getUnit(unitId: string): Promise<Unit | undefined> {
-  if (!isApaleoConfigured()) {
+  if (isMockFallbackAllowed()) {
     return mockUnits.find((unit) => unit.id === unitId);
   }
   // Units are always fetched per-property (getUnitsForProperty) on the live
