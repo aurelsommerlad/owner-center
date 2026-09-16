@@ -138,8 +138,8 @@ export function departuresInRange(
   return reservations.filter(
     (reservation) =>
       reservation.propertyId === propertyId &&
-      reservation.checkOut > range.start &&
-      reservation.checkOut <= range.endExclusive
+      reservation.checkOut >= range.start &&
+      reservation.checkOut < range.endExclusive
   );
 }
 
