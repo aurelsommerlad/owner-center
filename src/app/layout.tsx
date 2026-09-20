@@ -36,8 +36,10 @@ export default async function RootLayout({
 }>) {
   const locale = await getPublicLocale();
   return (
-    <html lang={locale} data-scroll-behavior="smooth" className={`${inter.variable} ${fraunces.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
+    <html lang={locale} data-scroll-behavior="smooth">
+      <body className={`${inter.variable} ${fraunces.variable} font-sans antialiased`}>
+        {children}
+      </body>
     </html>
   );
 }
