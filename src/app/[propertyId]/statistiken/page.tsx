@@ -252,30 +252,43 @@ export default async function StatistikenPage({
         />
       </div>
 
-      <Card className="p-5 shadow-none sm:p-6">
-        <TrendChart
-          title={t("statistics.revenueTrendTitle")}
-          currentYear={chartCurrentYear}
-          previousYear={chartPreviousYear}
-          currentSeries={revenueByYear.get(chartCurrentYear) ?? []}
-          previousSeries={revenueByYear.get(chartPreviousYear) ?? []}
-          valueKind="currency"
-          selectedMonthIndex={selectedMonthIndex}
-        />
-      </Card>
+      {/*
+        @container: the breakpoint below must react to the actual available
+        width of this content column (which varies with the sidebar at lg+),
+        not the viewport - a plain viewport breakpoint would go two-column
+        even when the sidebar has already eaten most of the extra space.
+        The threshold itself is chosen so each chart keeps enough width for
+        its axis/month labels and legend to stay legible (verified visually
+        at 1920/1536/1440/1280/1024px and narrower).
+      */}
+      <div className="@container">
+        <div className="grid grid-cols-1 gap-5 @[1500px]:grid-cols-2">
+          <Card className="min-w-0 p-5 shadow-none sm:p-6">
+            <TrendChart
+              title={t("statistics.revenueTrendTitle")}
+              currentYear={chartCurrentYear}
+              previousYear={chartPreviousYear}
+              currentSeries={revenueByYear.get(chartCurrentYear) ?? []}
+              previousSeries={revenueByYear.get(chartPreviousYear) ?? []}
+              valueKind="currency"
+              selectedMonthIndex={selectedMonthIndex}
+            />
+          </Card>
 
-      <Card className="p-5 shadow-none sm:p-6">
-        <TrendChart
-          title={t("statistics.occupancyTrendTitle")}
-          currentYear={chartCurrentYear}
-          previousYear={chartPreviousYear}
-          currentSeries={occupancyByYear.get(chartCurrentYear) ?? []}
-          previousSeries={occupancyByYear.get(chartPreviousYear) ?? []}
-          valueKind="percent"
-          fixedMax={100}
-          selectedMonthIndex={selectedMonthIndex}
-        />
-      </Card>
+          <Card className="min-w-0 p-5 shadow-none sm:p-6">
+            <TrendChart
+              title={t("statistics.occupancyTrendTitle")}
+              currentYear={chartCurrentYear}
+              previousYear={chartPreviousYear}
+              currentSeries={occupancyByYear.get(chartCurrentYear) ?? []}
+              previousSeries={occupancyByYear.get(chartPreviousYear) ?? []}
+              valueKind="percent"
+              fixedMax={100}
+              selectedMonthIndex={selectedMonthIndex}
+            />
+          </Card>
+        </div>
+      </div>
 
       <Card className="p-5 shadow-none sm:p-6">
         <div>
