@@ -96,6 +96,12 @@ export async function inviteTeamUserAction(propertyId: string, formData: FormDat
   const locale = await getOwnerLocale();
   const t = createTranslator(getDictionary(locale));
   if (!session) return { ok: false, message: t("profile.pleaseSignInAgain") };
+  // A restricted "accounting" login must never be able to invite further
+  // owner-team users, even by calling this Server Action directly - the
+  // Profil page already hides the button/section for it (see
+  // app/[propertyId]/profil/page.tsx), but that is UI convenience only;
+  // this is the actual enforcement.
+  if (context.ownerUserRole !== "owner") return { ok: false, message: t("profile.actionNotAllowed") };
 
   const firstName = readString(formData, "firstName");
   const lastName = readString(formData, "lastName");
@@ -136,6 +142,7 @@ export async function recreateTeamInvitationAction(propertyId: string, ownerUser
   const locale = await getOwnerLocale();
   const t = createTranslator(getDictionary(locale));
   if (!session) return { ok: false, message: t("profile.pleaseSignInAgain") };
+  if (context.ownerUserRole !== "owner") return { ok: false, message: t("profile.actionNotAllowed") };
 
   let inviteToken: string;
   let inviteExpiresAt: string;
@@ -174,6 +181,7 @@ export async function setTeamUserStatusAction(
   const context = await requireEffectiveOwnerContext();
   const locale = await getOwnerLocale();
   const t = createTranslator(getDictionary(locale));
+  if (context.ownerUserRole !== "owner") return { ok: false, message: t("profile.actionNotAllowed") };
 
   try {
     const { userName } = await setOwnTeamUserStatus(context.ownerId, ownerUserId, status, locale);

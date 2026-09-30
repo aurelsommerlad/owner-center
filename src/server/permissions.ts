@@ -55,6 +55,91 @@ export async function canOwnerAccessProperty(ownerId: string, propertyId: string
   return access?.status === "active" && access?.property.status === "active";
 }
 
+/** Active OwnerPropertyAccess property ids for an owner company - the company-wide grant set every accounting-user check below re-verifies against, so a property revoked at the owner level immediately closes it off for every accounting login under that owner too, regardless of that login's own OwnerUserPropertyAccess rows. */
+export async function getActiveOwnerPropertyIds(ownerId: string): Promise<string[]> {
+  const access = await prisma.ownerPropertyAccess.findMany({
+    where: { ownerId, status: "active", property: { status: "active" } },
+    select: { propertyId: true },
+  });
+  return access.map((row) => row.propertyId);
+}
+
+/**
+ * The server-side access boundary for a restricted "accounting" OwnerUser
+ * (see prisma/schema.prisma#OwnerUser.role) - the accounting-role sibling of
+ * canOwnerAccessProperty above. Every check re-reads OwnerUser/Owner/
+ * OwnerPropertyAccess fresh (nothing cached, nothing trusted from an
+ * earlier request), so revoking this OwnerUser (status -> "inactive"),
+ * deactivating its Owner, or deactivating the underlying
+ * OwnerPropertyAccess grant all take effect immediately, on the very next
+ * request - see this file's own header comment on why that matters.
+ *
+ * `allProperties` is evaluated live via getActiveOwnerPropertyIds rather
+ * than a snapshot, so a property the owner adds after this invitation was
+ * created is picked up automatically. Otherwise, this OwnerUser's own
+ * OwnerUserPropertyAccess row must ALSO be "active" - and even then, the
+ * owner-company-level OwnerPropertyAccess grant for that same property must
+ * still be active too (an accounting grant can never outlive or exceed the
+ * owning company's own access).
+ */
+export async function canAccountingUserAccessProperty(ownerUserId: string, propertyId: string): Promise<boolean> {
+  const ownerUser = await prisma.ownerUser.findUnique({
+    where: { id: ownerUserId },
+    include: { owner: true },
+  });
+  if (
+    !ownerUser ||
+    ownerUser.role !== "accounting" ||
+    ownerUser.status !== "active" ||
+    ownerUser.owner.status !== "active"
+  ) {
+    return false;
+  }
+
+  if (ownerUser.allProperties) {
+    return canOwnerAccessProperty(ownerUser.ownerId, propertyId);
+  }
+
+  const grant = await prisma.ownerUserPropertyAccess.findUnique({
+    where: { ownerUserId_propertyId: { ownerUserId, propertyId } },
+  });
+  if (!grant || grant.status !== "active") return false;
+
+  return canOwnerAccessProperty(ownerUser.ownerId, propertyId);
+}
+
+/**
+ * Property ids a restricted "accounting" OwnerUser may access - drives the
+ * property switcher and the Abrechnungen year filter for that role, exactly
+ * mirroring canAccountingUserAccessProperty's own rule above (never a
+ * looser one) so neither list ever offers a property a direct request
+ * would then be refused for.
+ */
+export async function getAccountingAccessiblePropertyIds(ownerUserId: string): Promise<string[]> {
+  const ownerUser = await prisma.ownerUser.findUnique({
+    where: { id: ownerUserId },
+    include: { owner: true },
+  });
+  if (
+    !ownerUser ||
+    ownerUser.role !== "accounting" ||
+    ownerUser.status !== "active" ||
+    ownerUser.owner.status !== "active"
+  ) {
+    return [];
+  }
+
+  const ownerActiveIds = await getActiveOwnerPropertyIds(ownerUser.ownerId);
+  if (ownerUser.allProperties) return ownerActiveIds;
+
+  const grants = await prisma.ownerUserPropertyAccess.findMany({
+    where: { ownerUserId, status: "active" },
+    select: { propertyId: true },
+  });
+  const grantedIds = new Set(grants.map((grant) => grant.propertyId));
+  return ownerActiveIds.filter((id) => grantedIds.has(id));
+}
+
 /** Property ids this user may access - admin gets every property, an owner gets their active grants. */
 export async function getAccessiblePropertyIds(userId: string): Promise<string[]> {
   const user = await prisma.user.findUnique({

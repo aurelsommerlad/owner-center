@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FOOTER_NAV, LOGOUT_ITEM, MAIN_NAV, navHref, type NavItem } from "./navigation";
+import {
+  ACCOUNTING_FOOTER_NAV,
+  ACCOUNTING_MAIN_NAV,
+  FOOTER_NAV,
+  LOGOUT_ITEM,
+  MAIN_NAV,
+  navHref,
+  type NavItem,
+} from "./navigation";
 import { logoutAction } from "@/app/actions";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { SignedInOwnerIdentity } from "@/server/ownerIdentity";
@@ -39,6 +47,7 @@ function NavLink({
 export function Sidebar({
   propertyId,
   identity,
+  accountingOnly = false,
 }: {
   propertyId: string;
   /**
@@ -49,22 +58,26 @@ export function Sidebar({
    * neutral role label rather than a guessed/fabricated name.
    */
   identity: SignedInOwnerIdentity | null;
+  /** True for a restricted "accounting" login - see components/layout/navigation.ts#ACCOUNTING_MAIN_NAV. */
+  accountingOnly?: boolean;
 }) {
   const pathname = usePathname();
   const activeSegment = pathname.split("/")[2] ?? "uebersicht";
   const { t } = useTranslations();
+  const mainNav = accountingOnly ? ACCOUNTING_MAIN_NAV : MAIN_NAV;
+  const footerNav = accountingOnly ? ACCOUNTING_FOOTER_NAV : FOOTER_NAV;
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line bg-paper px-4 py-6 lg:flex">
       <div className="px-2.5 pb-8">
         <p className="font-sans text-sm font-semibold tracking-[0.05em] text-[#171817]">{t("nav.brand")}</p>
         <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-[#171817]/55">
-          {t("nav.brandSubtitleDesktop")}
+          {accountingOnly ? t("nav.brandSubtitleAccounting") : t("nav.brandSubtitleDesktop")}
         </p>
       </div>
 
       <nav className="flex flex-1 flex-col gap-1">
-        {MAIN_NAV.map((item) => (
+        {mainNav.map((item) => (
           <NavLink
             key={item.key}
             item={item}
@@ -76,7 +89,7 @@ export function Sidebar({
       </nav>
 
       <div className="mt-6 flex flex-col gap-1 border-t border-line pt-4">
-        {FOOTER_NAV.map((item) => (
+        {footerNav.map((item) => (
           <NavLink
             key={item.key}
             item={item}

@@ -153,11 +153,31 @@ model OwnerUser {
   firstName   String
   lastName    String
   status      String    @default("active")
-  /// Fixed to "owner" for now - no per-user detail permissions yet.
+  /// "owner" (full access to everything under this Owner, the only value
+  /// that existed before the accounting-access feature) | "accounting" (a
+  /// restricted login that may only ever see the "Abrechnungen" area of the
+  /// properties explicitly granted below - see server/permissions.ts#
+  /// canAccountingUserAccessProperty, the one place this is enforced, and
+  /// server/ownerContext.ts for how a page/route learns which role the
+  /// current session has). Still logs in via the normal /login form like
+  /// any other owner-role User - there is no separate accounting login.
   role        String    @default("owner")
+  /// Only meaningful for role "accounting". true grants access to every
+  /// property this OwnerUser's Owner currently (and in future) holds an
+  /// active OwnerPropertyAccess grant for - evaluated live on every request,
+  /// never a snapshot - so a property the owner adds/removes later is
+  /// picked up automatically without editing this row. false restricts
+  /// access to exactly the properties listed in `propertyAccess` below
+  /// (each still re-checked against OwnerPropertyAccess too - see
+  /// canAccountingUserAccessProperty). Always false and unused for role
+  /// "owner" (full owner-company-wide access already comes from
+  /// OwnerPropertyAccess, unchanged).
+  allProperties Boolean @default(false)
   lastLoginAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  propertyAccess OwnerUserPropertyAccess[]
 
   @@index([ownerId])
 }
@@ -200,6 +220,7 @@ model Property {
   access             OwnerPropertyAccess[]
   statementDocuments StatementDocument[]
   generalDocuments   GeneralDocument[]
+  ownerUserAccess    OwnerUserPropertyAccess[]
 }
 
 /// Many-to-many link between owners and properties: one owner can hold
@@ -222,6 +243,35 @@ model OwnerPropertyAccess {
   createdAt  DateTime @default(now())
 
   @@unique([ownerId, propertyId])
+}
+
+/// Per-person property scoping for a restricted "accounting" OwnerUser (see
+/// OwnerUser.role/allProperties) - deliberately a SEPARATE table from
+/// OwnerPropertyAccess rather than reusing it: OwnerPropertyAccess is keyed
+/// on the whole Owner company (every OwnerUser under it shares that set),
+/// while an accounting login is scoped to one individual person's own
+/// invitation, which may cover only a subset of the owner's properties.
+///
+/// This table alone is NEVER sufficient to grant access - every check also
+/// re-verifies OwnerPropertyAccess for the same owner/property (see
+/// server/permissions.ts#canAccountingUserAccessProperty), so revoking a
+/// property from the owner-company level (or the owner itself) immediately
+/// revokes it here too, even if this row is still "active".
+///
+/// `status` mirrors OwnerPropertyAccess's own "active"/"inactive" audit
+/// pattern - editing an accounting user's property grants sets old rows
+/// "inactive" and creates new "active" ones rather than deleting history.
+model OwnerUserPropertyAccess {
+  id          String    @id @default(cuid())
+  ownerUserId String
+  ownerUser   OwnerUser @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  propertyId  String
+  property    Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  status      String    @default("active")
+  createdAt   DateTime  @default(now())
+
+  @@unique([ownerUserId, propertyId])
+  @@index([propertyId])
 }
 
 /// A statement-archive document (Eigentümerreporting / Rechnung / Gutschrift

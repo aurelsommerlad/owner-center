@@ -121,6 +121,88 @@ export async function createInvitedOwnerUser(
   return { ownerUserId: ownerUser.id, userId: loginUser.id, rawToken, expiresAt };
 }
 
+export interface CreateInvitedAccountingUserInput {
+  ownerId: string;
+  email: string;
+  /** Optional display name (e.g. "Steuerkanzlei Muster") - stored as OwnerUser.firstName; may be blank, in which case the UI falls back to showing the email. */
+  name: string;
+  /** true = every property this owner currently (and in future) holds - see OwnerUser.allProperties. When false, `propertyIds` must be non-empty. */
+  allProperties: boolean;
+  propertyIds: string[];
+}
+
+export interface CreateInvitedAccountingUserResult {
+  ownerUserId: string;
+  userId: string;
+  rawToken: string;
+  expiresAt: Date;
+}
+
+/**
+ * Creates a restricted "accounting" OwnerUser (see prisma/schema.prisma#
+ * OwnerUser.role) under `ownerId` and issues its first invitation - the
+ * accounting-access counterpart to createInvitedOwnerUser above, reusing
+ * the exact same User+OwnerUser+createInvitationForUser mechanics (one
+ * invite system for every kind of Owner Center login, not a parallel one).
+ * The only difference: this OwnerUser is scoped to the given properties
+ * from the moment it's created, before the invitation is even accepted -
+ * so the invited person can only ever have seen the properties the owner
+ * actually chose, never a wider set added later at acceptance time.
+ *
+ * `propertyIds` is intersected against `ownerId`'s OWN active
+ * OwnerPropertyAccess grants (never trusted verbatim) - even though the
+ * caller (the Abrechnungen page's Server Action) already resolves `ownerId`
+ * from the session rather than from form data, this is the actual data-
+ * layer enforcement that an owner can never grant accounting access to a
+ * property they don't themselves hold.
+ */
+export async function createInvitedAccountingUser(
+  input: CreateInvitedAccountingUserInput,
+  createdByUserId: string
+): Promise<CreateInvitedAccountingUserResult> {
+  const email = input.email.trim().toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    throw new Error(`Diese E-Mail-Adresse (${email}) ist bereits vergeben.`);
+  }
+
+  let ownedPropertyIds: string[] = [];
+  if (!input.allProperties) {
+    if (input.propertyIds.length === 0) {
+      throw new Error("Bitte mindestens ein Objekt auswählen.");
+    }
+    const access = await prisma.ownerPropertyAccess.findMany({
+      where: { ownerId: input.ownerId, status: "active", propertyId: { in: input.propertyIds } },
+      select: { propertyId: true },
+    });
+    ownedPropertyIds = access.map((row) => row.propertyId);
+    if (ownedPropertyIds.length === 0) {
+      throw new Error("Keines der ausgewählten Objekte ist diesem Eigentümer zugeordnet.");
+    }
+  }
+
+  const loginUser = await prisma.user.create({
+    data: { email, passwordHash: NO_PASSWORD_SET_HASH, role: "owner" },
+  });
+  const ownerUser = await prisma.ownerUser.create({
+    data: {
+      ownerId: input.ownerId,
+      userId: loginUser.id,
+      firstName: input.name.trim(),
+      lastName: "",
+      status: "invited",
+      role: "accounting",
+      allProperties: input.allProperties,
+      propertyAccess: input.allProperties
+        ? undefined
+        : { create: ownedPropertyIds.map((propertyId) => ({ propertyId })) },
+    },
+  });
+
+  const { rawToken, expiresAt } = await createInvitationForUser(loginUser.id, createdByUserId);
+  return { ownerUserId: ownerUser.id, userId: loginUser.id, rawToken, expiresAt };
+}
+
 export interface CreateInvitedAdminInput {
   firstName: string;
   lastName: string;
@@ -178,8 +260,23 @@ export async function createInvitedAdmin(
   return { userId: user.id, rawToken, expiresAt };
 }
 
+/** Shown on the invite-accept page for a restricted "accounting" invitation - see lookupInvitationByToken. */
+export interface AccountingInvitationContext {
+  ownerName: string;
+  invitedByName: string;
+  /** "all" when the invitation grants every property (OwnerUser.allProperties); otherwise the granted properties' display names. */
+  properties: "all" | string[];
+}
+
 export type InvitationLookup =
-  | { status: "valid"; invitationId: string; userId: string; email: string; role: "owner" | "admin" }
+  | {
+      status: "valid";
+      invitationId: string;
+      userId: string;
+      email: string;
+      role: "owner" | "admin";
+      accounting?: AccountingInvitationContext;
+    }
   | { status: "not_found" }
   | { status: "expired" }
   | { status: "revoked" }
@@ -197,18 +294,48 @@ export async function lookupInvitationByToken(rawToken: string): Promise<Invitat
   const tokenHash = hashToken(rawToken);
   const invitation = await prisma.ownerInvitation.findUnique({
     where: { tokenHash },
-    include: { user: true },
+    include: {
+      user: {
+        include: {
+          ownerUser: {
+            include: {
+              owner: true,
+              propertyAccess: { where: { status: "active" }, include: { property: true } },
+            },
+          },
+        },
+      },
+    },
   });
   if (!invitation) return { status: "not_found" };
   if (invitation.acceptedAt) return { status: "accepted" };
   if (invitation.revokedAt) return { status: "revoked" };
   if (invitation.expiresAt < new Date()) return { status: "expired" };
+
+  let accounting: AccountingInvitationContext | undefined;
+  const ownerUser = invitation.user.ownerUser;
+  if (ownerUser?.role === "accounting") {
+    const inviter = await prisma.user.findUnique({
+      where: { id: invitation.createdByAdminId },
+      include: { ownerUser: true },
+    });
+    const invitedByName = inviter?.ownerUser
+      ? `${inviter.ownerUser.firstName} ${inviter.ownerUser.lastName}`.trim()
+      : (inviter?.name ?? "");
+    accounting = {
+      ownerName: ownerUser.owner.name,
+      invitedByName,
+      properties: ownerUser.allProperties ? "all" : ownerUser.propertyAccess.map((grant) => grant.property.name),
+    };
+  }
+
   return {
     status: "valid",
     invitationId: invitation.id,
     userId: invitation.userId,
     email: invitation.user.email,
     role: invitation.user.role === "admin" ? "admin" : "owner",
+    accounting,
   };
 }
 

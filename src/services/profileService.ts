@@ -36,8 +36,14 @@ interface SelfIdentity {
 export async function getOwnerProfile(ownerId: string, self: SelfIdentity | null): Promise<OwnerProfile> {
   const [owner, ownerUsers, selfRow] = await Promise.all([
     prisma.owner.findUniqueOrThrow({ where: { id: ownerId } }),
+    // "Weitere Nutzer" only ever lists full owner-role teammates - a
+    // restricted "accounting" OwnerUser has its own dedicated management UI
+    // (see components/statements/AccountingAccessSection.tsx on the
+    // Abrechnungen page) and must never show up mixed into this list, nor
+    // be reachable through its activate/deactivate/recreate-invitation
+    // actions (see app/[propertyId]/profil/actions.ts).
     prisma.ownerUser.findMany({
-      where: { ownerId },
+      where: { ownerId, role: "owner" },
       include: { user: { include: { invitations: { orderBy: { createdAt: "desc" }, take: 1 } } } },
       orderBy: { createdAt: "asc" },
     }),

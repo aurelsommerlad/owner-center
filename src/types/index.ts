@@ -60,6 +60,31 @@ export interface OwnerProfile {
   team: OwnerTeamUser[];
 }
 
+export type AccountingAccessStatus = "active" | "invited" | "inactive";
+
+/**
+ * One restricted "accounting" login under the signed-in owner (see
+ * prisma/schema.prisma#OwnerUser.role) - shown on the Abrechnungen page's
+ * "Zugang für Buchhaltung" section, deliberately separate from
+ * OwnerTeamUser above: an accounting grant additionally carries which
+ * properties it's scoped to, and is never shown mixed into "Weitere
+ * Nutzer" (see services/profileService.ts#getOwnerProfile).
+ */
+export interface AccountingAccessGrant {
+  id: string;
+  /** Optional display name entered at invite time (e.g. "Steuerkanzlei Muster") - blank when none was given, in which case the UI falls back to `email`. */
+  name: string;
+  email: string;
+  status: AccountingAccessStatus;
+  invitationExpiresAt?: string;
+  lastLoginAt?: string;
+  allProperties: boolean;
+  /** Display names of the granted properties - empty when `allProperties` is true. */
+  propertyNames: string[];
+  /** Ids of the granted properties - used to pre-fill the edit form; empty when `allProperties` is true. */
+  propertyIds: string[];
+}
+
 export interface GeoLocation {
   city: string;
   region: string;

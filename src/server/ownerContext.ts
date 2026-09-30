@@ -7,6 +7,16 @@ export interface EffectiveOwnerContext {
   ownerId: string;
   /** true when this context comes from an admin "Als Owner ansehen" preview, not a real Owner login. */
   isImpersonation: boolean;
+  /** The signed-in OwnerUser's own id - `null` during an admin preview (no specific OwnerUser). */
+  ownerUserId: string | null;
+  /**
+   * "owner" (full access) | "accounting" (restricted to the Abrechnungen
+   * area of specific properties - see prisma/schema.prisma#OwnerUser.role).
+   * Always "owner" for an admin preview - impersonation targets a whole
+   * Owner company, never one specific restricted OwnerUser, so a preview
+   * always sees the full owner view.
+   */
+  ownerUserRole: "owner" | "accounting";
 }
 
 /**
@@ -33,7 +43,12 @@ export async function getEffectiveOwnerContext(): Promise<EffectiveOwnerContext 
     if (!session.ownerId || session.ownerStatus !== "active" || session.ownerUserStatus !== "active") {
       return null;
     }
-    return { ownerId: session.ownerId, isImpersonation: false };
+    return {
+      ownerId: session.ownerId,
+      isImpersonation: false,
+      ownerUserId: session.ownerUserId,
+      ownerUserRole: session.ownerUserRole === "accounting" ? "accounting" : "owner",
+    };
   }
 
   if (session.role === "admin") {
@@ -50,7 +65,7 @@ export async function getEffectiveOwnerContext(): Promise<EffectiveOwnerContext 
       const owner = await prisma.owner.findUnique({ where: { id: impersonation.ownerId } });
       if (!owner || owner.status !== "active") return null;
 
-      return { ownerId: impersonation.ownerId, isImpersonation: true };
+      return { ownerId: impersonation.ownerId, isImpersonation: true, ownerUserId: null, ownerUserRole: "owner" };
     } catch (error) {
       // Same fail-safe philosophy as getSession() above: a DB hiccup here
       // must never propagate as an uncaught exception and crash the page -

@@ -31,7 +31,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
  */
 export default async function ProfilPage({ params }: { params: Promise<{ propertyId: string }> }) {
   const { propertyId } = await params;
-  const property = await getProperty(propertyId);
+  const property = await getProperty(propertyId, { allowAccountingRole: true });
   if (!property) notFound();
 
   const [context, session] = await Promise.all([requireEffectiveOwnerContext(), getSession()]);
@@ -89,10 +89,15 @@ export default async function ProfilPage({ params }: { params: Promise<{ propert
         )}
       </Card>
 
-      {/* Weitere Nutzer */}
-      <Card className="p-5 shadow-soft sm:p-6">
-        <TeamUsersSection propertyId={propertyId} team={profile.team} />
-      </Card>
+      {/* Weitere Nutzer - not shown to a restricted "accounting" login: it
+          only ever manages its own identity above, never the owner's team
+          or accounting-access grants (those live on the Abrechnungen page,
+          owner-role only - see components/statements/AccountingAccessSection.tsx). */}
+      {context.ownerUserRole !== "accounting" && (
+        <Card className="p-5 shadow-soft sm:p-6">
+          <TeamUsersSection propertyId={propertyId} team={profile.team} />
+        </Card>
+      )}
     </div>
   );
 }

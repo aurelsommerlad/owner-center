@@ -1,15 +1,17 @@
 import { notFound } from "next/navigation";
-import { getProperty } from "@/services/propertyService";
+import { getProperty, getPropertiesForOwner } from "@/services/propertyService";
 import {
   getStatementDocuments,
   getStatementDocumentYears,
   markStatementDocumentsViewed,
 } from "@/services/statementDocumentService";
+import { listAccountingAccessGrants } from "@/services/statementAccountingAccessService";
 import { hadStatementDataError } from "@/services/statementDataError";
 import { today } from "@/lib/dates";
 import { groupStatementDocumentsByMonth } from "@/lib/statementDocuments";
 import { StatementYearFilter } from "@/components/statements/StatementYearFilter";
 import { StatementMonthAccordion } from "@/components/statements/StatementMonthAccordion";
+import { AccountingAccessSection } from "@/components/statements/AccountingAccessSection";
 import { DataUnavailableNotice } from "@/components/ui/DataUnavailableNotice";
 import { getOwnerLocale } from "@/server/locale";
 import { getDictionary, createTranslator } from "@/i18n";
@@ -25,7 +27,7 @@ export default async function AbrechnungenPage({
   const { propertyId } = await params;
   const query = await searchParams;
 
-  const property = await getProperty(propertyId);
+  const property = await getProperty(propertyId, { allowAccountingRole: true });
   if (!property) notFound();
 
   const locale = await getOwnerLocale();
@@ -46,6 +48,15 @@ export default async function AbrechnungenPage({
     await markStatementDocumentsViewed(documents.map((document) => document.id));
   }
   const monthGroups = groupStatementDocumentsByMonth(documents);
+  // "Zugang für Buchhaltung" is owner-only - a restricted accounting login
+  // (ownerUserRole === "accounting") never sees or manages it, even during
+  // its own visit to this very page (see components/statements/
+  // AccountingAccessSection.tsx and this file's own doc comment on
+  // enforcement living in the Server Actions, not here).
+  const accountingAccessGrants =
+    context.ownerUserRole === "owner" ? await listAccountingAccessGrants(context.ownerId) : null;
+  const ownerProperties =
+    context.ownerUserRole === "owner" ? await getPropertiesForOwner(context.ownerId) : [];
   // At most one month starts expanded: the newest one that still has
   // unseen documents. Everything else stays collapsed.
   const defaultOpenGroup = monthGroups.find((group) => group.newCount > 0);
@@ -75,6 +86,10 @@ export default async function AbrechnungenPage({
             />
           ))}
         </div>
+      )}
+
+      {accountingAccessGrants && (
+        <AccountingAccessSection propertyId={propertyId} grants={accountingAccessGrants} properties={ownerProperties} />
       )}
     </div>
   );

@@ -2,7 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { prisma } from "@/server/db";
 import { requireEffectiveOwnerContext } from "@/server/ownerContext";
-import { canOwnerAccessProperty } from "@/server/permissions";
+import { canAccountingUserAccessProperty, canOwnerAccessProperty } from "@/server/permissions";
 import { googleDriveDownloadRequest } from "@/server/integrations/googleDrive/client";
 import { describeGoogleDriveError } from "@/server/integrations/googleDrive/errors";
 
@@ -35,7 +35,16 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     return new NextResponse("Not found", { status: 404 });
   }
 
-  const allowed = await canOwnerAccessProperty(context.ownerId, document.propertyId);
+  // A restricted "accounting" OwnerUser is exactly as entitled to download
+  // statement documents as a full owner - Abrechnungen is the one area this
+  // role exists for - but only for the properties actually granted to it
+  // (see canAccountingUserAccessProperty), never the owner company's full set.
+  const allowed =
+    context.ownerUserRole === "accounting"
+      ? context.ownerUserId
+        ? await canAccountingUserAccessProperty(context.ownerUserId, document.propertyId)
+        : false
+      : await canOwnerAccessProperty(context.ownerId, document.propertyId);
   if (!allowed) {
     return new NextResponse("Not found", { status: 404 });
   }

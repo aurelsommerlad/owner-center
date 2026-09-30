@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/server/session";
+import { getEffectiveOwnerContext } from "@/server/ownerContext";
 import { Card } from "@/components/ui/Card";
 import { LoginForm } from "./LoginForm";
 import { getPublicLocale } from "@/server/locale";
@@ -8,7 +9,19 @@ import { getDictionary, createTranslator } from "@/i18n";
 export default async function LoginPage() {
   const session = await getSession();
   if (session) {
-    redirect(session.role === "admin" ? "/admin" : "/");
+    if (session.role === "admin") {
+      redirect("/admin");
+    }
+    // A session row surviving isn't the same as still being a valid, active
+    // owner login - an OwnerUser deactivated (or its accounting access
+    // revoked) while its session is still live must not bounce back here:
+    // "/" would resolve no effective context for it and redirect straight
+    // back to /login, forever (see server/ownerContext.ts). Only redirect
+    // away once there's an actual effective owner to redirect TO; otherwise
+    // fall through and show the login form so the person can sign in again.
+    if (await getEffectiveOwnerContext()) {
+      redirect("/");
+    }
   }
 
   const locale = await getPublicLocale();

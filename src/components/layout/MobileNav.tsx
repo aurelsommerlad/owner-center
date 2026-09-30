@@ -5,15 +5,17 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CloseIcon, MenuIcon } from "@/components/ui/icons";
-import { FOOTER_NAV, LOGOUT_ITEM, MAIN_NAV, navHref } from "./navigation";
+import { ACCOUNTING_FOOTER_NAV, ACCOUNTING_MAIN_NAV, FOOTER_NAV, LOGOUT_ITEM, MAIN_NAV, navHref } from "./navigation";
 import { logoutAction } from "@/app/actions";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
-export function MobileNav({ propertyId }: { propertyId: string }) {
+export function MobileNav({ propertyId, accountingOnly = false }: { propertyId: string; accountingOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const activeSegment = pathname.split("/")[2] ?? "uebersicht";
   const { t } = useTranslations();
+  const mainNav = accountingOnly ? ACCOUNTING_MAIN_NAV : MAIN_NAV;
+  const footerNav = accountingOnly ? ACCOUNTING_FOOTER_NAV : FOOTER_NAV;
 
   const [lastPathname, setLastPathname] = useState(pathname);
   if (pathname !== lastPathname) {
@@ -53,7 +55,7 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
                 <div>
                   <span className="font-sans text-sm font-medium tracking-[0.14em] text-ink">{t("nav.brand")}</span>
                   <p className="mt-0.5 text-[11px] uppercase tracking-[0.14em] text-ink-soft/70">
-                    {t("nav.brandSubtitleMobile")}
+                    {accountingOnly ? t("nav.brandSubtitleAccounting") : t("nav.brandSubtitleMobile")}
                   </p>
                 </div>
                 <button
@@ -67,7 +69,7 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
               </div>
 
               <nav className="flex flex-1 flex-col gap-1">
-                {MAIN_NAV.map((item) => {
+                {mainNav.map((item) => {
                   const Icon = item.icon;
                   const active = activeSegment === item.segment;
                   return (
@@ -86,7 +88,7 @@ export function MobileNav({ propertyId }: { propertyId: string }) {
               </nav>
 
               <div className="flex flex-col gap-1 border-t border-line pt-4">
-                {FOOTER_NAV.map((item) => {
+                {footerNav.map((item) => {
                   const Icon = item.icon;
                   const active = activeSegment === item.segment;
                   return (

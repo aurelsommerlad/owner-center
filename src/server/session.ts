@@ -36,6 +36,8 @@ export interface SessionData {
   ownerUserId: string | null;
   ownerStatus: string | null;
   ownerUserStatus: string | null;
+  /** "owner" | "accounting" (see prisma/schema.prisma#OwnerUser.role). `null` when not an owner-role session. */
+  ownerUserRole: string | null;
 }
 
 /**
@@ -91,6 +93,7 @@ export async function getSession(): Promise<SessionData | null> {
     ownerUserId: user.ownerUser?.id ?? null,
     ownerStatus: user.ownerUser?.owner.status ?? null,
     ownerUserStatus: user.ownerUser?.status ?? null,
+    ownerUserRole: user.ownerUser?.role ?? null,
   };
 }
 

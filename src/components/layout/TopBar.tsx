@@ -5,9 +5,10 @@ import { PropertySwitcher } from "./PropertySwitcher";
 interface TopBarProps {
   properties: Property[];
   currentPropertyId: string;
+  accountingOnly?: boolean;
 }
 
-export function TopBar({ properties, currentPropertyId }: TopBarProps) {
+export function TopBar({ properties, currentPropertyId, accountingOnly = false }: TopBarProps) {
   // MobileNav's hamburger is only visible below the `lg` breakpoint (it has
   // its own `lg:hidden`), and PropertySwitcher renders nothing for a
   // single-property owner - so at `lg` and above, a single-property owner's
@@ -22,7 +23,7 @@ export function TopBar({ properties, currentPropertyId }: TopBarProps) {
         hasSwitcher ? "" : "lg:hidden"
       }`}
     >
-      <MobileNav propertyId={currentPropertyId} />
+      <MobileNav propertyId={currentPropertyId} accountingOnly={accountingOnly} />
       <PropertySwitcher properties={properties} currentPropertyId={currentPropertyId} />
     </header>
   );

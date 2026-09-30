@@ -34,6 +34,25 @@ export const FOOTER_NAV: NavItem[] = [
   { key: "hilfe", translationKey: "nav.help", segment: "hilfe", icon: HelpIcon },
 ];
 
+/**
+ * The restricted nav shown to a read-only "accounting" login (see
+ * prisma/schema.prisma#OwnerUser.role) - Abrechnungen only, plus Profil for
+ * its own password/name self-service. This is a UI convenience, never the
+ * actual access boundary: every one of these routes is independently
+ * server-side gated too (see services/propertyService.ts#getProperty's
+ * `allowAccountingRole` and the guards in [propertyId]/profil/actions.ts),
+ * so hiding the other items here is defence-in-depth, not the enforcement
+ * itself - an accounting session that types /kalender directly still hits
+ * a 404 regardless of what this constant renders.
+ */
+export const ACCOUNTING_MAIN_NAV: NavItem[] = [
+  { key: "abrechnungen", translationKey: "nav.statements", segment: "abrechnungen", icon: ReceiptIcon },
+];
+
+export const ACCOUNTING_FOOTER_NAV: NavItem[] = [
+  { key: "profil", translationKey: "nav.profile", segment: "profil", icon: ProfileIcon },
+];
+
 export const LOGOUT_ITEM: NavItem = {
   key: "logout",
   translationKey: "nav.logout",

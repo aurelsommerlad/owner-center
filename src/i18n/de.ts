@@ -46,6 +46,8 @@ export const de = {
     brand: "UNIQUE PLACES",
     brandSubtitleDesktop: "Owner Center",
     brandSubtitleMobile: "Eigentümerportal",
+    /** Shown instead of brandSubtitleDesktop/Mobile for a restricted "accounting" login - see components/layout/navigation.ts#ACCOUNTING_MAIN_NAV. */
+    brandSubtitleAccounting: "Abrechnungen",
     /** Neutral fallback role label - shown instead of a name when no specific OwnerUser exists to identify (e.g. an admin's "Als Owner ansehen" preview). */
     ownerRole: "Eigentümer",
   },
@@ -77,6 +79,9 @@ export const de = {
     submit: "Zugang aktivieren",
     submitPending: "Wird gespeichert…",
     passwordsDontMatch: "Die Passwörter stimmen nicht überein.",
+    accountingWelcomeTitle: "Einladung zur Buchhaltung",
+    accountingGrantedBy: "{name} hat Ihnen Zugriff auf die Abrechnungsunterlagen von {target} gewährt.",
+    accountingAllProperties: "allen Objekten",
   },
   overview: {
     performanceOverview: "Performance im Überblick",
@@ -290,6 +295,7 @@ export const de = {
     lastActiveUserCannotBeDeactivated:
       "Der letzte aktive Nutzer kann nicht deaktiviert werden, da sonst niemand mehr Zugriff auf das Owner Center hätte.",
     pleaseSignInAgain: "Bitte erneut anmelden.",
+    actionNotAllowed: "Diese Aktion ist für diesen Zugang nicht verfügbar.",
     profileUpdateFailed: "Profil konnte nicht aktualisiert werden.",
     passwordChangeFailed: "Passwort konnte nicht geändert werden.",
     userCreationFailed: "Nutzer konnte nicht angelegt werden.",
@@ -299,6 +305,31 @@ export const de = {
     newInvitationCreated: "Neue Einladung erstellt.",
     userActivated: "{name} wurde aktiviert.",
     userDeactivated: "{name} wurde deaktiviert.",
+  },
+  accountingAccess: {
+    sectionTitle: "Zugang für Buchhaltung",
+    sectionSubtitle:
+      "Geben Sie Ihrer Steuerkanzlei oder Buchhaltung Zugriff auf diese Abrechnungsunterlagen - ohne Kalender, Statistiken oder Profildaten freizugeben.",
+    inviteButton: "Zugang für Buchhaltung",
+    listTitle: "Buchhaltungszugänge",
+    name: "Name (optional)",
+    namePlaceholder: "z. B. Steuerkanzlei Muster",
+    scope: "Zugriff auf",
+    scopeAll: "Alle Objekte",
+    scopeSpecific: "Einzelne Objekte",
+    properties: "Objekte",
+    inviteSubmit: "Einladung erzeugen",
+    inviting: "Erzeugt…",
+    noGrants: "Noch keine Buchhaltungszugänge.",
+    editPermission: "Berechtigung bearbeiten",
+    revoke: "Zugang entziehen",
+    reactivate: "Zugang reaktivieren",
+    saveProperties: "Speichern",
+    invited: "{name} wurde eingeladen.",
+    selectAtLeastOneProperty: "Bitte mindestens ein Objekt auswählen.",
+    grantNotFound: "Buchhaltungszugang nicht gefunden.",
+    updateFailed: "Berechtigung konnte nicht aktualisiert werden.",
+    updated: "Berechtigung wurde aktualisiert.",
   },
 } as const;
 

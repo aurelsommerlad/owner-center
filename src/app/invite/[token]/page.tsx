@@ -30,10 +30,27 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         <Card className="p-6 shadow-soft-lg sm:p-8">
           {lookup.status === "valid" ? (
             <>
-              <h1 className="font-display text-xl italic text-ink">{t("invite.welcomeTitle")}</h1>
-              <p className="mt-1 text-sm text-ink-soft">
-                {t("invite.forAccount")} <span className="text-ink">{lookup.email}</span>
-              </p>
+              {lookup.accounting ? (
+                <>
+                  <h1 className="font-display text-xl italic text-ink">{t("invite.accountingWelcomeTitle")}</h1>
+                  <p className="mt-1 text-sm text-ink-soft">
+                    {t("invite.accountingGrantedBy", {
+                      name: lookup.accounting.invitedByName || lookup.accounting.ownerName,
+                      target:
+                        lookup.accounting.properties === "all"
+                          ? t("invite.accountingAllProperties")
+                          : lookup.accounting.properties.join(", "),
+                    })}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="font-display text-xl italic text-ink">{t("invite.welcomeTitle")}</h1>
+                  <p className="mt-1 text-sm text-ink-soft">
+                    {t("invite.forAccount")} <span className="text-ink">{lookup.email}</span>
+                  </p>
+                </>
+              )}
               <div className="mt-6">
                 <InviteAcceptForm token={token} locale={locale} dict={dict} />
               </div>
