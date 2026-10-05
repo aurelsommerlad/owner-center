@@ -178,6 +178,7 @@ model OwnerUser {
   updatedAt   DateTime  @updatedAt
 
   propertyAccess OwnerUserPropertyAccess[]
+  statementDownloads StatementDocumentDownload[]
 
   @@index([ownerId])
 }
@@ -337,8 +338,44 @@ model StatementDocument {
   downloadCount     Int      @default(0)
   createdAt         DateTime @default(now())
 
+  downloads StatementDocumentDownload[]
+
   @@index([propertyId, year])
   @@index([ownerId])
+}
+
+/// One authorized, successful download of a statement document, attributed
+/// to the specific OwnerUser (owner-role or accounting-role alike) who
+/// performed it - an event log alongside StatementDocument's own aggregate
+/// `downloadCount`/`firstDownloadedAt`/`lastDownloadedAt` fields (kept
+/// unchanged, still what drives the owner-facing "Heruntergeladen am"
+/// badge), which only count downloads in total and cannot say WHO
+/// downloaded or distinguish an owner's own download from a restricted
+/// accounting access's download.
+///
+/// Written ONLY inside the same step that updates those aggregate fields -
+/// see services/statementDownloadTrackingService.ts#
+/// recordStatementDocumentDownload, the one place either ever gets written -
+/// after a download has already passed every authorization check AND
+/// successfully streamed from Drive (see api/documents/[id]/download/
+/// route.ts). Never written for a failed or unauthorized attempt, and never
+/// during an admin "Als Owner ansehen" preview, mirroring the existing
+/// aggregate fields' own guard.
+///
+/// Deliberately no extra PII here: `ownerUserId` alone is enough to resolve
+/// a name/email/role via the existing OwnerUser relation whenever needed
+/// (see services/statementDownloadTrackingService.ts), so nothing is
+/// duplicated onto this row.
+model StatementDocumentDownload {
+  id           String            @id @default(cuid())
+  documentId   String
+  document     StatementDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  ownerUserId  String
+  ownerUser    OwnerUser         @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  downloadedAt DateTime          @default(now())
+
+  @@index([documentId])
+  @@index([ownerUserId])
 }
 
 /// Singleton row (fixed id) recording the result of the last "Verbindung

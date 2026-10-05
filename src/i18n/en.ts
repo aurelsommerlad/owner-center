@@ -212,6 +212,10 @@ export const en: Dictionary = {
     invoice: "Invoice",
     creditNote: "Credit note",
     otherDocument: "Supporting document",
+    accountingMonthDownloaded: "Accounting: downloaded {date}",
+    accountingMonthNotDownloaded: "Accounting: not downloaded yet",
+    accountingDocumentDownloaded: "✓ Accounting · {date}",
+    accountingDocumentNotDownloaded: "Not yet downloaded by accounting",
   },
   documents: {
     title: "Documents",
@@ -320,5 +324,9 @@ export const en: Dictionary = {
     grantNotFound: "Accounting access not found.",
     updateFailed: "Permission could not be updated.",
     updated: "Permission was updated.",
+    moreProperties: "+{count} more",
+    allPropertiesFallback: "—",
+    noDownloadsYet: "No documents downloaded yet",
+    lastDownloadedValue: "Last downloaded: {date} · {time}",
   },
 };

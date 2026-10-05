@@ -221,6 +221,10 @@ export const de = {
     invoice: "Rechnung",
     creditNote: "Gutschrift",
     otherDocument: "Beleg",
+    accountingMonthDownloaded: "Buchhaltung: heruntergeladen {date}",
+    accountingMonthNotDownloaded: "Buchhaltung: noch nicht heruntergeladen",
+    accountingDocumentDownloaded: "✓ Buchhaltung · {date}",
+    accountingDocumentNotDownloaded: "Noch nicht von der Buchhaltung heruntergeladen",
   },
   documents: {
     title: "Dokumente",
@@ -330,6 +334,10 @@ export const de = {
     grantNotFound: "Buchhaltungszugang nicht gefunden.",
     updateFailed: "Berechtigung konnte nicht aktualisiert werden.",
     updated: "Berechtigung wurde aktualisiert.",
+    moreProperties: "+{count} weitere",
+    allPropertiesFallback: "—",
+    noDownloadsYet: "Noch keine Unterlagen heruntergeladen",
+    lastDownloadedValue: "Zuletzt heruntergeladen: {date} · {time} Uhr",
   },
 } as const;
 

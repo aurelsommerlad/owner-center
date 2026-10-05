@@ -10,7 +10,7 @@ import {
 import { StatementDocumentRow } from "./StatementDocumentRow";
 import { ChevronDownIcon } from "@/components/ui/icons";
 import { formatShortDate } from "@/lib/format";
-import type { StatementDocument } from "@/types";
+import type { AccountingDocumentDownloadStatus, StatementDocument } from "@/types";
 import { getDictionary, createTranslator, type Locale } from "@/i18n";
 
 /** One category within an expanded month - a heading plus its rows, omitted entirely when empty. */
@@ -49,10 +49,20 @@ export function StatementMonthAccordion({
   group,
   locale = "de",
   defaultOpen = false,
+  accountingDownloadStatus,
 }: {
   group: StatementMonthGroupData;
   locale?: Locale;
   defaultOpen?: boolean;
+  /**
+   * Whether a currently-authorized accounting access has downloaded every
+   * core document of this month - `undefined` (renders nothing) unless the
+   * owner has at least one accounting-access grant at all; see
+   * app/[propertyId]/abrechnungen/page.tsx and lib/statementDocuments.ts#
+   * computeMonthAccountingDownloadStatus for how this is computed - never
+   * recomputed here.
+   */
+  accountingDownloadStatus?: AccountingDocumentDownloadStatus;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [receiptsOpen, setReceiptsOpen] = useState(false);
@@ -87,6 +97,15 @@ export function StatementMonthAccordion({
                   : t("statements.providedOn", { date: formatShortDate(provided.date, locale) })
               }`}
           </p>
+          {accountingDownloadStatus && (
+            <p className="mt-0.5 text-[11px] text-ink-soft/70">
+              {accountingDownloadStatus.downloaded
+                ? t("statements.accountingMonthDownloaded", {
+                    date: formatShortDate(accountingDownloadStatus.lastDownloadedAt!, locale),
+                  })
+                : t("statements.accountingMonthNotDownloaded")}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {isComplete && <span className="text-xs font-medium text-[#52664E]">{t("statements.complete")}</span>}

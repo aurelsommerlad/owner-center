@@ -5,6 +5,7 @@ import { requireEffectiveOwnerContext } from "@/server/ownerContext";
 import { canAccountingUserAccessProperty, canOwnerAccessProperty } from "@/server/permissions";
 import { googleDriveDownloadRequest } from "@/server/integrations/googleDrive/client";
 import { describeGoogleDriveError } from "@/server/integrations/googleDrive/errors";
+import { recordStatementDocumentDownload } from "@/services/statementDownloadTrackingService";
 
 /**
  * The ONLY way a document's PDF bytes ever reach a browser. No public Drive
@@ -58,19 +59,15 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 
   // An admin "Als Owner ansehen" preview downloading a document to check it
-  // must never look, to the real owner, like the owner downloaded it
-  // themselves - only a real owner download counts (mirrors the same guard
-  // on markStatementDocumentsViewed in app/[propertyId]/abrechnungen/page.tsx).
-  if (!context.isImpersonation) {
-    const now = new Date();
-    await prisma.statementDocument.update({
-      where: { id: document.id },
-      data: {
-        downloadCount: { increment: 1 },
-        firstDownloadedAt: document.firstDownloadedAt ?? now,
-        lastDownloadedAt: now,
-      },
-    });
+  // must never look, to the real owner, like the owner (or an accounting
+  // access) downloaded it themselves - only a real login's own download
+  // counts (mirrors the same guard on markStatementDocumentsViewed in
+  // app/[propertyId]/abrechnungen/page.tsx). `ownerUserId` is always set
+  // here: isImpersonation is only ever true for an admin preview (see
+  // server/ownerContext.ts), and every other context - owner or accounting
+  // role alike - carries the signed-in OwnerUser's own id.
+  if (!context.isImpersonation && context.ownerUserId) {
+    await recordStatementDocumentDownload(document.id, context.ownerUserId, document.firstDownloadedAt);
   }
 
   // RFC 6266: an ASCII-safe fallback filename plus the real one, UTF-8

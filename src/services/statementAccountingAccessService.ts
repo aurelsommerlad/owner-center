@@ -3,6 +3,8 @@ import { prisma } from "@/server/db";
 import { toDateString } from "@/server/mapDate";
 import { NO_PASSWORD_SET_HASH } from "@/server/password";
 import { createInvitationForUser, createInvitedAccountingUser } from "@/server/invitations";
+import { getPropertiesForOwner } from "@/services/propertyService";
+import { getLastAccountingDownloadAt } from "@/services/statementDownloadTrackingService";
 import type { AccountingAccessGrant, AccountingAccessStatus } from "@/types";
 import { getDictionary, createTranslator, type Locale } from "@/i18n";
 
@@ -28,21 +30,64 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-async function toGrant(ownerUser: {
-  id: string;
-  firstName: string;
-  status: string;
-  allProperties: boolean;
-  lastLoginAt: Date | null;
-  user: { email: string; passwordHash: string; invitations: { expiresAt: Date; acceptedAt: Date | null; revokedAt: Date | null }[] };
-  propertyAccess: { status: string; property: { id: string; name: string } }[];
-}): Promise<AccountingAccessGrant> {
+/**
+ * This grant's actually-resolved property ids - ALWAYS the concrete
+ * properties it resolves to, even when `allProperties` is true (then every
+ * property `ownerActivePropertyIds` lists, i.e. everything the owner
+ * currently holds). Deliberately mirrors server/permissions.ts#
+ * canAccountingUserAccessProperty's own property-level intersection
+ * (`OwnerUserPropertyAccess` ∩ the owner's active `OwnerPropertyAccess`) so
+ * the Abrechnungen page can never display a property this grant wouldn't
+ * actually be authorized to download - for an ACTIVE grant this produces
+ * exactly the same set that function would allow.
+ *
+ * Unlike that function, this does NOT also gate on the OwnerUser/Owner
+ * being "active" - an invited-but-not-yet-accepted or revoked grant still
+ * shows the properties it is/was CONFIGURED for (what the invite promised,
+ * or what used to be granted), which is what an owner managing their
+ * accounting-access list needs to see; live enforcement of "active" is a
+ * separate, unrelated concern already fully handled by
+ * canAccountingUserAccessProperty itself at download/page-access time.
+ */
+async function resolveGrantPropertyIds(
+  ownerUser: { id: string; allProperties: boolean },
+  ownerActivePropertyIds: string[]
+): Promise<string[]> {
+  if (ownerUser.allProperties) return ownerActivePropertyIds;
+
+  const grants = await prisma.ownerUserPropertyAccess.findMany({
+    where: { ownerUserId: ownerUser.id, status: "active" },
+    select: { propertyId: true },
+  });
+  const ownerActiveSet = new Set(ownerActivePropertyIds);
+  return grants.map((grant) => grant.propertyId).filter((propertyId) => ownerActiveSet.has(propertyId));
+}
+
+async function toGrant(
+  ownerUser: {
+    id: string;
+    firstName: string;
+    status: string;
+    allProperties: boolean;
+    lastLoginAt: Date | null;
+    user: { email: string; passwordHash: string; invitations: { expiresAt: Date; acceptedAt: Date | null; revokedAt: Date | null }[] };
+  },
+  ownerActivePropertyIds: string[],
+  propertyNameById: Map<string, string>
+): Promise<AccountingAccessGrant> {
   const latestInvitation = ownerUser.user.invitations[0];
   const invitationExpiresAt =
     ownerUser.status === "invited" && latestInvitation && !latestInvitation.acceptedAt && !latestInvitation.revokedAt
       ? toDateString(latestInvitation.expiresAt)
       : undefined;
-  const activeGrants = ownerUser.propertyAccess.filter((grant) => grant.status === "active");
+
+  const [propertyIds, lastDownloadAt] = await Promise.all([
+    resolveGrantPropertyIds(ownerUser, ownerActivePropertyIds),
+    getLastAccountingDownloadAt(ownerUser.id),
+  ]);
+  const propertyNames = propertyIds
+    .map((propertyId) => propertyNameById.get(propertyId))
+    .filter((name): name is string => !!name);
 
   return {
     id: ownerUser.id,
@@ -52,21 +97,26 @@ async function toGrant(ownerUser: {
     invitationExpiresAt,
     lastLoginAt: toDateString(ownerUser.lastLoginAt) ?? undefined,
     allProperties: ownerUser.allProperties,
-    propertyNames: ownerUser.allProperties ? [] : activeGrants.map((grant) => grant.property.name),
-    propertyIds: ownerUser.allProperties ? [] : activeGrants.map((grant) => grant.property.id),
+    propertyNames,
+    propertyIds,
+    lastDownloadAt,
   };
 }
 
 export async function listAccountingAccessGrants(ownerId: string): Promise<AccountingAccessGrant[]> {
-  const ownerUsers = await prisma.ownerUser.findMany({
-    where: { ownerId, role: "accounting" },
-    include: {
-      user: { include: { invitations: { orderBy: { createdAt: "desc" }, take: 1 } } },
-      propertyAccess: { include: { property: { select: { id: true, name: true } } } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
-  return Promise.all(ownerUsers.map(toGrant));
+  const [ownerUsers, ownerProperties] = await Promise.all([
+    prisma.ownerUser.findMany({
+      where: { ownerId, role: "accounting" },
+      include: {
+        user: { include: { invitations: { orderBy: { createdAt: "desc" }, take: 1 } } },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    getPropertiesForOwner(ownerId),
+  ]);
+  const ownerActivePropertyIds = ownerProperties.map((property) => property.id);
+  const propertyNameById = new Map(ownerProperties.map((property) => [property.id, property.name]));
+  return Promise.all(ownerUsers.map((ownerUser) => toGrant(ownerUser, ownerActivePropertyIds, propertyNameById)));
 }
 
 export interface AccountingInviteResult {

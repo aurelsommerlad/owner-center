@@ -60,6 +60,15 @@ export function StatementDocumentRow({
               <> · {t("statements.downloadedOn", { date: formatShortDate(document.lastDownloadedAt, locale) })}</>
             )}
           </p>
+          {document.accountingDownload && (
+            <p className="mt-0.5 text-[11px] text-ink-soft/70">
+              {document.accountingDownload.downloaded
+                ? t("statements.accountingDocumentDownloaded", {
+                    date: formatShortDate(document.accountingDownload.lastDownloadedAt!, locale),
+                  })
+                : t("statements.accountingDocumentNotDownloaded")}
+            </p>
+          )}
         </div>
       </div>
       <a

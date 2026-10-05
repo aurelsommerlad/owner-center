@@ -57,3 +57,17 @@ export function formatShortDateTime(iso: string, locale: Locale = "de"): string 
     minute: "2-digit",
   }).format(new Date(iso));
 }
+
+export function formatTime(iso: string, locale: Locale = "de"): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+}
+
+/**
+ * Splits a list into the first `maxVisible` items plus a count of the rest -
+ * for a compact "A · B · +2 weitere" display (see components/statements/
+ * AccountingAccessRow.tsx) with a tooltip naming the full list. Pure/generic
+ * on purpose: not statement- or property-specific, just list truncation.
+ */
+export function summarizeList<T>(items: T[], maxVisible: number): { visible: T[]; moreCount: number } {
+  return { visible: items.slice(0, maxVisible), moreCount: Math.max(0, items.length - maxVisible) };
+}

@@ -10,9 +10,13 @@ import { InviteLinkDisplay } from "@/components/profile/InviteLinkDisplay";
 import { TeamStatusBadge } from "@/components/profile/TeamStatusBadge";
 import { teamUserStatusBadge } from "@/components/profile/teamStatus";
 import { PropertyScopePicker } from "./PropertyScopePicker";
-import { formatShortDate } from "@/lib/format";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { formatShortDate, formatTime, summarizeList } from "@/lib/format";
 import type { AccountingAccessGrant, Property } from "@/types";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+
+/** Properties shown inline before collapsing the rest into "+N weitere". */
+const MAX_VISIBLE_PROPERTIES = 2;
 
 export function AccountingAccessRow({
   propertyId,
@@ -37,7 +41,14 @@ export function AccountingAccessRow({
   const statusBadge = teamUserStatusBadge(grant.status, grant.invitationExpiresAt, locale);
   const isActivating = grant.status === "inactive";
   const actionLabel = isActivating ? t("accountingAccess.reactivate") : t("accountingAccess.revoke");
-  const scopeLabel = grant.allProperties ? t("accountingAccess.scopeAll") : grant.propertyNames.join(", ");
+
+  // Always the real, concrete property names this grant resolves to - never
+  // a generic "alle Objekte" placeholder, even when it's stored as
+  // allProperties=true (see services/statementAccountingAccessService.ts#
+  // toGrant). Kept compact for more than MAX_VISIBLE_PROPERTIES: "A · B ·
+  // +2 weitere" with a tooltip naming the rest.
+  const { visible: visibleProperties, moreCount } = summarizeList(grant.propertyNames, MAX_VISIBLE_PROPERTIES);
+  const scopeLabel = visibleProperties.join(" · ") || t("accountingAccess.allPropertiesFallback");
 
   function flashMessage(text: string) {
     setMessage(text);
@@ -79,6 +90,21 @@ export function AccountingAccessRow({
           <p className="text-xs text-ink-soft">
             {grant.name ? `${grant.email} · ` : null}
             {scopeLabel}
+            {moreCount > 0 && (
+              <>
+                {" "}
+                · {t("accountingAccess.moreProperties", { count: moreCount })}{" "}
+                <InfoTooltip label={t("common.moreInformation")} description={grant.propertyNames.join(", ")} />
+              </>
+            )}
+          </p>
+          <p className="mt-0.5 text-xs text-ink-soft">
+            {grant.lastDownloadAt
+              ? t("accountingAccess.lastDownloadedValue", {
+                  date: formatShortDate(grant.lastDownloadAt, locale),
+                  time: formatTime(grant.lastDownloadAt, locale),
+                })
+              : t("accountingAccess.noDownloadsYet")}
           </p>
         </div>
         <div className="flex items-center gap-3">

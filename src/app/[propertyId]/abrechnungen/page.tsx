@@ -6,9 +6,14 @@ import {
   markStatementDocumentsViewed,
 } from "@/services/statementDocumentService";
 import { listAccountingAccessGrants } from "@/services/statementAccountingAccessService";
+import { getAccountingDownloadEvents } from "@/services/statementDownloadTrackingService";
 import { hadStatementDataError } from "@/services/statementDataError";
 import { today } from "@/lib/dates";
-import { groupStatementDocumentsByMonth } from "@/lib/statementDocuments";
+import {
+  computeDocumentAccountingDownloadStatus,
+  computeMonthAccountingDownloadStatus,
+  groupStatementDocumentsByMonth,
+} from "@/lib/statementDocuments";
 import { StatementYearFilter } from "@/components/statements/StatementYearFilter";
 import { StatementMonthAccordion } from "@/components/statements/StatementMonthAccordion";
 import { AccountingAccessSection } from "@/components/statements/AccountingAccessSection";
@@ -47,16 +52,47 @@ export default async function AbrechnungenPage({
   if (!context.isImpersonation) {
     await markStatementDocumentsViewed(documents.map((document) => document.id));
   }
-  const monthGroups = groupStatementDocumentsByMonth(documents);
   // "Zugang für Buchhaltung" is owner-only - a restricted accounting login
   // (ownerUserRole === "accounting") never sees or manages it, even during
   // its own visit to this very page (see components/statements/
   // AccountingAccessSection.tsx and this file's own doc comment on
-  // enforcement living in the Server Actions, not here).
+  // enforcement living in the Server Actions, not here). The "Buchhaltung:
+  // heruntergeladen"-style badges below are the same owner-only feature -
+  // they'd be meaningless noise on the accounting login's own view of its
+  // own downloads - and are additionally gated on the owner having set up
+  // at least one accounting-access grant at all, so a page with no
+  // accounting access configured never shows "noch nicht heruntergeladen"
+  // clutter for a feature nobody uses.
   const accountingAccessGrants =
     context.ownerUserRole === "owner" ? await listAccountingAccessGrants(context.ownerId) : null;
   const ownerProperties =
     context.ownerUserRole === "owner" ? await getPropertiesForOwner(context.ownerId) : [];
+  const hasAccountingGrants = !!accountingAccessGrants && accountingAccessGrants.length > 0;
+
+  // Fetched once for the whole page and handed to the two pure helpers
+  // below (lib/statementDocuments.ts) - the single place this "did
+  // accounting download X" logic is computed, never duplicated into either
+  // component that renders its result (StatementMonthAccordion,
+  // StatementDocumentRow).
+  const accountingDownloadEvents = hasAccountingGrants
+    ? await getAccountingDownloadEvents(documents.map((document) => document.id))
+    : [];
+  const documentsForDisplay = hasAccountingGrants
+    ? documents.map((document) => ({
+        ...document,
+        accountingDownload: computeDocumentAccountingDownloadStatus(document.id, accountingDownloadEvents),
+      }))
+    : documents;
+
+  const monthGroups = groupStatementDocumentsByMonth(documentsForDisplay);
+  const monthAccountingDownloadStatus = hasAccountingGrants
+    ? new Map(
+        monthGroups.map((group) => [
+          `${group.year}-${group.month}`,
+          computeMonthAccountingDownloadStatus(group, accountingDownloadEvents),
+        ])
+      )
+    : new Map();
   // At most one month starts expanded: the newest one that still has
   // unseen documents. Everything else stays collapsed.
   const defaultOpenGroup = monthGroups.find((group) => group.newCount > 0);
@@ -83,6 +119,7 @@ export default async function AbrechnungenPage({
               group={group}
               locale={locale}
               defaultOpen={group === defaultOpenGroup}
+              accountingDownloadStatus={monthAccountingDownloadStatus.get(`${group.year}-${group.month}`)}
             />
           ))}
         </div>

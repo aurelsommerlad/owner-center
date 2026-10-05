@@ -79,10 +79,20 @@ export interface AccountingAccessGrant {
   invitationExpiresAt?: string;
   lastLoginAt?: string;
   allProperties: boolean;
-  /** Display names of the granted properties - empty when `allProperties` is true. */
+  /**
+   * Display names of the properties this grant actually resolves to, ALWAYS
+   * populated with the real, concrete properties - including when
+   * `allProperties` is true (then every property the owner currently holds),
+   * never a generic "all properties" placeholder. See
+   * services/statementAccountingAccessService.ts#toGrant for how this is
+   * resolved so it can never drift from what the server-side authorization
+   * check (canAccountingUserAccessProperty) would actually allow.
+   */
   propertyNames: string[];
-  /** Ids of the granted properties - used to pre-fill the edit form; empty when `allProperties` is true. */
+  /** Ids of the same resolved properties as `propertyNames` - used to pre-fill the edit form's checkboxes. */
   propertyIds: string[];
+  /** ISO datetime of this grant's most recent statement-document download, across every property it can access - `undefined` if it has never downloaded anything. */
+  lastDownloadAt?: string;
 }
 
 export interface GeoLocation {
@@ -235,6 +245,29 @@ export interface StatementDocument {
   lastDownloadedAt: string | null;
   /** Internal-only download counter. */
   downloadCount: number;
+  /**
+   * This document's accounting-access download status - populated only on
+   * the Abrechnungen page's owner-facing view, and only once the owner has
+   * at least one accounting-access grant (see app/[propertyId]/abrechnungen/
+   * page.tsx and lib/statementDocuments.ts#computeDocumentAccountingDownloadStatus).
+   * `undefined` everywhere else (e.g. the Übersicht "Letzte Abrechnung"
+   * preview, or the accounting login's own view of this same document).
+   */
+  accountingDownload?: AccountingDocumentDownloadStatus;
+}
+
+/**
+ * Whether (and when) a statement document was downloaded by a restricted
+ * "accounting" access, independent of whether the owner has ever downloaded
+ * it themselves - see lib/statementDocuments.ts#
+ * computeDocumentAccountingDownloadStatus/computeMonthAccountingDownloadStatus,
+ * the one place this is computed from the underlying StatementDocumentDownload
+ * event log, never duplicated in a UI component.
+ */
+export interface AccountingDocumentDownloadStatus {
+  downloaded: boolean;
+  /** ISO datetime (not date-only, unlike most date fields in this file) of the relevant download. */
+  lastDownloadedAt?: string;
 }
 
 export interface MonthlyRevenuePoint {

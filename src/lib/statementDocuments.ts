@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
-import type { StatementDocument, StatementDocumentType } from "@/types";
+import type { AccountingDocumentDownloadStatus, StatementDocument, StatementDocumentType } from "@/types";
 import { monthLabel } from "@/lib/dates";
 import { getDictionary, type Locale } from "@/i18n";
 import { CreditNoteIcon, DocumentsIcon, ReceiptIcon } from "@/components/ui/icons";
@@ -156,4 +156,89 @@ export function statementMonthProvided(group: StatementMonthGroup): StatementMon
     if (!best || date > best.date) best = { date, wasUpdated };
   }
   return best;
+}
+
+/**
+ * One raw accounting-access download event, as read from the
+ * StatementDocumentDownload table (see services/
+ * statementDownloadTrackingService.ts#getAccountingDownloadEvents, the only
+ * producer) - already filtered to accounting-role downloads only, so every
+ * function below that consumes this never has to re-check `ownerUserId`'s
+ * role itself.
+ */
+export interface AccountingDownloadEvent {
+  documentId: string;
+  ownerUserId: string;
+  /** ISO datetime. */
+  downloadedAt: string;
+}
+
+/**
+ * Whether (and when) ANY restricted accounting access has downloaded this
+ * one document - independent of which access it was, and independent of
+ * whether the owner has ever downloaded it themselves (see
+ * AccountingDownloadEvent's own doc comment on why an owner's download can
+ * never appear in `events` here). Drives the per-document "✓ Buchhaltung ·
+ * {date}" line in components/statements/StatementDocumentRow.tsx.
+ */
+export function computeDocumentAccountingDownloadStatus(
+  documentId: string,
+  events: AccountingDownloadEvent[]
+): AccountingDocumentDownloadStatus {
+  let lastDownloadedAt: string | undefined;
+  for (const event of events) {
+    if (event.documentId !== documentId) continue;
+    if (!lastDownloadedAt || event.downloadedAt > lastDownloadedAt) lastDownloadedAt = event.downloadedAt;
+  }
+  return lastDownloadedAt ? { downloaded: true, lastDownloadedAt } : { downloaded: false };
+}
+
+/**
+ * Whether a month's statement is "abgeholt" by the accounting side - true
+ * exactly when ONE SINGLE currently-authorized accounting access has
+ * downloaded every one of this month's CORE documents (2x Eigentümer-
+ * reporting + >=1 Rechnung + >=1 Gutschrift, the same set
+ * statementMonthIsComplete already checks "Vollständig" against -
+ * deliberately excluding optional Belege, which must never block this
+ * status). Several different accounting accesses each downloading a
+ * different subset does NOT count - the spec asks for "ein... Accounting-
+ * User [der] alle Kerndokumente heruntergeladen hat", one person with the
+ * complete set, not the group collectively. When that set is empty (no core
+ * documents published yet), this is always `false` - `Array.every` on an
+ * empty required-id list would otherwise vacuously say "downloaded" for a
+ * month with nothing to download yet.
+ *
+ * The one place this rule is computed - components only ever render the
+ * boolean/date this returns, never recompute it themselves (see
+ * components/statements/StatementMonthAccordion.tsx).
+ */
+export function computeMonthAccountingDownloadStatus(
+  group: StatementMonthGroup,
+  events: AccountingDownloadEvent[]
+): AccountingDocumentDownloadStatus {
+  const coreDocumentIds = [...group.ownerReportDocuments, ...group.invoiceDocuments, ...group.creditNoteDocuments].map(
+    (document) => document.id
+  );
+  if (coreDocumentIds.length === 0) return { downloaded: false };
+
+  const downloadedIdsByUser = new Map<string, Set<string>>();
+  const lastDownloadAtByUser = new Map<string, string>();
+  for (const event of events) {
+    if (!coreDocumentIds.includes(event.documentId)) continue;
+    const ids = downloadedIdsByUser.get(event.ownerUserId) ?? new Set<string>();
+    ids.add(event.documentId);
+    downloadedIdsByUser.set(event.ownerUserId, ids);
+    const previousLast = lastDownloadAtByUser.get(event.ownerUserId);
+    if (!previousLast || event.downloadedAt > previousLast) lastDownloadAtByUser.set(event.ownerUserId, event.downloadedAt);
+  }
+
+  let bestCompletionAt: string | undefined;
+  for (const [ownerUserId, ids] of downloadedIdsByUser) {
+    const hasAllCoreDocuments = coreDocumentIds.every((id) => ids.has(id));
+    if (!hasAllCoreDocuments) continue;
+    const completedAt = lastDownloadAtByUser.get(ownerUserId)!;
+    if (!bestCompletionAt || completedAt > bestCompletionAt) bestCompletionAt = completedAt;
+  }
+
+  return bestCompletionAt ? { downloaded: true, lastDownloadedAt: bestCompletionAt } : { downloaded: false };
 }
